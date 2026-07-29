@@ -16,6 +16,14 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 neoForge {
     version = neo_version
 
+    runs {
+        client {
+            client()
+            if (org.gradle.internal.os.OperatingSystem.current().isMacOsX())
+                jvmArguments.add('-XstartOnFirstThread')
+        }
+    }
+
     mods {
         screenspec {
             sourceSet sourceSets.main

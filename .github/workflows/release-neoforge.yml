@@ -1,15 +1,15 @@
 name: Release neoforge-runtime
 
 on:
-  push:
-    tags:
-      - "neoforge-runtime-v*"
+  release:
+    types: [published]
 
 permissions:
   contents: write
 
 jobs:
   build-and-release:
+    if: startsWith(github.ref_name, 'neoforge-runtime-v')
     runs-on: ubuntu-latest
     defaults:
       run:

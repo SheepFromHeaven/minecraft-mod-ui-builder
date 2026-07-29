@@ -11,8 +11,8 @@ base {
     archivesName = artifact_id
 }
 
-// Mojang ships Java 21 to end users starting in 1.20.5.
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+// Mojang ships Java 25 to end users starting in 26.1.2.
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
 repositories {
     mavenLocal()

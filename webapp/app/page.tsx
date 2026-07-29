@@ -5,12 +5,12 @@ import Canvas from "@/components/Canvas";
 import PropertyPanel from "@/components/PropertyPanel";
 import Palette from "@/components/Palette";
 import Toolbar from "@/components/Toolbar";
+import WelcomeScreen from "@/components/WelcomeScreen";
 import { TextureProvider, useTextures } from "@/lib/TextureContext";
 import { applyMCPreset } from "@/lib/applyMCPreset";
 import TextureDebug from "@/components/TextureDebug";
 import type { ScreenSpec, WidgetSpec } from "@/lib/types";
 import { getWidgetDef } from "@/lib/widgetRegistry";
-import SAMPLE_SCREEN from "@/lib/sampleScreen";
 
 let idCounter = 1000;
 function newId(type: string) {
@@ -27,7 +27,7 @@ interface SavedSession {
   showGrid: boolean;
 }
 
-function loadSession(): SavedSession {
+function loadSession(): SavedSession | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -35,8 +35,10 @@ function loadSession(): SavedSession {
       if (Array.isArray(parsed.history) && parsed.history.length > 0) return parsed;
     }
   } catch { /* ignore */ }
-  return { history: [SAMPLE_SCREEN], cursor: 0, gridSize: 4, showGrid: true };
+  return null;
 }
+
+const EMPTY_SESSION: SavedSession = { history: [], cursor: 0, gridSize: 4, showGrid: true };
 
 function syncIdCounter(history: ScreenSpec[]) {
   for (const screen of history) {
@@ -58,6 +60,10 @@ export default function EditorPage() {
 function Editor() {
   const { reload, reset } = useTextures();
   const [showTextureDebug, setShowTextureDebug] = useState(false);
+  const [view, setView] = useState<"welcome" | "editor">(() => {
+    if (typeof window === "undefined") return "welcome";
+    return loadSession() !== null ? "editor" : "welcome";
+  });
 
   const handleLoadPreset = async () => {
     await applyMCPreset();
@@ -67,19 +73,28 @@ function Editor() {
   const handleResetTextures = async () => {
     await reset();
   };
+  const handleCreateProject = useCallback((modId: string, screenId: string) => {
+    const emptyScreen: ScreenSpec = { id: screenId, modId, width: 176, height: 166, widgets: [] };
+    const session = { history: [emptyScreen], cursor: 0, gridSize: 4, showGrid: true, scale: 3 };
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(session)); } catch { /* ignore */ }
+    setHistory([emptyScreen]);
+    setCursor(0);
+    setView("editor");
+  }, []);
+
   // undo/redo history — present is history[cursor]
   const [history, setHistory] = useState<ScreenSpec[]>(() => {
-    const s = loadSession();
+    const s = loadSession() ?? EMPTY_SESSION;
     syncIdCounter(s.history);
     return s.history;
   });
-  const [cursor, setCursor] = useState(() => loadSession().cursor);
+  const [cursor, setCursor] = useState(() => (loadSession() ?? EMPTY_SESSION).cursor);
   const screen = history[cursor];
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [gridSize, setGridSize] = useState(() => loadSession().gridSize);
-  const [showGrid, setShowGrid] = useState(() => loadSession().showGrid);
-  const [scale, setScale] = useState(() => (loadSession() as SavedSession & { scale?: number }).scale ?? 3);
+  const [gridSize, setGridSize] = useState(() => (loadSession() ?? EMPTY_SESSION).gridSize);
+  const [showGrid, setShowGrid] = useState(() => (loadSession() ?? EMPTY_SESSION).showGrid);
+  const [scale, setScale] = useState(() => ((loadSession() ?? EMPTY_SESSION) as SavedSession & { scale?: number }).scale ?? 3);
   const [tryMode, setTryMode] = useState(false);
   const canvasWrapperRef = useRef<HTMLElement>(null);
 
@@ -242,6 +257,10 @@ function Editor() {
     reader.readAsText(file);
     e.target.value = "";
   };
+
+  if (view === "welcome") {
+    return <WelcomeScreen onCreateProject={handleCreateProject} />;
+  }
 
   return (
     <>

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.3.1...neoforge-runtime-v0.3.2) (2026-07-29)
+
+
+### Bug Fixes
+
+* **neoforge-runtime:** migrate to moddev plugin and update APIs for MC 1.21.11 ([d46d57b](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/d46d57bfdb7ab0488bd6f2778a5611c6b4ce173d))
+
 ## [0.3.1](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.3.0...neoforge-runtime-v0.3.1) (2026-07-29)
 
 

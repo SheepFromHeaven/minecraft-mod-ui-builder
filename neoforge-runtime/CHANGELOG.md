@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.2.0...neoforge-runtime-v0.3.0) (2026-07-29)
+
+
+### Features
+
+* global mod ID — auto-qualify binding and action ids ([980bc2d](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/980bc2dbe4f6550659b7b0323431acf4c13b072d))
+
 ## [0.2.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.1.0...neoforge-runtime-v0.2.0) (2026-07-29)
 
 

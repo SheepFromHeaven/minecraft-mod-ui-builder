@@ -1,6 +1,7 @@
 package sheepfromheaven.screenspec.runtime;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -20,6 +21,8 @@ public final class WidgetSpec {
     public String action;
     public Map<String, String> bindings = Collections.emptyMap();
     public Map<String, String> props = Collections.emptyMap();
+    public List<WidgetSpec> item_template = Collections.emptyList();
+    public String parentId;
 
     public String prop(String key, String fallback) {
         String v = props.get(key);

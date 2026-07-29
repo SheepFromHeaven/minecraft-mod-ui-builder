@@ -5,6 +5,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -26,6 +27,7 @@ public final class WidgetFactories {
         register("toggle_button", WidgetFactories::toggleButton);
         register("input", WidgetFactories::input);
         register("slider", WidgetFactories::slider);
+        register("list", WidgetFactories::list);
     }
 
     private WidgetFactories() {}
@@ -80,5 +82,10 @@ public final class WidgetFactories {
         String template = w.text.isEmpty() ? "%s" : w.text;
         return new SpecSlider(w.x, w.y, w.w, w.h, min, max, step, initial, template,
             v -> screen.dispatchAction(w.id, w, v));
+    }
+
+    private static AbstractWidget list(WidgetSpec w, SpecScreen screen) {
+        return new SpecListWidget(w, screen,
+            (index, data) -> screen.dispatchAction(w.id, w, index));
     }
 }

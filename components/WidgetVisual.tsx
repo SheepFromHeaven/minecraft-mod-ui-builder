@@ -1,0 +1,211 @@
+"use client";
+
+import type { WidgetSpec } from "@/lib/types";
+import { useTextures } from "@/lib/TextureContext";
+
+const TYPE_STYLES: Record<string, { bg: string; border: string; text: string }> = {
+  panel:         { bg: "#c6c6c6", border: "#555", text: "transparent" },
+  button:        { bg: "#c6c6c6", border: "#555", text: "#000" },
+  toggle_button: { bg: "#a0c4a0", border: "#2a5", text: "#000" },
+  tab_button:    { bg: "#b0b8d0", border: "#446", text: "#000" },
+  edit_box:      { bg: "#fff",    border: "#888", text: "#333" },
+  slider:        { bg: "#c6c6c6", border: "#555", text: "#000" },
+  label:         { bg: "transparent", border: "transparent", text: "#333" },
+  icon:          { bg: "#e8e8e8", border: "#aaa", text: "#999" },
+};
+
+const fallbackStyle = { bg: "#ddd", border: "#888", text: "#000" };
+
+type InteractState = "idle" | "hovered" | "pressed";
+
+interface Props {
+  widget: WidgetSpec;
+  scale: number;
+  interactState?: InteractState;
+  toggled?: boolean;
+}
+
+export default function WidgetVisual({ widget, scale, interactState = "idle", toggled = false }: Props) {
+  const { textures } = useTextures();
+  const s = TYPE_STYLES[widget.type] ?? fallbackStyle;
+
+  // Use uploaded texture from IndexedDB if present, otherwise fall back to bundled placeholder.
+  const tex = (name: string) => textures[name as keyof typeof textures] ?? `/textures/${name}`;
+  const fontSize = Math.max(8, 7 * scale);
+
+  const commonStyle: React.CSSProperties = {
+    width: "100%",
+    height: "100%",
+    boxSizing: "border-box",
+    background: s.bg,
+    border: s.border !== "transparent" ? `${Math.max(1, scale)}px solid ${s.border}` : "none",
+    color: s.text,
+    fontSize,
+    fontFamily: '"Minecraft", monospace',
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    userSelect: "none",
+    padding: `0 ${2 * scale}px`,
+  };
+
+  if (widget.type === "panel") {
+    const style = widget.props.style ?? "default";
+    const fillColor =
+      style === "dark"        ? "rgba(0,0,0,0.5)" :
+      style === "transparent" ? "rgba(198,198,198,0.15)" :
+                                "#c6c6c6";
+    // Border is 3 MC pixels: 1px black outer + 2px bevel (white top-left, #555 bottom-right).
+    // mc_panel.png is cropped to exactly 176×166 so the slice is clean from each edge.
+    // mc_panel_slice.png is a 7×7 nine-slice sprite (3px border | 1px center | 3px border).
+    // Corners are transparent (authentic MC cut-corner look). `fill` stretches the 1×1
+    // grey center pixel across the content area, so no backgroundColor bleeds under corners.
+    const borderPx = 3 * scale;
+    return (
+      <div style={{
+        width: "100%",
+        height: "100%",
+        boxSizing: "border-box",
+        background: "transparent",
+        border: `${borderPx}px solid transparent`,
+        borderImage: `url("${tex("mc_panel_slice.png")}") 3 fill`,
+        imageRendering: "pixelated",
+      }} />
+    );
+  }
+
+  if (widget.type === "edit_box") {
+    return (
+      <div style={commonStyle}>
+        <span style={{ opacity: widget.text ? 1 : 0.4 }}>
+          {widget.text || widget.props.hint_text || "…"}
+        </span>
+        <span style={{ borderRight: `${scale}px solid #555`, height: "60%", marginLeft: 2 }} />
+      </div>
+    );
+  }
+
+  if (widget.type === "slider") {
+    const min = parseFloat(widget.props.min ?? "0");
+    const max = parseFloat(widget.props.max ?? "100");
+    const val = parseFloat(widget.props.value ?? "50");
+    const pct = max > min ? (val - min) / (max - min) : 0.5;
+
+    // Handle is 8 MC pixels wide (same as vanilla). Track fills the full widget.
+    const handleWidthPx = 8 * scale;
+    // Handle travels from left edge (pct=0) to right edge minus its own width (pct=1)
+    const handleLeft = `calc(${pct} * (100% - ${handleWidthPx}px))`;
+    const borderPx = 2 * scale;
+
+    return (
+      <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
+        {/* Track — recessed slider texture */}
+        <div style={{
+          position: "absolute", inset: 0,
+          border: `${borderPx}px solid transparent`,
+          borderImage: `url("${tex("mc_slider_track_slice.png")}") 2 fill / ${borderPx}px`,
+          imageRendering: "pixelated",
+          boxSizing: "border-box",
+        }} />
+
+        {/* Handle */}
+        <div style={{
+          position: "absolute",
+          top: 0,
+          left: handleLeft,
+          width: handleWidthPx,
+          height: "100%",
+          border: `${borderPx}px solid transparent`,
+          borderImage: `url("${tex("mc_slider_handle_slice.png")}") 2 fill / ${borderPx}px`,
+          imageRendering: "pixelated",
+          boxSizing: "border-box",
+        }} />
+
+        {/* Label centred over the track */}
+        <div style={{
+          position: "absolute", inset: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize, fontFamily: '"Minecraft", monospace',
+          color: "#fff",
+          textShadow: `${scale}px ${scale}px 0 #333`,
+          userSelect: "none",
+          pointerEvents: "none",
+        }}>
+          {widget.text.replace("%s", String(val))}
+        </div>
+      </div>
+    );
+  }
+
+  if (widget.type === "label") {
+    const align = (widget.props.align ?? "left") as React.CSSProperties["justifyContent"];
+    return (
+      <div style={{ ...commonStyle, justifyContent: align === "center" ? "center" : align === "right" ? "flex-end" : "flex-start" }}>
+        {widget.text}
+      </div>
+    );
+  }
+
+  if (widget.type === "icon") {
+    return (
+      <div style={commonStyle}>
+        {widget.icon ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={widget.icon} alt="" style={{ width: "100%", height: "100%", imageRendering: "pixelated" }} />
+        ) : (
+          <span style={{ fontSize: fontSize * 0.7 }}>icon</span>
+        )}
+      </div>
+    );
+  }
+
+  // button, toggle_button, tab_button
+  if (widget.type === "button" || widget.type === "toggle_button" || widget.type === "tab_button") {
+    const borderPx = 2 * scale;
+    const isToggle = widget.type === "toggle_button";
+
+    // Toggle "on" acts like permanently pressed: dark texture + dim overlay
+    const effectivelyPressed = interactState === "pressed" || (isToggle && toggled);
+    const btnTex = (interactState === "idle" && !effectivelyPressed) ? "mc_button_normal.png" : "mc_button_hover.png";
+
+    return (
+      <div style={{
+        width: "100%",
+        height: "100%",
+        boxSizing: "border-box",
+        border: `${borderPx}px solid transparent`,
+        borderImage: `url("${tex(btnTex)}") 2 fill / ${borderPx}px`,
+        imageRendering: "pixelated",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize,
+        fontFamily: '"Minecraft", monospace',
+        // toggled-on text goes green like Minecraft's "ON" state
+        color: isToggle && toggled ? "#55ff55" : "#fff",
+        textShadow: `${scale}px ${scale}px 0 #333`,
+        overflow: "hidden",
+        userSelect: "none",
+        gap: scale,
+        filter: effectivelyPressed ? "brightness(0.75)" : undefined,
+        transform: effectivelyPressed ? `translateY(${scale}px)` : undefined,
+      }}>
+        {widget.icon && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={widget.icon} alt="" style={{ width: fontSize, height: fontSize, imageRendering: "pixelated" }} />
+        )}
+        {widget.text}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      ...commonStyle,
+      boxShadow: `inset -${scale}px -${scale}px 0 #555, inset ${scale}px ${scale}px 0 #fff`,
+    }}>
+      {widget.text}
+    </div>
+  );
+}

@@ -54,24 +54,25 @@ export default function Toolbar({
 
       <Divider />
 
-      <label className="flex items-center gap-1 text-gray-700">
-        Screen ID:
-        <input
-          className={`${INPUT} w-28`}
-          value={screen.id}
-          onChange={(e) => onScreenChange({ id: e.target.value })}
-        />
-      </label>
-
-      <label className="flex items-center gap-1 text-gray-700">
-        Mod ID:
-        <input
-          className={`${INPUT} w-24`}
-          value={screen.modId ?? ""}
-          onChange={(e) => onScreenChange({ modId: e.target.value || undefined })}
-          placeholder="my_mod"
-        />
-      </label>
+      <div className="flex items-center gap-2">
+        <label className="flex items-center gap-1 text-gray-700">
+          Screen ID:
+          <input
+            className={`${INPUT} w-28`}
+            value={screen.id}
+            onChange={(e) => onScreenChange({ id: e.target.value })}
+          />
+        </label>
+        <label className="flex items-center gap-1 text-gray-700">
+          Mod ID:
+          <input
+            className={`${INPUT} w-24`}
+            value={screen.modId ?? ""}
+            onChange={(e) => onScreenChange({ modId: e.target.value || undefined })}
+            placeholder="my_mod"
+          />
+        </label>
+      </div>
 
       <label className="flex items-center gap-1 text-gray-700">
         W:

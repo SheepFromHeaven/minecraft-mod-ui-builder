@@ -4,9 +4,9 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -264,16 +264,16 @@ public class SpecScreen extends Screen {
      * {@link #resolveIcon} to map an icon id to your mod's texture.
      */
     protected void renderIcon(GuiGraphics guiGraphics, WidgetSpec w) {
-        ResourceLocation location = resolveIcon(w);
+        Identifier location = resolveIcon(w);
         if (location == null) {
             return;
         }
         int scale = w.propInt("scale", 1);
-        guiGraphics.blit(RenderType::guiTextured, location, w.x, w.y, 0f, 0f, w.w * scale, w.h * scale, w.w * scale, w.h * scale);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, location, w.x, w.y, 0f, 0f, w.w * scale, w.h * scale, w.w * scale, w.h * scale);
     }
 
     /** Resolves an {@code icon} widget's {@code icon} id to a texture location. Returns {@code null} (no-op) by default. */
-    protected ResourceLocation resolveIcon(WidgetSpec w) {
+    protected Identifier resolveIcon(WidgetSpec w) {
         return null;
     }
 }

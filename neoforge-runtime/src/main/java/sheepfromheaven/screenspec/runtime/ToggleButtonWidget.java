@@ -20,8 +20,9 @@ final class ToggleButtonWidget extends Button {
     }
 
     @Override
-    protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
+    protected void renderContents(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        renderDefaultSprite(guiGraphics);
+        renderDefaultLabel(guiGraphics.textRendererForWidget(this, GuiGraphics.HoveredTextEffects.NONE));
         if (selected) {
             guiGraphics.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), 0x665CD9FF);
             guiGraphics.renderOutline(getX(), getY(), getWidth(), getHeight(), 0xFF5CD9FF);

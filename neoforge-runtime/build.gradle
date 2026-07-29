@@ -1,0 +1,46 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'net.neoforged.gradle.userdev' version "${userdev_version}"
+}
+
+version = mod_version
+group = group_id
+
+base {
+    archivesName = artifact_id
+}
+
+// Mojang ships Java 21 to end users starting in 1.20.5.
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+repositories {
+    mavenLocal()
+}
+
+dependencies {
+    // Pure library: no mod entrypoint, no mixins. Consumers add this jar as a
+    // normal Gradle dependency alongside their own neoforge dependency.
+    implementation "net.neoforged:neoforge:${neo_version}"
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+java {
+    withSourcesJar()
+}
+
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            url "file://${project.projectDir}/repo"
+        }
+    }
+}

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.1.0...webapp-v0.2.0) (2026-07-29)
+
+
+### Features
+
+* **neoforge-runtime:** center screens and render panels with MC nine-slice sprite ([66c4145](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/66c4145e133688f35c54eff3df6539103f657fca))
+* **webapp:** add scroll, list, and group container widgets ([bb385dc](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/bb385dc944737bcc3adcf80fdb36f6f791574a6d))
+* **webapp:** add widget hierarchy tree with drag-and-drop and grouping ([324c936](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/324c936555143a49fc44d1533b70dc9ae7c2d92d))
+
 ## 0.1.0 (2026-07-29)
 
 

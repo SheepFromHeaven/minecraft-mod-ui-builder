@@ -1,6 +1,6 @@
 # screenspec-neoforge
 
-Runtime library for NeoForge (Minecraft 26.1.2) that turns the `ScreenSpec`
+Runtime library for NeoForge (Minecraft 1.21.5) that turns the `ScreenSpec`
 JSON exported by the MC Screen Designer web tool into a real, working
 `Screen` — no codegen, no hand-laid-out widgets.
 
@@ -82,7 +82,7 @@ WidgetFactories.register("my_custom_type", (spec, screen) -> myWidget(spec));
 - `panel` and `icon` rendering are intentionally minimal placeholders — real
   artwork is mod-specific, so you're expected to override `renderPanel` /
   `resolveIcon`.
-- Targets Minecraft 26.1.2 / NeoForge 26.1.2.92 / Java 25. Porting to another version means bumping `neo_version` and `minecraft_version` in `gradle.properties` and auditing the changed APIs (MC 26.1.2 has breaking GUI changes vs 1.21.x: `GuiGraphics`→`GuiGraphicsExtractor`, `ResourceLocation`→`Identifier`, `render()`→`extractRenderState()`, `Button` is now abstract).
+- Targets Minecraft 1.21.5 / NeoForge 21.5.98 / Java 21. Porting to another version means bumping `neo_version` and `minecraft_version` in `gradle.properties` and auditing API drift (e.g. `GuiGraphics.blit` changed signature between 1.21.1 and 1.21.5 — always verify against the actual decompiled jar via `javap`).
 
 ## Building locally
 

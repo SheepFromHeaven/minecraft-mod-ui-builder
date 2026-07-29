@@ -1,12 +1,12 @@
 package dev.screenspec.runtime;
 
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.TextAlignment;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -106,18 +106,18 @@ public abstract class SpecScreen extends Screen {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick) {
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         for (WidgetSpec w : spec.widgets) {
             if (w.type.equals("panel")) {
-                renderPanel(extractor, w);
+                renderPanel(guiGraphics, w);
             }
         }
-        super.extractRenderState(extractor, mouseX, mouseY, partialTick);
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
         for (WidgetSpec w : spec.widgets) {
             if (w.type.equals("label")) {
-                renderLabel(extractor, w);
+                renderLabel(guiGraphics, w);
             } else if (w.type.equals("icon")) {
-                renderIcon(extractor, w);
+                renderIcon(guiGraphics, w);
             }
         }
     }
@@ -126,58 +126,48 @@ public abstract class SpecScreen extends Screen {
      * Draws a {@code panel} widget's background. Override to draw your mod's
      * actual panel texture per {@code style}.
      */
-    protected void renderPanel(GuiGraphicsExtractor extractor, WidgetSpec w) {
+    protected void renderPanel(GuiGraphics guiGraphics, WidgetSpec w) {
         String style = w.prop("style", "default");
         if (style.equals("transparent")) {
             return;
         }
         int fill = style.equals("dark") ? 0xF0000000 : 0xC0101010;
-        extractor.fill(w.x, w.y, w.x + w.w, w.y + w.h, fill);
-        renderOutline(extractor, w.x, w.y, w.w, w.h, 0xFF8B8B8B);
+        guiGraphics.fill(w.x, w.y, w.x + w.w, w.y + w.h, fill);
+        guiGraphics.renderOutline(w.x, w.y, w.w, w.h, 0xFF8B8B8B);
     }
 
     /**
      * Draws a {@code label} widget's text, honoring the {@code color},
      * {@code shadow} and {@code align} props from the designer.
      */
-    protected void renderLabel(GuiGraphicsExtractor extractor, WidgetSpec w) {
+    protected void renderLabel(GuiGraphics guiGraphics, WidgetSpec w) {
         int color = w.propInt("color", 0x404040);
         boolean shadow = w.propBoolean("shadow", false);
         String align = w.prop("align", "left");
-
-        TextAlignment textAlign = switch (align) {
-            case "center" -> TextAlignment.CENTER;
-            case "right"  -> TextAlignment.RIGHT;
-            default       -> TextAlignment.LEFT;
+        int textWidth = this.font.width(w.text);
+        int x = switch (align) {
+            case "center" -> w.x + (w.w - textWidth) / 2;
+            case "right"  -> w.x + w.w - textWidth;
+            default       -> w.x;
         };
-
-        Component text = Component.literal(w.text).withStyle(s -> s.withColor(color).withBold(shadow));
-        extractor.textRenderer().accept(textAlign, w.x, w.y, text);
+        guiGraphics.drawString(this.font, w.text, x, w.y, color, shadow);
     }
 
     /**
-     * Draws an {@code icon} widget. No-op by default since icon artwork is
-     * mod-specific; override (or override {@link #resolveIcon}) to blit your
-     * mod's texture.
+     * Draws an {@code icon} widget. No-op by default; override
+     * {@link #resolveIcon} to map an icon id to your mod's texture.
      */
-    protected void renderIcon(GuiGraphicsExtractor extractor, WidgetSpec w) {
-        Identifier location = resolveIcon(w);
+    protected void renderIcon(GuiGraphics guiGraphics, WidgetSpec w) {
+        ResourceLocation location = resolveIcon(w);
         if (location == null) {
             return;
         }
         int scale = w.propInt("scale", 1);
-        extractor.blit(location, w.x, w.y, w.w * scale, w.h * scale, 0f, 0f, w.w, w.h);
+        guiGraphics.blit(RenderType::guiTextured, location, w.x, w.y, 0f, 0f, w.w * scale, w.h * scale, w.w * scale, w.h * scale);
     }
 
     /** Resolves an {@code icon} widget's {@code icon} id to a texture location. Returns {@code null} (no-op) by default. */
-    protected Identifier resolveIcon(WidgetSpec w) {
+    protected ResourceLocation resolveIcon(WidgetSpec w) {
         return null;
-    }
-
-    private static void renderOutline(GuiGraphicsExtractor extractor, int x, int y, int w, int h, int color) {
-        extractor.fill(x,         y,         x + w,     y + 1,     color);
-        extractor.fill(x,         y + h - 1, x + w,     y + h,     color);
-        extractor.fill(x,         y + 1,     x + 1,     y + h - 1, color);
-        extractor.fill(x + w - 1, y + 1,     x + w,     y + h - 1, color);
     }
 }

@@ -1,7 +1,7 @@
 package dev.screenspec.runtime;
 
 import com.google.gson.Gson;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 
@@ -36,7 +36,7 @@ public final class ScreenSpecLoader {
      * {@code ScreenSpecLoader.fromResource(manager, "mymod", "settings_screen")}.
      */
     public static ScreenSpec fromResource(ResourceManager resourceManager, String namespace, String name) {
-        Identifier location = Identifier.fromNamespaceAndPath(namespace, "screenspec/" + name + ".json");
+        ResourceLocation location = ResourceLocation.fromNamespaceAndPath(namespace, "screenspec/" + name + ".json");
         Optional<Resource> resource = resourceManager.getResource(location);
         if (resource.isEmpty()) {
             throw new IllegalArgumentException("No ScreenSpec resource at " + location);

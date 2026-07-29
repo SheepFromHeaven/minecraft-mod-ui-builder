@@ -18,6 +18,7 @@ public final class WidgetSpec {
     public String text = "";
     public String icon;
     public String action;
+    public Map<String, String> bindings = Collections.emptyMap();
     public Map<String, String> props = Collections.emptyMap();
 
     public String prop(String key, String fallback) {

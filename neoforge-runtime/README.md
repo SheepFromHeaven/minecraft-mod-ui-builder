@@ -16,11 +16,12 @@ into a real, working `Screen` — no codegen, no hand-laid-out widgets.
    - [Listener API (recommended)](#listener-api-recommended)
    - [Declarative actions in JSON](#declarative-actions-in-json)
    - [Subclass hook](#subclass-hook)
-4. [Widget reference](#widget-reference)
-5. [Widget props reference](#widget-props-reference)
-6. [Extending and customising](#extending-and-customising)
-7. [Known limitations](#known-limitations)
-8. [Building locally](#building-locally)
+4. [Data bindings — game state into widgets](#data-bindings--game-state-into-widgets)
+5. [Widget reference](#widget-reference)
+6. [Widget props reference](#widget-props-reference)
+7. [Extending and customising](#extending-and-customising)
+8. [Known limitations](#known-limitations)
+9. [Building locally](#building-locally)
 
 ---
 
@@ -171,6 +172,47 @@ public class SettingsScreen extends SpecScreen {
 ```
 
 `onAction` fires after all listeners, so both approaches work side-by-side.
+
+---
+
+## Data bindings — game state into widgets
+
+Bindings push live values from your mod into widget properties every render
+frame — no polling, no manual widget updates.
+
+### 1. Register a provider at mod init
+
+```java
+DataRegistry.register("my_mod:player_health",
+    () -> String.valueOf((int) Minecraft.getInstance().player.getHealth()));
+
+DataRegistry.register("my_mod:difficulty",
+    () -> Minecraft.getInstance().level.getDifficulty().getKey());
+```
+
+Providers are plain lambdas — they have closure access to anything in scope.
+
+### 2. Declare bindings in the designer
+
+Open the property panel for any widget and use the **Bindings** section to
+map a binding target to a provider id. The binding is stored in the exported
+JSON under `bindings`:
+
+```json
+{ "id": "health_label", "type": "label", "text": "HP",
+  "bindings": { "text": "my_mod:player_health" } }
+
+{ "id": "save_btn", "type": "button", "text": "Save",
+  "bindings": { "enabled": "my_mod:has_changes" } }
+```
+
+### Supported binding targets
+
+| Target | Applies to | Effect |
+|--------|-----------|--------|
+| `text` | `label`, `button`, `toggle_button`, `input` | Replaces displayed text each frame |
+| `enabled` | `button`, `toggle_button`, `input`, `slider` | Enables/disables widget (`"true"` / `"false"`) |
+| `visible` | all types | Shows/hides widget (`"true"` / `"false"`) |
 
 ---
 

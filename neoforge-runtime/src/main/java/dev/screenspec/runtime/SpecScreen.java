@@ -53,6 +53,8 @@ public class SpecScreen extends Screen {
     private final Map<String, List<String>> toggleGroups = new HashMap<>();
     private final Map<String, List<ActionListener>> listeners = new HashMap<>();
     private final List<ActionListener> globalListeners = new ArrayList<>();
+    // resolved bound text for decoration widgets (label/icon) — cleared each frame
+    private final Map<String, String> boundText = new HashMap<>();
 
     protected SpecScreen(Component title, ScreenSpec spec) {
         super(title);
@@ -168,6 +170,7 @@ public class SpecScreen extends Screen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        applyBindings();
         for (WidgetSpec w : spec.widgets) {
             if (w.type.equals("panel")) {
                 renderPanel(guiGraphics, w);
@@ -179,6 +182,36 @@ public class SpecScreen extends Screen {
                 renderLabel(guiGraphics, w);
             } else if (w.type.equals("icon")) {
                 renderIcon(guiGraphics, w);
+            }
+        }
+    }
+
+    private void applyBindings() {
+        boundText.clear();
+        for (WidgetSpec w : spec.widgets) {
+            if (w.bindings.isEmpty()) continue;
+            for (Map.Entry<String, String> entry : w.bindings.entrySet()) {
+                String target = entry.getKey();
+                String value = DataRegistry.resolve(entry.getValue());
+                if (value == null) continue;
+                switch (target) {
+                    case "text" -> {
+                        AbstractWidget widget = widgetsById.get(w.id);
+                        if (widget != null) {
+                            widget.setMessage(Component.literal(value));
+                        } else {
+                            boundText.put(w.id, value);
+                        }
+                    }
+                    case "enabled" -> {
+                        AbstractWidget widget = widgetsById.get(w.id);
+                        if (widget != null) widget.active = Boolean.parseBoolean(value);
+                    }
+                    case "visible" -> {
+                        AbstractWidget widget = widgetsById.get(w.id);
+                        if (widget != null) widget.visible = Boolean.parseBoolean(value);
+                    }
+                }
             }
         }
     }
@@ -205,13 +238,14 @@ public class SpecScreen extends Screen {
         int color = w.propInt("color", 0x404040);
         boolean shadow = w.propBoolean("shadow", false);
         String align = w.prop("align", "left");
-        int textWidth = this.font.width(w.text);
+        String text = boundText.getOrDefault(w.id, w.text);
+        int textWidth = this.font.width(text);
         int x = switch (align) {
             case "center" -> w.x + (w.w - textWidth) / 2;
             case "right"  -> w.x + w.w - textWidth;
             default       -> w.x;
         };
-        guiGraphics.drawString(this.font, w.text, x, w.y, color, shadow);
+        guiGraphics.drawString(this.font, text, x, w.y, color, shadow);
     }
 
     /**

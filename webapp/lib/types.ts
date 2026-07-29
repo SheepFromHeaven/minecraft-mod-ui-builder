@@ -8,6 +8,7 @@ export interface WidgetSpec {
   text: string;
   icon: string | null;
   action?: string;
+  bindings?: Record<string, string>;
   props: Record<string, string>;
 }
 

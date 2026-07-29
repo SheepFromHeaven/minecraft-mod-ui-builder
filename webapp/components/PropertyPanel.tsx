@@ -1,9 +1,20 @@
 "use client";
 
+import { useState } from "react";
 import type { WidgetSpec } from "@/lib/types";
 import { getWidgetDef } from "@/lib/widgetRegistry";
 
 const INPUT = "w-full rounded border border-gray-300 bg-white px-1.5 py-0.5 text-xs text-gray-900 focus:border-blue-400 focus:outline-none";
+
+const BINDING_TARGETS: Record<string, string[]> = {
+  button:        ["text", "enabled", "visible"],
+  toggle_button: ["text", "enabled", "visible"],
+  input:         ["text", "enabled", "visible"],
+  slider:        ["enabled", "visible"],
+  label:         ["text", "visible"],
+  icon:          ["visible"],
+  panel:         ["visible"],
+};
 
 interface Props {
   widget: WidgetSpec | null;
@@ -24,6 +35,20 @@ export default function PropertyPanel({ widget, onUpdate, onDelete }: Props) {
 
   const set = (patch: Partial<WidgetSpec>) => onUpdate({ ...widget, ...patch });
   const setProp = (key: string, value: string) => onUpdate({ ...widget, props: { ...widget.props, [key]: value } });
+
+  const bindings = widget.bindings ?? {};
+  const setBinding = (target: string, providerId: string) =>
+    onUpdate({ ...widget, bindings: { ...bindings, [target]: providerId } });
+  const removeBinding = (target: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { [target]: _removed, ...rest } = bindings;
+    onUpdate({ ...widget, bindings: Object.keys(rest).length ? rest : undefined });
+  };
+
+  const availableTargets = BINDING_TARGETS[widget.type] ?? [];
+  const unusedTargets = availableTargets.filter((t) => !(t in bindings));
+
+  const [newTarget, setNewTarget] = useState(unusedTargets[0] ?? "");
 
   return (
     <div className="flex flex-col gap-1 p-2 text-xs overflow-y-auto">
@@ -80,6 +105,56 @@ export default function PropertyPanel({ widget, onUpdate, onDelete }: Props) {
               )}
             </Field>
           ))}
+        </>
+      )}
+
+      <Field label="Action ID">
+        <input
+          className={INPUT}
+          value={widget.action ?? ""}
+          onChange={(e) => set({ action: e.target.value || undefined })}
+          placeholder="e.g. close, my_mod:save"
+        />
+      </Field>
+
+      {availableTargets.length > 0 && (
+        <>
+          <div className="font-semibold text-gray-500 mt-1">Bindings</div>
+          {Object.entries(bindings).map(([target, providerId]) => (
+            <div key={target} className="flex gap-1 items-center">
+              <span className="w-16 shrink-0 text-gray-500 truncate">{target}</span>
+              <input
+                className={INPUT}
+                value={providerId}
+                onChange={(e) => setBinding(target, e.target.value)}
+                placeholder="provider id"
+              />
+              <button
+                className="shrink-0 text-gray-400 hover:text-red-500 px-1"
+                onClick={() => removeBinding(target)}
+              >✕</button>
+            </div>
+          ))}
+          {unusedTargets.length > 0 && (
+            <div className="flex gap-1 items-center">
+              <select
+                className={`${INPUT} w-16 shrink-0`}
+                value={newTarget}
+                onChange={(e) => setNewTarget(e.target.value)}
+              >
+                {unusedTargets.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <button
+                className="shrink-0 rounded bg-gray-200 hover:bg-gray-300 px-2 py-0.5 text-xs"
+                onClick={() => {
+                  if (newTarget) {
+                    setBinding(newTarget, "");
+                    setNewTarget(unusedTargets.filter((t) => t !== newTarget)[0] ?? "");
+                  }
+                }}
+              >+ bind</button>
+            </div>
+          )}
         </>
       )}
 

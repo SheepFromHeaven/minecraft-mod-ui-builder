@@ -49,30 +49,17 @@ ScreenSpec spec = ScreenSpecLoader.fromResource(
     "your_modid",       // your mod's namespace
     "settings_screen"); // filename without .json
 
-Minecraft.getInstance().setScreen(new MySettingsScreen(spec));
-```
-
-### 4. Extend SpecScreen
-
-```java
-public class MySettingsScreen extends SpecScreen {
-    public MySettingsScreen(ScreenSpec spec) {
-        super(Component.literal("My Settings"), spec);
-    }
-
-    @Override
-    protected void onAction(String widgetId, WidgetSpec spec, Object value) {
-        switch (widgetId) {
-            case "save_button"     -> save();                        // buttons: value is null
-            case "volume_slider"   -> setVolume((Double) value);     // sliders: Double
-            case "name_input"      -> setName((String) value);       // inputs: String
-            case "hardcore_toggle" -> setHardcore((Boolean) value);  // toggles: Boolean
-        }
-    }
-}
+SpecScreen screen = new SpecScreen(Component.literal("Settings"), spec);
+screen
+    .on("save_button",     (id, s, v) -> save())
+    .on("volume_slider",   (id, s, v) -> setVolume((Double) v))
+    .on("name_input",      (id, s, v) -> setName((String) v))
+    .on("hardcore_toggle", (id, s, v) -> setHardcore((Boolean) v));
+Minecraft.getInstance().setScreen(screen);
 ```
 
 Widget ids are exactly what you named them in the designer.
+A subclass / `onAction` override is also supported for class-per-screen style — see the [full docs](neoforge-runtime/README.md).
 
 ### Widget reference
 

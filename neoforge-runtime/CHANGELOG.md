@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.1.0...neoforge-runtime-v0.2.0) (2026-07-29)
+
+
+### Features
+
+* data bindings — push game state into widget properties ([#5](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/issues/5)) ([2dd2ed9](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/2dd2ed9ed80ab1f989cf9943db27be82dd8f22dc))
+* **neoforge-runtime:** action listener API on SpecScreen ([#4](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/issues/4)) ([ad5fbf1](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/ad5fbf1c0340ebdfd180d077b84401de204548ec))
+
 ## 0.1.0 (2026-07-29)
 
 

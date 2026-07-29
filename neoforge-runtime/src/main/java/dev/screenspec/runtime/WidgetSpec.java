@@ -17,6 +17,7 @@ public final class WidgetSpec {
     public int h;
     public String text = "";
     public String icon;
+    public String action;
     public Map<String, String> props = Collections.emptyMap();
 
     public String prop(String key, String fallback) {

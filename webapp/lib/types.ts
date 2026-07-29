@@ -7,6 +7,7 @@ export interface WidgetSpec {
   h: number;
   text: string;
   icon: string | null;
+  action?: string;
   props: Record<string, string>;
 }
 

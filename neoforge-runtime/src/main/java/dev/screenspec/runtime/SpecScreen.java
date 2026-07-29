@@ -13,12 +13,28 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Builds a real Minecraft {@link Screen} from a {@link ScreenSpec} exported by
- * the MC Screen Designer web tool. Subclass it and override {@link #onAction}
- * to wire up behavior; look widgets up by the id assigned in the designer via
- * {@link #getWidget}.
+ * the MC Screen Designer web tool.
+ *
+ * <p>Use the listener API to wire up behavior without subclassing:
+ * <pre>{@code
+ * SpecScreen screen = new SpecScreen(Component.literal("Options"), spec);
+ * screen.on("save_btn",    (id, s, v) -> save());
+ * screen.on("volume",      (id, s, v) -> setVolume((Double) v));
+ * screen.on("close_btn",   (id, s, v) -> onClose());
+ * Minecraft.getInstance().setScreen(screen);
+ * }</pre>
+ *
+ * <p>{@code on(key)} matches both widget ids and declared {@code action} ids, so
+ * a button with {@code "action": "my_mod:save"} in the JSON is caught by
+ * {@code screen.on("my_mod:save", ...)} as well as by
+ * {@code screen.on("save_btn", ...)}. The built-in action {@code "close"} closes
+ * the screen automatically — no listener needed.
+ *
+ * <p>Subclassing is also supported; override {@link #onAction} instead:
  * <pre>{@code
  * public class MyOptionsScreen extends SpecScreen {
  *     public MyOptionsScreen(ScreenSpec spec) {
@@ -26,17 +42,17 @@ import java.util.Map;
  *     }
  *
  *     protected void onAction(String widgetId, WidgetSpec spec, Object value) {
- *         if (widgetId.equals("save_button")) {
- *             // ...
- *         }
+ *         if (widgetId.equals("save_button")) save();
  *     }
  * }
  * }</pre>
  */
-public abstract class SpecScreen extends Screen {
+public class SpecScreen extends Screen {
     private final ScreenSpec spec;
     private final Map<String, AbstractWidget> widgetsById = new LinkedHashMap<>();
     private final Map<String, List<String>> toggleGroups = new HashMap<>();
+    private final Map<String, List<ActionListener>> listeners = new HashMap<>();
+    private final List<ActionListener> globalListeners = new ArrayList<>();
 
     protected SpecScreen(Component title, ScreenSpec spec) {
         super(title);
@@ -57,10 +73,30 @@ public abstract class SpecScreen extends Screen {
     }
 
     /**
+     * Registers a listener for a specific widget id or action id.
+     * When a widget fires, listeners are looked up by both the widget's {@code id}
+     * and its {@code action} field (if set), so a single key can match either.
+     *
+     * @param key widget id (e.g. {@code "save_btn"}) or action id (e.g. {@code "my_mod:save"})
+     */
+    public SpecScreen on(String key, ActionListener listener) {
+        listeners.computeIfAbsent(Objects.requireNonNull(key), k -> new ArrayList<>()).add(listener);
+        return this;
+    }
+
+    /**
+     * Registers a listener that fires for every widget action on this screen.
+     */
+    public SpecScreen onAny(ActionListener listener) {
+        globalListeners.add(listener);
+        return this;
+    }
+
+    /**
      * Called whenever a widget produces a value: a button press ({@code
      * value} is {@code null}), a toggle button's new selected state ({@code
      * Boolean}), a slider's new value ({@code Double}), or an input box's new
-     * text ({@code String}). Override to wire up behavior.
+     * text ({@code String}). Override in subclasses to wire up behavior.
      */
     protected void onAction(String widgetId, WidgetSpec spec, Object value) {
     }
@@ -70,6 +106,31 @@ public abstract class SpecScreen extends Screen {
     }
 
     void dispatchAction(String widgetId, WidgetSpec widgetSpec, Object value) {
+        // built-in actions
+        String action = widgetSpec.action;
+        if ("close".equals(action)) {
+            onClose();
+            return;
+        }
+
+        // listeners keyed on the declared action id
+        if (action != null && !action.isEmpty()) {
+            List<ActionListener> byAction = listeners.get(action);
+            if (byAction != null) {
+                for (ActionListener l : byAction) l.on(widgetId, widgetSpec, value);
+            }
+        }
+
+        // listeners keyed on the widget id
+        List<ActionListener> byId = listeners.get(widgetId);
+        if (byId != null) {
+            for (ActionListener l : byId) l.on(widgetId, widgetSpec, value);
+        }
+
+        // global listeners
+        for (ActionListener l : globalListeners) l.on(widgetId, widgetSpec, value);
+
+        // subclass hook
         onAction(widgetId, widgetSpec, value);
     }
 

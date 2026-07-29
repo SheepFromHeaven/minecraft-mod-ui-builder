@@ -4,11 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to build and attach jars to (e.g. neoforge-runtime-v0.3.0)"
+        description: "Tag to build and publish (e.g. neoforge-runtime-v0.3.0)"
         required: true
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   release-neoforge:
@@ -34,8 +35,31 @@ jobs:
         env:
           TAG: ${{ github.event.inputs.tag }}
 
+      - name: Fetch release notes
+        id: notes
+        run: |
+          body=$(gh release view "$TAG" --json body --jq .body)
+          echo "body<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$body" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+        env:
+          TAG: ${{ github.event.inputs.tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build
         run: ./gradlew build -Pmod_version=${{ steps.version.outputs.version }}
+
+      - name: Publish to Modrinth
+        run: ./gradlew modrinth -Pmod_version=${{ steps.version.outputs.version }}
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          RELEASE_NOTES: ${{ steps.notes.outputs.body }}
+
+      - name: Publish to GitHub Packages
+        run: ./gradlew publishAllPublicationsToGitHubPackagesRepository -Pmod_version=${{ steps.version.outputs.version }}
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Attach jars to GitHub release
         uses: softprops/action-gh-release@v2

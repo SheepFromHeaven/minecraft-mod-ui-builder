@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.5.0...neoforge-runtime-v0.6.0) (2026-07-29)
+
+
+### Features
+
+* **neoforge-runtime:** implement list widget ([baed416](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/baed4165b40d58ec31db87a5eb0e9ebaedb805ed))
+
 ## [0.5.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.4.0...neoforge-runtime-v0.5.0) (2026-07-29)
 
 

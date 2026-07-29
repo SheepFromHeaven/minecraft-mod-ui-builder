@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.4.0...neoforge-runtime-v0.5.0) (2026-07-29)
+
+
+### Features
+
+* **neoforge-runtime:** center screens and render panels with MC nine-slice sprite ([66c4145](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/66c4145e133688f35c54eff3df6539103f657fca))
+* **neoforge-runtime:** rewrite test screen to load from JSON resource ([b0e5a8c](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/b0e5a8c5098e871955123b92a5f8a035afc3cc98))
+
 ## [0.4.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.3.2...neoforge-runtime-v0.4.0) (2026-07-29)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.3.2...neoforge-runtime-v0.4.0) (2026-07-29)
+
+
+### Features
+
+* **neoforge-runtime:** add mod identity and runClient test setup ([42866c6](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/42866c6964cda2de0b13f07f1e7063b7360eef94))
+
 ## [0.3.2](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.3.1...neoforge-runtime-v0.3.2) (2026-07-29)
 
 

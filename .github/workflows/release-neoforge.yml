@@ -1,21 +1,25 @@
-name: Release neoforge-runtime
+name: Release neoforge-runtime (manual)
 
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build and attach jars to (e.g. neoforge-runtime-v0.3.0)"
+        required: true
 
 permissions:
   contents: write
 
 jobs:
-  build-and-release:
-    if: startsWith(github.ref_name, 'neoforge-runtime-v')
+  release-neoforge:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: neoforge-runtime
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag }}
 
       - uses: actions/setup-java@v4
         with:
@@ -26,7 +30,9 @@ jobs:
 
       - name: Extract version from tag
         id: version
-        run: echo "version=${GITHUB_REF_NAME#neoforge-runtime-v}" >> "$GITHUB_OUTPUT"
+        run: echo "version=${TAG#neoforge-runtime-v}" >> "$GITHUB_OUTPUT"
+        env:
+          TAG: ${{ github.event.inputs.tag }}
 
       - name: Build
         run: ./gradlew build -Pmod_version=${{ steps.version.outputs.version }}
@@ -34,6 +40,6 @@ jobs:
       - name: Attach jars to GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ github.event.inputs.tag }}
           files: |
             neoforge-runtime/build/libs/*.jar

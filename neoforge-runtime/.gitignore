@@ -5,3 +5,5 @@ runs/
 logs/
 repo/
 *.class
+# extracted decompiled MC sources (javap inspection artifacts)
+net/

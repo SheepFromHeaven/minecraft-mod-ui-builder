@@ -10,6 +10,8 @@ export interface WidgetSpec {
   action?: string;
   bindings?: Record<string, string>;
   props: Record<string, string>;
+  item_template?: WidgetSpec[];
+  parentId?: string;
 }
 
 export interface ScreenSpec {

@@ -4,6 +4,8 @@ import type { WidgetSpec } from "@/lib/types";
 import { useTextures } from "@/lib/TextureContext";
 
 const TYPE_STYLES: Record<string, { bg: string; border: string; text: string }> = {
+  list:          { bg: "#000",    border: "#888", text: "#fff" },
+  scroll:        { bg: "#0a0a0a", border: "#666", text: "transparent" },
   panel:         { bg: "#c6c6c6", border: "#555", text: "transparent" },
   button:        { bg: "#c6c6c6", border: "#555", text: "#000" },
   toggle_button: { bg: "#a0c4a0", border: "#2a5", text: "#000" },
@@ -48,6 +50,17 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
     userSelect: "none",
     padding: `0 ${2 * scale}px`,
   };
+
+  if (widget.type === "group") {
+    return (
+      <div style={{
+        width: "100%", height: "100%",
+        border: `${Math.max(1, scale)}px dashed rgba(120,120,255,0.4)`,
+        borderRadius: 2,
+        boxSizing: "border-box",
+      }} />
+    );
+  }
 
   if (widget.type === "panel") {
     const style = widget.props.style ?? "default";
@@ -147,6 +160,68 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
         }}>
           {widget.text.replace("%s", String(val))}
         </div>
+      </div>
+    );
+  }
+
+  if (widget.type === "scroll") {
+    const scrollbarW = 3 * scale;
+    return (
+      <div style={{ ...commonStyle, padding: 0, position: "relative" }}>
+        {/* Scrollbar track */}
+        <div style={{
+          position: "absolute", right: 0, top: 0, bottom: 0, width: scrollbarW,
+          background: "#1a1a1a", borderLeft: `1px solid #444`,
+        }}>
+          <div style={{
+            position: "absolute", top: "15%", width: "100%", height: "25%",
+            background: "#555", borderRadius: 1,
+          }} />
+        </div>
+      </div>
+    );
+  }
+
+  if (widget.type === "list") {
+    const itemHeight = parseInt(widget.props.item_height ?? "20", 10) * scale;
+    const visibleRows = Math.max(1, Math.floor((widget.h * scale) / itemHeight));
+    const template = widget.item_template ?? [];
+    return (
+      <div style={{ ...commonStyle, flexDirection: "column", justifyContent: "flex-start", alignItems: "stretch", padding: 0, overflow: "hidden" }}>
+        {Array.from({ length: visibleRows }).map((_, i) => (
+          <div key={i} style={{
+            height: itemHeight,
+            minHeight: itemHeight,
+            borderBottom: `1px solid #333`,
+            display: "flex",
+            alignItems: "center",
+            position: "relative",
+            background: i === 0 ? "rgba(255,255,255,0.15)" : "transparent",
+            flexShrink: 0,
+          }}>
+            {template.map((t) => (
+              <div key={t.id} style={{
+                position: "absolute",
+                left: t.x * scale,
+                top: t.y * scale,
+                width: t.w * scale,
+                height: t.h * scale,
+                display: "flex",
+                alignItems: "center",
+                fontSize: Math.max(6, 7 * scale),
+                fontFamily: '"Minecraft", monospace',
+                color: "#aaa",
+                overflow: "hidden",
+              }}>
+                {t.type === "icon" ? (
+                  <div style={{ width: "100%", height: "100%", background: "#222", border: "1px solid #555" }} />
+                ) : (
+                  <span style={{ whiteSpace: "nowrap", overflow: "hidden" }}>{t.text || t.id}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
     );
   }

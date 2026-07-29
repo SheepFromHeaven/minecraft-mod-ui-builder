@@ -13,6 +13,7 @@ export interface PropField {
 export interface WidgetDef {
   type: string;
   label: string;
+  isContainer?: boolean;
   defaultWidget: Omit<WidgetSpec, "id">;
   // schema for the `props` record — fields beyond text/icon
   propSchema: PropField[];
@@ -20,12 +21,27 @@ export interface WidgetDef {
 
 const WIDGET_REGISTRY: WidgetDef[] = [
   {
+    type: "group",
+    label: "Group",
+    isContainer: true,
+    defaultWidget: { type: "group", x: 0, y: 0, w: 80, h: 40, text: "", icon: null, props: {} },
+    propSchema: [],
+  },
+  {
     type: "panel",
     label: "Panel",
+    isContainer: true,
     defaultWidget: { type: "panel", x: 8, y: 8, w: 176, h: 166, text: "", icon: null, props: { style: "default" } },
     propSchema: [
       { key: "style", label: "Style", type: "select", options: ["default", "dark", "transparent"], defaultValue: "default" },
     ],
+  },
+  {
+    type: "scroll",
+    label: "Scroll Area",
+    isContainer: true,
+    defaultWidget: { type: "scroll", x: 8, y: 8, w: 160, h: 120, text: "", icon: null, props: {} },
+    propSchema: [],
   },
   {
     type: "button",
@@ -77,6 +93,23 @@ const WIDGET_REGISTRY: WidgetDef[] = [
     defaultWidget: { type: "icon", x: 8, y: 8, w: 16, h: 16, text: "", icon: null, props: { scale: "1" } },
     propSchema: [
       { key: "scale", label: "Scale", type: "number", defaultValue: "1" },
+    ],
+  },
+  {
+    type: "list",
+    label: "List",
+    defaultWidget: {
+      type: "list",
+      x: 8, y: 8, w: 160, h: 120,
+      text: "", icon: null,
+      props: { item_height: "20" },
+      item_template: [
+        { id: "icon",  type: "icon",  x: 2,  y: 2,  w: 16, h: 16, text: "", icon: null, props: {} },
+        { id: "label", type: "label", x: 22, y: 6,  w: 120, h: 12, text: "", icon: null, props: {} },
+      ],
+    },
+    propSchema: [
+      { key: "item_height", label: "Item Height (px)", type: "number", defaultValue: "20" },
     ],
   },
 ];

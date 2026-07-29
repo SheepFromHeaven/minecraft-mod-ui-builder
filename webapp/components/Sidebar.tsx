@@ -17,26 +17,34 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import WIDGET_REGISTRY from "@/lib/widgetRegistry";
-import type { ScreenSpec } from "@/lib/types";
+import LayersTree from "@/components/LayersTree";
+import type { ScreenSpec, WidgetSpec } from "@/lib/types";
 
 interface Props {
   screens: ScreenSpec[];
   activeIdx: number;
   modId?: string;
+  widgets: WidgetSpec[];
+  selectedId: string | null;
   onGoHome: () => void;
   onSelectScreen: (idx: number) => void;
   onAddScreen: () => void;
   onRemoveScreen: (idx: number) => void;
   onRenameScreen: (idx: number, name: string) => void;
-  onAddWidget: (type: string) => void;
+  onAddWidget: (type: string, parentId?: string) => void;
+  onSelectWidget: (id: string) => void;
+  onDeleteWidget: (id: string) => void;
+  onReparentWidget: (id: string, newParentId: string | null) => void;
+  onReorderWidget: (draggedId: string, overId: string, placement: "before" | "after" | "inside") => void;
 }
 
 export default function AppSidebar({
-  screens, activeIdx, modId, onGoHome, onSelectScreen, onAddScreen, onRemoveScreen, onRenameScreen, onAddWidget,
+  screens, activeIdx, modId, widgets, selectedId,
+  onGoHome, onSelectScreen, onAddScreen, onRemoveScreen, onRenameScreen,
+  onAddWidget, onSelectWidget, onDeleteWidget, onReparentWidget, onReorderWidget,
 }: Props) {
   const [screensOpen, setScreensOpen] = useState(true);
-  const [widgetsOpen, setWidgetsOpen] = useState(true);
+  const [layersOpen, setLayersOpen] = useState(true);
   const [renamingIdx, setRenamingIdx] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const renameRef = useRef<HTMLInputElement>(null);
@@ -143,30 +151,28 @@ export default function AppSidebar({
 
         <SidebarSeparator />
 
-        {/* ── Widgets ────────────────────────────────────────── */}
+        {/* ── Layers ─────────────────────────────────────────── */}
         <SidebarGroup>
           <SidebarGroupLabel
             className="cursor-pointer select-none"
-            onClick={() => setWidgetsOpen(v => !v)}
+            onClick={() => setLayersOpen(v => !v)}
           >
-            {widgetsOpen
+            {layersOpen
               ? <ChevronDown className="mr-1 h-3.5 w-3.5" />
               : <ChevronRight className="mr-1 h-3.5 w-3.5" />}
-            Widgets
+            Layers
           </SidebarGroupLabel>
 
-          {widgetsOpen && (
+          {layersOpen && (
             <SidebarGroupContent>
-              <SidebarMenu>
-                {WIDGET_REGISTRY.map(def => (
-                  <SidebarMenuItem key={def.type}>
-                    <SidebarMenuButton onClick={() => onAddWidget(def.type)}>
-                      <Plus className="shrink-0" />
-                      <span>{def.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
+              <LayersTree
+                widgets={widgets}
+                selectedId={selectedId}
+                onSelect={onSelectWidget}
+                onAdd={onAddWidget}
+                onDelete={onDeleteWidget}
+                onReorder={onReorderWidget}
+              />
             </SidebarGroupContent>
           )}
         </SidebarGroup>

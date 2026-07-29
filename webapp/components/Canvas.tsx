@@ -5,9 +5,14 @@ import React from "react";
 import { Rnd } from "react-rnd";
 import type { WidgetSpec } from "@/lib/types";
 import WidgetVisual from "./WidgetVisual";
+import WIDGET_REGISTRY from "@/lib/widgetRegistry";
 
 const WORLD_IMAGE_URL =
   "https://res.cloudinary.com/ddbybfkod/image/upload/v1710808247/blogs/Roman/tips-for-starting-a-new-world-in-minecraft/img1_usdnlh.jpg";
+
+const CONTAINER_TYPES = new Set(
+  WIDGET_REGISTRY.filter(d => d.isContainer).map(d => d.type),
+);
 
 interface Props {
   width: number;
@@ -30,6 +35,102 @@ export default function Canvas({
   const snapPx = gridSize * scale;
   const gridDataUrl = showGrid && !tryMode ? buildGridDataUrl(snapPx) : undefined;
 
+  const childMap = buildChildMap(widgets);
+  const rootWidgets = widgets.filter(w => !w.parentId);
+
+  // Tracks the live in-progress drag position of a single widget so its own
+  // Rnd, and any ancestor group auto-sizing to wrap it, update in real time
+  // before the drag commits.
+  const [draggingPos, setDraggingPos] = useState<{ id: string; x: number; y: number } | null>(null);
+
+  const getWidget = (id: string) => widgets.find(w => w.id === id);
+
+  const resolveChain = (id: string): string[] => {
+    const chain: string[] = [];
+    let cur: string | undefined = id;
+    while (cur) {
+      chain.unshift(cur);
+      cur = getWidget(cur)?.parentId;
+    }
+    return chain;
+  };
+
+  // Plain click: drill one level deeper into the ancestor chain each click
+  // (a static click on nested widgets is inherently ambiguous about which
+  // level the user means, so successive clicks refine the target).
+  const handleClickWidget = (clickedId: string) => {
+    const chain = resolveChain(clickedId);
+    const idx = selectedId !== null ? chain.indexOf(selectedId) : -1;
+    onSelect(idx >= 0 && idx < chain.length - 1 ? chain[idx + 1] : chain[0]);
+  };
+
+  // Drag target resolution is deliberately different from click's drill-down:
+  // an actual drag gesture should move whatever is CURRENTLY selected if it's
+  // an ancestor (or itself) of the clicked widget, otherwise the outermost
+  // root container — never drilling deeper than the existing selection.
+  // E.g. dragging an unselected button moves its root panel; dragging that
+  // same button while its containing group is selected moves the group.
+  const resolveDragTargetId = (clickedId: string): string => {
+    const chain = resolveChain(clickedId);
+    return selectedId !== null && chain.includes(selectedId) ? selectedId : chain[0];
+  };
+
+  // All dragging is driven from a single listener here rather than from each
+  // widget's own <Rnd>, because letting every nested Rnd manage its own drag
+  // makes it impossible to redirect movement to an ancestor: react-draggable
+  // doesn't stop propagation on its own (multiple ancestors would all start
+  // dragging at once), and even after preventing that, a child's own Rnd has
+  // no way to move a *different* (ancestor) widget instead of itself. Rnd's
+  // built-in dragging is disabled everywhere (see EditWidget); this handler
+  // is the sole source of drag movement, keyed to the resolved target only.
+  const handleCanvasMouseDown = (e: React.MouseEvent) => {
+    if (tryMode) return;
+    const el = (e.target as HTMLElement).closest("[data-widget-id]");
+    if (!el) { onSelect(null); return; }
+    const clickedId = el.getAttribute("data-widget-id")!;
+
+    // Selection depends on whether this gesture turns out to be a plain
+    // click or an actual drag — decided once, below, never both, to avoid
+    // flashing one selection before the other overrides it.
+    const targetId = resolveDragTargetId(clickedId);
+    const target = getWidget(targetId);
+    if (!target) return;
+
+    const startClientX = e.clientX;
+    const startClientY = e.clientY;
+    const origX = target.x;
+    const origY = target.y;
+    let moved = false;
+
+    const onMove = (ev: MouseEvent) => {
+      const dx = Math.round((ev.clientX - startClientX) / scale);
+      const dy = Math.round((ev.clientY - startClientY) / scale);
+      if (dx === 0 && dy === 0) return;
+      if (!moved) {
+        moved = true;
+        // An actual drag unambiguously identifies its target.
+        onSelect(targetId);
+      }
+      setDraggingPos({ id: targetId, x: Math.max(0, origX + dx), y: Math.max(0, origY + dy) });
+    };
+    const onUp = (ev: MouseEvent) => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      if (moved) {
+        const dx = Math.round((ev.clientX - startClientX) / scale);
+        const dy = Math.round((ev.clientY - startClientY) / scale);
+        onUpdateWidget({ ...target, x: Math.max(0, origX + dx), y: Math.max(0, origY + dy) });
+      } else {
+        // No movement occurred — this was a plain click, so apply the
+        // ambiguous-click drill-down instead of the drag-target resolution.
+        handleClickWidget(clickedId);
+      }
+      setDraggingPos(null);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
   return (
     <div
       style={{
@@ -43,9 +144,7 @@ export default function Canvas({
         boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
         cursor: tryMode ? "default" : undefined,
       }}
-      onClick={(e) => {
-        if (!tryMode && e.target === e.currentTarget) onSelect(null);
-      }}
+      onMouseDown={handleCanvasMouseDown}
     >
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.48)", pointerEvents: "none", zIndex: 0 }} />
 
@@ -58,62 +157,130 @@ export default function Canvas({
         }} />
       )}
 
-      {widgets.map((widget) =>
+      {rootWidgets.map((widget, idx) =>
         tryMode
-          ? <TryWidget key={widget.id} widget={widget} scale={scale} />
-          : <EditWidget key={widget.id} widget={widget} scale={scale} selectedId={selectedId} snapPx={snapPx} onSelect={onSelect} onUpdateWidget={onUpdateWidget} />
+          ? <TryWidget key={widget.id} widget={widget} scale={scale} childMap={childMap} zBase={idx + 2} />
+          : (
+            <EditWidget
+              key={widget.id}
+              widget={widget}
+              scale={scale}
+              selectedId={selectedId}
+              snapPx={snapPx}
+              draggingPos={draggingPos}
+              onResizeCommit={onUpdateWidget}
+              childMap={childMap}
+              zBase={idx + 2}
+            />
+          )
       )}
     </div>
   );
 }
 
+function buildChildMap(widgets: WidgetSpec[]): Map<string, WidgetSpec[]> {
+  const map = new Map<string, WidgetSpec[]>();
+  for (const w of widgets) {
+    if (w.parentId) {
+      const arr = map.get(w.parentId) ?? [];
+      arr.push(w);
+      map.set(w.parentId, arr);
+    }
+  }
+  return map;
+}
+
 // ── Edit mode widget ──────────────────────────────────────────────────────────
 
-function EditWidget({ widget, scale, selectedId, snapPx, onSelect, onUpdateWidget }: {
+function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCommit, childMap, zBase }: {
   widget: WidgetSpec;
   scale: number;
   selectedId: string | null;
   snapPx: number;
-  onSelect: (id: string | null) => void;
-  onUpdateWidget: (widget: WidgetSpec) => void;
+  draggingPos: { id: string; x: number; y: number } | null;
+  onResizeCommit: (widget: WidgetSpec) => void;
+  childMap: Map<string, WidgetSpec[]>;
+  zBase: number;
 }) {
   const isSelected = widget.id === selectedId;
+  const isContainer = CONTAINER_TYPES.has(widget.type);
+  const children = isContainer ? (childMap.get(widget.id) ?? []) : [];
+  const clips = widget.type === "scroll";
+  const isGroup = widget.type === "group";
+
+  // Live drag position substitution: this widget itself may be the current
+  // drag target (position moves live before the drag commits)...
+  const liveX = draggingPos?.id === widget.id ? draggingPos.x : widget.x;
+  const liveY = draggingPos?.id === widget.id ? draggingPos.y : widget.y;
+
+  // ...or, for groups, one of its children may be, which changes auto-size.
+  const renderW = isGroup && children.length > 0
+    ? Math.max(...children.map(c => (draggingPos?.id === c.id ? draggingPos.x : c.x) + c.w))
+    : widget.w;
+  const renderH = isGroup && children.length > 0
+    ? Math.max(...children.map(c => (draggingPos?.id === c.id ? draggingPos.y : c.y) + c.h))
+    : widget.h;
+
   return (
     <Rnd
-      position={{ x: widget.x * scale, y: widget.y * scale }}
-      size={{ width: widget.w * scale, height: widget.h * scale }}
-      dragGrid={[snapPx, snapPx]}
+      position={{ x: liveX * scale, y: liveY * scale }}
+      size={{ width: renderW * scale, height: renderH * scale }}
       resizeGrid={[snapPx, snapPx]}
-      bounds="parent"
-      onMouseDown={(e: MouseEvent) => { e.stopPropagation(); onSelect(widget.id); }}
-      onDragStop={(_e, d) => {
-        onUpdateWidget({ ...widget, x: Math.max(0, Math.round(d.x / scale)), y: Math.max(0, Math.round(d.y / scale)) });
-      }}
+      // All dragging is handled centrally by Canvas's own mousedown listener
+      // (see handleCanvasMouseDown) — it can redirect movement to an
+      // ancestor widget, which react-rnd's own per-node dragging cannot do.
+      disableDragging
+      data-widget-id={widget.id}
       onResizeStop={(_e, _dir, ref, _delta, position) => {
-        onUpdateWidget({
-          ...widget,
-          x: Math.max(0, Math.round(position.x / scale)),
-          y: Math.max(0, Math.round(position.y / scale)),
-          w: Math.max(1, Math.round(parseInt(ref.style.width) / scale)),
-          h: Math.max(1, Math.round(parseInt(ref.style.height) / scale)),
-        });
+        const x = Math.max(0, Math.round(position.x / scale));
+        const y = Math.max(0, Math.round(position.y / scale));
+        const w = Math.max(1, Math.round(parseInt(ref.style.width) / scale));
+        const h = Math.max(1, Math.round(parseInt(ref.style.height) / scale));
+        if (x === widget.x && y === widget.y && w === widget.w && h === widget.h) return;
+        onResizeCommit({ ...widget, x, y, w, h });
       }}
       style={{
         outline: isSelected ? `2px solid #ff0` : "none",
         outlineOffset: 1,
-        zIndex: widget.type === "panel" ? 2 : 3,
+        zIndex: zBase,
         cursor: "move",
       }}
-      enableResizing={isSelected}
+      enableResizing={isSelected && !isGroup}
     >
       <WidgetVisual widget={widget} scale={scale} interactState="idle" />
+      {isContainer && (
+        <div style={{
+          position: "absolute",
+          inset: 0,
+          overflow: clips ? "hidden" : "visible",
+        }}>
+          {children.map((child, idx) => (
+            <EditWidget
+              key={child.id}
+              widget={child}
+              scale={scale}
+              selectedId={selectedId}
+              snapPx={snapPx}
+              draggingPos={draggingPos}
+              onResizeCommit={onResizeCommit}
+              childMap={childMap}
+              zBase={idx + 1}
+            />
+          ))}
+        </div>
+      )}
     </Rnd>
   );
 }
 
 // ── Try mode widget ───────────────────────────────────────────────────────────
 
-function TryWidget({ widget, scale }: { widget: WidgetSpec; scale: number }) {
+function TryWidget({ widget, scale, childMap, zBase }: {
+  widget: WidgetSpec;
+  scale: number;
+  childMap: Map<string, WidgetSpec[]>;
+  zBase: number;
+}) {
   const [hovered, setHovered] = useState(false);
   const [pressed, setPressed] = useState(false);
   const [toggled, setToggled] = useState(false);
@@ -123,10 +290,14 @@ function TryWidget({ widget, scale }: { widget: WidgetSpec; scale: number }) {
   const trackRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
+  const isContainer = CONTAINER_TYPES.has(widget.type);
+  const children = isContainer ? (childMap.get(widget.id) ?? []) : [];
+  const clips = widget.type === "scroll";
+
   const isToggle = widget.type === "toggle_button";
   const isSlider = widget.type === "slider";
   const isInput = widget.type === "input";
-  const isPassive = widget.type === "panel" || widget.type === "label" || widget.type === "icon";
+  const isPassive = widget.type === "panel" || widget.type === "scroll" || widget.type === "group" || widget.type === "label" || widget.type === "icon";
   const interactState = pressed ? "pressed" : (isInput ? focused : hovered) ? "hovered" : "idle";
 
   const handleSliderPointer = (e: React.PointerEvent) => {
@@ -162,7 +333,7 @@ function TryWidget({ widget, scale }: { widget: WidgetSpec; scale: number }) {
         top: widget.y * scale,
         width: widget.w * scale,
         height: widget.h * scale,
-        zIndex: widget.type === "panel" ? 2 : 3,
+        zIndex: zBase,
         cursor: isSlider ? "ew-resize" : isInput ? "text" : isPassive ? "default" : "pointer",
         touchAction: "none",
       }}
@@ -180,6 +351,13 @@ function TryWidget({ widget, scale }: { widget: WidgetSpec; scale: number }) {
       onPointerDown={isSlider ? handleSliderPointer : undefined}
     >
       <WidgetVisual widget={liveWidget} scale={scale} interactState={interactState} toggled={toggled} />
+      {isContainer && (
+        <div style={{ position: "absolute", inset: 0, overflow: clips ? "hidden" : "visible" }}>
+          {children.map((child, idx) => (
+            <TryWidget key={child.id} widget={child} scale={scale} childMap={childMap} zBase={idx + 1} />
+          ))}
+        </div>
+      )}
       {isInput && (
         <input
           ref={inputRef}

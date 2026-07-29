@@ -63,14 +63,16 @@ export default function PropertyPanel({ widget, onUpdate, onDelete }: Props) {
         <input className={INPUT} value={widget.id} onChange={(e) => set({ id: e.target.value })} />
       </Field>
 
-      <div className="grid grid-cols-2 gap-1">
-        <Field label="X"><NumInput value={widget.x} onChange={(v) => set({ x: v })} /></Field>
-        <Field label="Y"><NumInput value={widget.y} onChange={(v) => set({ y: v })} /></Field>
-        <Field label="W"><NumInput value={widget.w} onChange={(v) => set({ w: v })} /></Field>
-        <Field label="H"><NumInput value={widget.h} onChange={(v) => set({ h: v })} /></Field>
-      </div>
+      {widget.type !== "group" && (
+        <div className="grid grid-cols-2 gap-1">
+          <Field label="X"><NumInput value={widget.x} onChange={(v) => set({ x: v })} /></Field>
+          <Field label="Y"><NumInput value={widget.y} onChange={(v) => set({ y: v })} /></Field>
+          <Field label="W"><NumInput value={widget.w} onChange={(v) => set({ w: v })} /></Field>
+          <Field label="H"><NumInput value={widget.h} onChange={(v) => set({ h: v })} /></Field>
+        </div>
+      )}
 
-      {widget.type !== "icon" && (
+      {widget.type !== "icon" && widget.type !== "group" && (
         <Field label="Text">
           <input
             className={`${INPUT} ${bindings.text ? "text-blue-500 italic" : ""}`}
@@ -82,14 +84,16 @@ export default function PropertyPanel({ widget, onUpdate, onDelete }: Props) {
         </Field>
       )}
 
-      <Field label="Icon (URL or key)">
-        <input
-          className={INPUT}
-          value={widget.icon ?? ""}
-          onChange={(e) => set({ icon: e.target.value || null })}
-          placeholder="optional"
-        />
-      </Field>
+      {widget.type !== "group" && (
+        <Field label="Icon (URL or key)">
+          <input
+            className={INPUT}
+            value={widget.icon ?? ""}
+            onChange={(e) => set({ icon: e.target.value || null })}
+            placeholder="optional"
+          />
+        </Field>
+      )}
 
       {def && def.propSchema.length > 0 && (
         <>
@@ -119,14 +123,16 @@ export default function PropertyPanel({ widget, onUpdate, onDelete }: Props) {
         </>
       )}
 
-      <Field label="Action ID">
-        <input
-          className={INPUT}
-          value={widget.action ?? ""}
-          onChange={(e) => set({ action: e.target.value || undefined })}
-          placeholder="e.g. close, my_mod:save"
-        />
-      </Field>
+      {widget.type !== "group" && (
+        <Field label="Action ID">
+          <input
+            className={INPUT}
+            value={widget.action ?? ""}
+            onChange={(e) => set({ action: e.target.value || undefined })}
+            placeholder="e.g. close, my_mod:save"
+          />
+        </Field>
+      )}
 
       {availableTargets.length > 0 && (
         <>

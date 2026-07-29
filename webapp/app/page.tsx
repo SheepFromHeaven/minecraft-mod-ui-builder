@@ -321,13 +321,73 @@ function Editor() {
     setSelectedId(null);
   }, [screen, commitScreen, selectedId]);
 
-  const addWidget = useCallback((type: string) => {
+  const addWidget = useCallback((type: string, parentId?: string) => {
     const def = getWidgetDef(type);
     if (!def) return;
     const id = newId(type);
-    const widget: WidgetSpec = { ...def.defaultWidget, id };
+    const widget: WidgetSpec = { ...def.defaultWidget, id, ...(parentId ? { parentId } : {}) };
     commitScreen({ ...screen, widgets: [...screen.widgets, widget] });
     setSelectedId(id);
+  }, [screen, commitScreen]);
+
+  const reorderWidget = useCallback((draggedId: string, overId: string, placement: "before" | "after" | "inside") => {
+    const widgets = screen.widgets;
+    const dragged = widgets.find(w => w.id === draggedId);
+    const over = widgets.find(w => w.id === overId);
+    if (!dragged || !over) return;
+
+    const absPos = (wid: string): { x: number; y: number } => {
+      const w = widgets.find(v => v.id === wid);
+      if (!w) return { x: 0, y: 0 };
+      if (!w.parentId) return { x: w.x, y: w.y };
+      const parent = absPos(w.parentId);
+      return { x: parent.x + w.x, y: parent.y + w.y };
+    };
+
+    const newParentId: string | undefined =
+      placement === "inside" ? overId : over.parentId;
+
+    const draggedAbs = absPos(draggedId);
+    const newParentAbs = newParentId ? absPos(newParentId) : { x: 0, y: 0 };
+    const newX = draggedAbs.x - newParentAbs.x;
+    const newY = draggedAbs.y - newParentAbs.y;
+
+    // Build new array: remove dragged, insert at correct position
+    const without = widgets.filter(w => w.id !== draggedId);
+    const overIdx = without.findIndex(w => w.id === overId);
+    const insertIdx = placement === "before" ? overIdx : overIdx + 1;
+    const updated = { ...dragged, x: newX, y: newY, parentId: newParentId };
+    const next = [...without.slice(0, insertIdx), updated, ...without.slice(insertIdx)];
+
+    commitScreen({ ...screen, widgets: next });
+  }, [screen, commitScreen]);
+
+  const reparentWidget = useCallback((id: string, newParentId: string | null) => {
+    const widget = screen.widgets.find(w => w.id === id);
+    if (!widget) return;
+
+    // Convert coordinates: absolute → relative to new parent (or back to screen-absolute)
+    const absPos = (wid: string): { x: number; y: number } => {
+      const w = screen.widgets.find(v => v.id === wid);
+      if (!w) return { x: 0, y: 0 };
+      if (!w.parentId) return { x: w.x, y: w.y };
+      const parent = absPos(w.parentId);
+      return { x: parent.x + w.x, y: parent.y + w.y };
+    };
+
+    const current = absPos(id);
+    const newParentAbs = newParentId ? absPos(newParentId) : { x: 0, y: 0 };
+    const newX = current.x - newParentAbs.x;
+    const newY = current.y - newParentAbs.y;
+
+    commitScreen({
+      ...screen,
+      widgets: screen.widgets.map(w =>
+        w.id === id
+          ? { ...w, x: newX, y: newY, parentId: newParentId ?? undefined }
+          : w,
+      ),
+    });
   }, [screen, commitScreen]);
 
   const copyWidget = useCallback(() => {
@@ -478,12 +538,18 @@ function Editor() {
           screens={screens}
           activeIdx={activeIdx}
           modId={screen.modId}
+          widgets={screen.widgets}
+          selectedId={selectedId}
           onGoHome={() => { setCurrentProjectKey(null); setView("welcome"); }}
           onSelectScreen={switchScreen}
           onAddScreen={addScreen}
           onRemoveScreen={removeScreen}
           onRenameScreen={renameScreen}
           onAddWidget={addWidget}
+          onSelectWidget={setSelectedId}
+          onDeleteWidget={deleteWidget}
+          onReparentWidget={reparentWidget}
+          onReorderWidget={reorderWidget}
         />
       )}
 

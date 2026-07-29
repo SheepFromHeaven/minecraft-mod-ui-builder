@@ -37,6 +37,7 @@ export default function Toolbar({
 }: Props) {
   const [presetLoading, setPresetLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+  const [texturesOpen, setTexturesOpen] = useState(false);
 
   const handlePreset = async () => {
     setPresetLoading(true);
@@ -162,29 +163,41 @@ export default function Toolbar({
 
       <Divider />
 
-      <button
-        className="rounded border border-gray-400 bg-white px-3 py-1 text-xs text-gray-800 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-        onClick={handlePreset}
-        disabled={presetLoading || resetLoading}
-        title="Recolor placeholder textures with Minecraft's default palette and save to browser storage"
-      >
-        {presetLoading ? "Applying…" : "Load MC Preset"}
-      </button>
-      <button
-        className="rounded border border-gray-400 bg-white px-3 py-1 text-xs text-gray-800 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-        onClick={handleReset}
-        disabled={presetLoading || resetLoading}
-        title="Clear IndexedDB textures and revert to placeholder sprites"
-      >
-        {resetLoading ? "Resetting…" : "Reset Textures"}
-      </button>
-      <button
-        className="rounded border border-gray-400 bg-white px-3 py-1 text-xs text-gray-800 hover:bg-gray-50"
-        onClick={onViewTextures}
-        title="Inspect active textures from IndexedDB"
-      >
-        View Textures
-      </button>
+      <div className="relative">
+        <button
+          className="rounded border border-gray-400 bg-white px-3 py-1 text-xs text-gray-800 hover:bg-gray-50"
+          onClick={() => setTexturesOpen((v) => !v)}
+        >
+          Textures ▾
+        </button>
+        {texturesOpen && (
+          <div
+            className="absolute right-0 top-full mt-1 z-50 flex flex-col rounded border border-gray-300 bg-white shadow-md text-xs"
+            onMouseLeave={() => setTexturesOpen(false)}
+          >
+            <button
+              className="px-4 py-2 text-left hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              onClick={() => { setTexturesOpen(false); handlePreset(); }}
+              disabled={presetLoading || resetLoading}
+            >
+              {presetLoading ? "Applying…" : "Load MC Preset"}
+            </button>
+            <button
+              className="px-4 py-2 text-left hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              onClick={() => { setTexturesOpen(false); handleReset(); }}
+              disabled={presetLoading || resetLoading}
+            >
+              {resetLoading ? "Resetting…" : "Reset Textures"}
+            </button>
+            <button
+              className="px-4 py-2 text-left hover:bg-gray-100 whitespace-nowrap"
+              onClick={() => { setTexturesOpen(false); onViewTextures(); }}
+            >
+              View Textures
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

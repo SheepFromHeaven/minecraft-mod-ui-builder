@@ -72,7 +72,13 @@ export default function PropertyPanel({ widget, onUpdate, onDelete }: Props) {
 
       {widget.type !== "icon" && (
         <Field label="Text">
-          <input className={INPUT} value={widget.text} onChange={(e) => set({ text: e.target.value })} />
+          <input
+            className={`${INPUT} ${bindings.text ? "text-blue-500 italic" : ""}`}
+            value={bindings.text ? bindings.text : widget.text}
+            disabled={!!bindings.text}
+            onChange={(e) => set({ text: e.target.value })}
+            placeholder={bindings.text ? undefined : ""}
+          />
         </Field>
       )}
 

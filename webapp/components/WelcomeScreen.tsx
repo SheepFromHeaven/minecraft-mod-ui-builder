@@ -1,13 +1,41 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+export interface ProjectSummary {
+  key: string;
+  screenId: string;
+  modId?: string;
+  updatedAt: number;
+}
 
 interface Props {
+  projects: ProjectSummary[];
+  onOpenProject: (key: string) => void;
   onCreateProject: (modId: string, screenId: string) => void;
 }
 
-export default function WelcomeScreen({ onCreateProject }: Props) {
-  const [showModal, setShowModal] = useState(false);
+function relativeTime(ts: number): string {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+export default function WelcomeScreen({ projects, onOpenProject, onCreateProject }: Props) {
+  const [open, setOpen] = useState(false);
   const [modId, setModId] = useState("");
   const [screenId, setScreenId] = useState("main");
 
@@ -18,83 +46,92 @@ export default function WelcomeScreen({ onCreateProject }: Props) {
     onCreateProject(modId.trim(), screenId.trim() || "main");
   };
 
-  useEffect(() => {
-    if (!showModal) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Enter") submit();
-      if (e.key === "Escape") setShowModal(false);
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [showModal, modId, screenId]);
-
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-gray-100">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-background">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-800">MC Screen Designer</h1>
-        <p className="mt-1 text-sm text-gray-500">Visual designer for Minecraft mod GUI screens</p>
+        <h1 className="text-3xl font-bold tracking-tight">MC Screen Designer</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Visual designer for Minecraft mod GUI screens
+        </p>
       </div>
 
-      <div className="flex flex-col items-center gap-5 rounded-xl border border-gray-200 bg-white px-16 py-12 shadow-sm">
-        <div className="text-5xl select-none">🗂️</div>
-        <p className="text-sm text-gray-400">No projects yet</p>
-        <button
-          className="rounded bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          onClick={() => setShowModal(true)}
-        >
-          + New Project
-        </button>
+      <div className="flex flex-col items-center gap-4 rounded-xl border bg-card px-10 py-8 shadow-sm w-full max-w-sm">
+        {projects.length === 0 ? (
+          <>
+            <div className="text-5xl select-none">🗂️</div>
+            <p className="text-sm text-muted-foreground">No projects yet</p>
+          </>
+        ) : (
+          <div className="flex flex-col gap-2 w-full">
+            {projects.map((p) => (
+              <button
+                key={p.key}
+                onClick={() => onOpenProject(p.key)}
+                className="flex items-center justify-between rounded-lg border bg-background px-4 py-3 text-left hover:bg-accent hover:text-accent-foreground transition-colors w-full"
+              >
+                <div>
+                  <p className="text-sm font-medium">{p.screenId || "(unnamed)"}</p>
+                  {p.modId && (
+                    <p className="text-xs text-muted-foreground">{p.modId}</p>
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground shrink-0 ml-4">
+                  {relativeTime(p.updatedAt)}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        <Button className="w-full" onClick={() => setOpen(true)}>+ New Project</Button>
       </div>
 
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="flex w-80 flex-col gap-4 rounded-xl bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-bold text-gray-800">New Project</h2>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>New Project</DialogTitle>
+          </DialogHeader>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500">
-                Mod ID <span className="text-red-500">*</span>
-              </label>
-              <input
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="modId">
+                Mod ID <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="modId"
                 autoFocus
-                className="rounded border border-gray-300 px-2.5 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
                 placeholder="e.g. my_mod"
                 value={modId}
                 onChange={(e) => setModId(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && submit()}
               />
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-muted-foreground">
                 Your mod's namespace — qualifies binding and action IDs automatically
               </p>
             </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500">First screen ID</label>
-              <input
-                className="rounded border border-gray-300 px-2.5 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="screenId">First screen ID</Label>
+              <Input
+                id="screenId"
                 placeholder="main"
                 value={screenId}
                 onChange={(e) => setScreenId(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && submit()}
               />
             </div>
-
-            <div className="flex justify-end gap-2">
-              <button
-                className="rounded border border-gray-300 px-4 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-                onClick={() => setShowModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="rounded bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={!canCreate}
-                onClick={submit}
-              >
-                Create
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button disabled={!canCreate} onClick={submit}>
+              Create
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

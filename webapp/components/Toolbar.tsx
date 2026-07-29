@@ -1,9 +1,18 @@
 "use client";
 
-import { useState } from "react";
 import type { ScreenSpec } from "@/lib/types";
-
-const INPUT = "rounded border border-gray-300 bg-white px-1.5 py-0.5 text-xs text-gray-900 focus:border-blue-400 focus:outline-none";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { PanelLeft } from "lucide-react";
+import SettingsDialog from "@/components/SettingsDialog";
 
 interface Props {
   screen: ScreenSpec;
@@ -12,6 +21,7 @@ interface Props {
   canUndo: boolean;
   canRedo: boolean;
   tryMode: boolean;
+  sidebarOpen: boolean;
   scale: number;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -21,187 +31,115 @@ interface Props {
   onGridSizeChange: (v: number) => void;
   onToggleGrid: () => void;
   onToggleTryMode: () => void;
+  onToggleSidebar: () => void;
   onScreenChange: (patch: Partial<ScreenSpec>) => void;
   onExport: () => void;
   onImport: () => void;
   onLoadPreset: () => Promise<void>;
   onResetTextures: () => Promise<void>;
   onViewTextures: () => void;
+  onGoHome: () => void;
 }
 
 export default function Toolbar({
-  screen, gridSize, showGrid, canUndo, canRedo, tryMode,
-  onUndo, onRedo, onGridSizeChange, onToggleGrid, onToggleTryMode,
+  screen, gridSize, showGrid, canUndo, canRedo, tryMode, sidebarOpen,
+  onUndo, onRedo, onGridSizeChange, onToggleGrid, onToggleTryMode, onToggleSidebar,
   onScreenChange, onExport, onImport, onLoadPreset, onResetTextures, onViewTextures,
-  scale, onZoomIn, onZoomOut, onZoomReset,
+  scale, onZoomIn, onZoomOut, onZoomReset, onGoHome,
 }: Props) {
-  const [presetLoading, setPresetLoading] = useState(false);
-  const [resetLoading, setResetLoading] = useState(false);
-  const [texturesOpen, setTexturesOpen] = useState(false);
-
-  const handlePreset = async () => {
-    setPresetLoading(true);
-    try { await onLoadPreset(); } finally { setPresetLoading(false); }
-  };
-
-  const handleReset = async () => {
-    setResetLoading(true);
-    try { await onResetTextures(); } finally { setResetLoading(false); }
-  };
-
   return (
-    <div className="flex items-center gap-3 border-b border-gray-300 bg-gray-100 px-3 py-2 text-xs flex-wrap shrink-0">
-      <span className="font-bold text-gray-800 text-sm">MC Screen Designer</span>
+    <div className="flex items-center gap-2 border-b bg-background px-3 py-2 flex-wrap shrink-0">
+      <Button variant="ghost" size="sm" className="h-8" onClick={onGoHome} title="Back to projects">
+        ← Projects
+      </Button>
 
-      <Divider />
+      <Button variant="ghost" size="sm" className="h-8 w-8 px-0" onClick={onToggleSidebar} title="Toggle sidebar">
+        <PanelLeft className="h-5 w-5" />
+      </Button>
 
-      <div className="flex items-center gap-2">
-        <label className="flex items-center gap-1 text-gray-700">
-          Screen ID:
-          <input
-            className={`${INPUT} w-28`}
-            value={screen.id}
-            onChange={(e) => onScreenChange({ id: e.target.value })}
+      <Separator orientation="vertical" className="h-5" />
+
+      <div className="flex items-center gap-1.5">
+        <label className="flex items-center gap-1.5 text-muted-foreground">
+          W:
+          <Input
+            className="h-8 w-16"
+            type="number"
+            value={screen.width}
+            onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v > 0) onScreenChange({ width: v }); }}
           />
         </label>
-        <label className="flex items-center gap-1 text-gray-700">
-          Mod ID:
-          <input
-            className={`${INPUT} w-24`}
-            value={screen.modId ?? ""}
-            onChange={(e) => onScreenChange({ modId: e.target.value || undefined })}
-            placeholder="my_mod"
+        <label className="flex items-center gap-1.5 text-muted-foreground">
+          H:
+          <Input
+            className="h-8 w-16"
+            type="number"
+            value={screen.height}
+            onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v > 0) onScreenChange({ height: v }); }}
           />
         </label>
       </div>
 
-      <label className="flex items-center gap-1 text-gray-700">
-        W:
-        <input
-          className={`${INPUT} w-14`}
-          type="number"
-          value={screen.width}
-          onChange={(e) => {
-            const v = parseInt(e.target.value, 10);
-            if (!isNaN(v) && v > 0) onScreenChange({ width: v });
-          }}
-        />
-      </label>
+      <Separator orientation="vertical" className="h-5" />
 
-      <label className="flex items-center gap-1 text-gray-700">
-        H:
-        <input
-          className={`${INPUT} w-14`}
-          type="number"
-          value={screen.height}
-          onChange={(e) => {
-            const v = parseInt(e.target.value, 10);
-            if (!isNaN(v) && v > 0) onScreenChange({ height: v });
-          }}
-        />
-      </label>
-
-      <Divider />
-
-      <label className="flex items-center gap-1 text-gray-700">
-        <input type="checkbox" checked={showGrid} onChange={onToggleGrid} />
+      <label className="flex items-center gap-1.5 text-muted-foreground cursor-pointer">
+        <input type="checkbox" checked={showGrid} onChange={onToggleGrid} className="h-4 w-4" />
         Grid
       </label>
 
-      <label className="flex items-center gap-1 text-gray-700">
+      <label className="flex items-center gap-1.5 text-muted-foreground">
         Snap:
-        <select className={`${INPUT} w-16`} value={gridSize} onChange={(e) => onGridSizeChange(parseInt(e.target.value))}>
-          {[1, 2, 4, 8].map((v) => (
-            <option key={v} value={v}>{v}px</option>
-          ))}
-        </select>
+        <Select value={String(gridSize)} onValueChange={(v) => { if (v) onGridSizeChange(parseInt(v)); }}>
+          <SelectTrigger className="h-8 w-20">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {[1, 2, 4, 8].map((v) => (
+              <SelectItem key={v} value={String(v)}>{v}px</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </label>
 
-      <Divider />
+      <Separator orientation="vertical" className="h-5" />
 
-      <button
-        className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
-        onClick={onUndo} disabled={!canUndo} title="Undo (⌘Z)"
-      >↩ Undo</button>
-      <button
-        className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
-        onClick={onRedo} disabled={!canRedo} title="Redo (⌘⇧Z)"
-      >↪ Redo</button>
+      <Button variant="outline" size="sm" className="h-8" onClick={onUndo} disabled={!canUndo} title="Undo (⌘Z)">↩ Undo</Button>
+      <Button variant="outline" size="sm" className="h-8" onClick={onRedo} disabled={!canRedo} title="Redo (⌘⇧Z)">↪ Redo</Button>
 
-      <Divider />
+      <Separator orientation="vertical" className="h-5" />
 
-      <div className="flex items-center gap-1">
-        <button
-          className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
-          onClick={onZoomOut} disabled={scale <= 1} title="Zoom out (⌘-)">−</button>
-        <button
-          className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 min-w-[3rem] text-center"
-          onClick={onZoomReset} title="Reset zoom (⌘0)">{scale}×</button>
-        <button
-          className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
-          onClick={onZoomIn} disabled={scale >= 8} title="Zoom in (⌘+)">+</button>
+      <div className="flex items-center">
+        <Button variant="outline" size="sm" className="h-8 w-8 rounded-r-none border-r-0" onClick={onZoomOut} disabled={scale <= 1} title="Zoom out (⌘-)">−</Button>
+        <Button variant="outline" size="sm" className="h-8 min-w-12 rounded-none" onClick={onZoomReset} title="Reset zoom (⌘0)">{scale}×</Button>
+        <Button variant="outline" size="sm" className="h-8 w-8 rounded-l-none border-l-0" onClick={onZoomIn} disabled={scale >= 8} title="Zoom in (⌘+)">+</Button>
       </div>
 
-      <Divider />
+      <Separator orientation="vertical" className="h-5" />
 
-      <button
-        className={`rounded px-3 py-1 text-xs font-semibold transition-colors ${tryMode ? "bg-amber-500 text-white hover:bg-amber-600" : "bg-green-600 text-white hover:bg-green-700"}`}
+      <Button
+        size="sm"
+        className="h-8"
+        variant={tryMode ? "destructive" : "default"}
         onClick={onToggleTryMode}
         title="Toggle try mode (T)"
       >
         {tryMode ? "⏹ Stop" : "▶ Try"}
-      </button>
+      </Button>
 
-      <Divider />
+      <Separator orientation="vertical" className="h-5" />
 
-      <button className="rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700" onClick={onExport}>
-        Export JSON
-      </button>
-      <button className="rounded border border-gray-400 bg-white px-3 py-1 text-xs text-gray-800 hover:bg-gray-50" onClick={onImport}>
-        Import JSON
-      </button>
+      <Button size="sm" className="h-8" onClick={onExport}>Export JSON</Button>
+      <Button size="sm" variant="outline" className="h-8" onClick={onImport}>Import JSON</Button>
 
-      <Divider />
-
-      <div className="relative">
-        <button
-          className="rounded border border-gray-400 bg-white px-3 py-1 text-xs text-gray-800 hover:bg-gray-50"
-          onClick={() => setTexturesOpen((v) => !v)}
-        >
-          Textures ▾
-        </button>
-        {texturesOpen && (
-          <div
-            className="absolute right-0 top-full mt-1 z-50 flex flex-col rounded border border-gray-300 bg-white shadow-md text-xs"
-            onMouseLeave={() => setTexturesOpen(false)}
-          >
-            <button
-              className="px-4 py-2 text-left hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-              onClick={() => { setTexturesOpen(false); handlePreset(); }}
-              disabled={presetLoading || resetLoading}
-            >
-              {presetLoading ? "Applying…" : "Load MC Preset"}
-            </button>
-            <button
-              className="px-4 py-2 text-left hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-              onClick={() => { setTexturesOpen(false); handleReset(); }}
-              disabled={presetLoading || resetLoading}
-            >
-              {resetLoading ? "Resetting…" : "Reset Textures"}
-            </button>
-            <button
-              className="px-4 py-2 text-left hover:bg-gray-100 whitespace-nowrap"
-              onClick={() => { setTexturesOpen(false); onViewTextures(); }}
-            >
-              View Textures
-            </button>
-          </div>
-        )}
+      <div className="ml-auto flex items-center gap-1">
+        <SettingsDialog
+          screen={screen}
+          onScreenChange={onScreenChange}
+          onLoadPreset={onLoadPreset}
+          onResetTextures={onResetTextures}
+          onViewTextures={onViewTextures}
+        />
       </div>
     </div>
   );
-}
-
-function Divider() {
-  return <span className="h-4 w-px bg-gray-300" />;
 }

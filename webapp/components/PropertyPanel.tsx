@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React from "react";
 import type { WidgetSpec } from "@/lib/types";
 import { getWidgetDef } from "@/lib/widgetRegistry";
 
@@ -45,10 +45,15 @@ export default function PropertyPanel({ widget, onUpdate, onDelete }: Props) {
     onUpdate({ ...widget, bindings: Object.keys(rest).length ? rest : undefined });
   };
 
+  const changeBindingTarget = (oldTarget: string, newTarget: string) => {
+    const value = bindings[oldTarget];
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { [oldTarget]: _removed, ...rest } = bindings;
+    onUpdate({ ...widget, bindings: { ...rest, [newTarget]: value } });
+  };
+
   const availableTargets = BINDING_TARGETS[widget.type] ?? [];
   const unusedTargets = availableTargets.filter((t) => !(t in bindings));
-
-  const [newTarget, setNewTarget] = useState(unusedTargets[0] ?? "");
 
   return (
     <div className="flex flex-col gap-1 p-2 text-xs overflow-y-auto">
@@ -122,7 +127,15 @@ export default function PropertyPanel({ widget, onUpdate, onDelete }: Props) {
           <div className="font-semibold text-gray-500 mt-1">Bindings</div>
           {Object.entries(bindings).map(([target, providerId]) => (
             <div key={target} className="flex gap-1 items-center">
-              <span className="w-16 shrink-0 text-gray-500 truncate">{target}</span>
+              <select
+                className="shrink-0 rounded border border-gray-300 bg-white px-1 py-0.5 text-xs text-gray-700 focus:outline-none"
+                value={target}
+                onChange={(e) => changeBindingTarget(target, e.target.value)}
+              >
+                {availableTargets
+                  .filter((t) => t === target || !(t in bindings))
+                  .map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
               <input
                 className={INPUT}
                 value={providerId}
@@ -136,24 +149,12 @@ export default function PropertyPanel({ widget, onUpdate, onDelete }: Props) {
             </div>
           ))}
           {unusedTargets.length > 0 && (
-            <div className="flex gap-1 items-center">
-              <select
-                className={`${INPUT} w-16 shrink-0`}
-                value={newTarget}
-                onChange={(e) => setNewTarget(e.target.value)}
-              >
-                {unusedTargets.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <button
-                className="shrink-0 rounded bg-gray-200 hover:bg-gray-300 px-2 py-0.5 text-xs"
-                onClick={() => {
-                  if (newTarget) {
-                    setBinding(newTarget, "");
-                    setNewTarget(unusedTargets.filter((t) => t !== newTarget)[0] ?? "");
-                  }
-                }}
-              >+ bind</button>
-            </div>
+            <button
+              className="w-full rounded border border-dashed border-gray-300 py-0.5 text-gray-400 hover:border-gray-400 hover:text-gray-600"
+              onClick={() => setBinding(unusedTargets[0], "")}
+            >
+              + Add binding
+            </button>
           )}
         </>
       )}

@@ -38,7 +38,8 @@ function loadSession(): SavedSession | null {
   return null;
 }
 
-const EMPTY_SESSION: SavedSession = { history: [], cursor: 0, gridSize: 4, showGrid: true };
+const PLACEHOLDER_SCREEN: ScreenSpec = { id: "", width: 176, height: 166, widgets: [] };
+const EMPTY_SESSION: SavedSession = { history: [PLACEHOLDER_SCREEN], cursor: 0, gridSize: 4, showGrid: true };
 
 function syncIdCounter(history: ScreenSpec[]) {
   for (const screen of history) {

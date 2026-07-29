@@ -55,6 +55,11 @@ public class SpecScreen extends Screen {
     private final List<ActionListener> globalListeners = new ArrayList<>();
     // resolved bound text for decoration widgets (label/icon) — cleared each frame
     private final Map<String, String> boundText = new HashMap<>();
+    // subclass-driven text overrides — NOT cleared each frame; take priority over boundText
+    private final Map<String, String> pinnedText = new HashMap<>();
+    // centering offset — recalculated in init() each time the screen is (re)sized
+    private int originX;
+    private int originY;
 
     protected SpecScreen(Component title, ScreenSpec spec) {
         super(title);
@@ -101,6 +106,14 @@ public class SpecScreen extends Screen {
      * text ({@code String}). Override in subclasses to wire up behavior.
      */
     protected void onAction(String widgetId, WidgetSpec spec, Object value) {
+    }
+
+    /**
+     * Sets the display text of a label widget, overriding the static {@code text}
+     * field from the spec. Safe to call from {@link #render} each frame for live data.
+     */
+    protected void bindText(String widgetId, String text) {
+        pinnedText.put(widgetId, text);
     }
 
     /** Called for any {@code WidgetSpec.type} with no registered {@link WidgetFactory} and that isn't panel/label/icon. */
@@ -157,6 +170,8 @@ public class SpecScreen extends Screen {
 
     @Override
     protected void init() {
+        originX = (this.width  - spec.width)  / 2;
+        originY = (this.height - spec.height) / 2;
         widgetsById.clear();
         toggleGroups.clear();
         for (WidgetSpec w : spec.widgets) {
@@ -169,6 +184,8 @@ public class SpecScreen extends Screen {
                 continue;
             }
             AbstractWidget widget = addRenderableWidget(factory.create(w, this));
+            widget.setX(w.x + originX);
+            widget.setY(w.y + originY);
             widgetsById.put(w.id, widget);
             if (w.type.equals("toggle_button")) {
                 String group = w.prop("group", "");
@@ -227,18 +244,20 @@ public class SpecScreen extends Screen {
         }
     }
 
+    private static final Identifier PANEL_DEFAULT = Identifier.fromNamespaceAndPath("screenspec", "panel/default");
+
     /**
-     * Draws a {@code panel} widget's background. Override to draw your mod's
-     * actual panel texture per {@code style}.
+     * Draws a {@code panel} widget using the MC nine-slice sprite so it matches
+     * the webapp's WYSIWYG preview. Override for custom textures per {@code style}.
      */
     protected void renderPanel(GuiGraphics guiGraphics, WidgetSpec w) {
         String style = w.prop("style", "default");
         if (style.equals("transparent")) {
             return;
         }
-        int fill = style.equals("dark") ? 0xF0000000 : 0xC0101010;
-        guiGraphics.fill(w.x, w.y, w.x + w.w, w.y + w.h, fill);
-        guiGraphics.renderOutline(w.x, w.y, w.w, w.h, 0xFF8B8B8B);
+        int x = w.x + originX, y = w.y + originY;
+        int tint = style.equals("dark") ? 0x80000000 : 0xFFFFFFFF;
+        guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, PANEL_DEFAULT, x, y, w.w, w.h, tint);
     }
 
     /**
@@ -249,14 +268,15 @@ public class SpecScreen extends Screen {
         int color = w.propInt("color", 0x404040);
         boolean shadow = w.propBoolean("shadow", false);
         String align = w.prop("align", "left");
-        String text = boundText.getOrDefault(w.id, w.text);
+        String text = pinnedText.getOrDefault(w.id, boundText.getOrDefault(w.id, w.text));
         int textWidth = this.font.width(text);
+        int baseX = w.x + originX;
         int x = switch (align) {
-            case "center" -> w.x + (w.w - textWidth) / 2;
-            case "right"  -> w.x + w.w - textWidth;
-            default       -> w.x;
+            case "center" -> baseX + (w.w - textWidth) / 2;
+            case "right"  -> baseX + w.w - textWidth;
+            default       -> baseX;
         };
-        guiGraphics.drawString(this.font, text, x, w.y, color, shadow);
+        guiGraphics.drawString(this.font, text, x, w.y + originY, color, shadow);
     }
 
     /**
@@ -269,7 +289,7 @@ public class SpecScreen extends Screen {
             return;
         }
         int scale = w.propInt("scale", 1);
-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, location, w.x, w.y, 0f, 0f, w.w * scale, w.h * scale, w.w * scale, w.h * scale);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, location, w.x + originX, w.y + originY, 0f, 0f, w.w * scale, w.h * scale, w.w * scale, w.h * scale);
     }
 
     /** Resolves an {@code icon} widget's {@code icon} id to a texture location. Returns {@code null} (no-op) by default. */

@@ -1,0 +1,18 @@
+{
+  "id": "test",
+  "modId": "screenspec",
+  "width": 320,
+  "height": 200,
+  "widgets": [
+    { "type": "panel",         "id": "bg",           "x": 10,  "y": 10,  "w": 300, "h": 180 },
+    { "type": "label",         "id": "title",        "x": 20,  "y": 18,  "w": 280, "h": 12,  "text": "ScreenSpec runtime test" },
+    { "type": "label",         "id": "health_label", "x": 20,  "y": 36,  "w": 280, "h": 12,  "text": "Health: ..." },
+    { "type": "button",        "id": "close_btn",    "x": 20,  "y": 56,  "w": 100, "h": 20,  "text": "Close" },
+    { "type": "toggle_button", "id": "toggle_a",     "x": 130, "y": 56,  "w": 100, "h": 20,  "text": "Toggle A" },
+    { "type": "slider",        "id": "slider_1",     "x": 20,  "y": 88,  "w": 200, "h": 20,  "text": "Volume: %s",
+      "props": { "min": "0", "max": "100", "step": "1", "value": "50" } },
+    { "type": "input",         "id": "input_1",      "x": 20,  "y": 120, "w": 200, "h": 20,
+      "props": { "hint_text": "type here…" } },
+    { "type": "button",        "id": "send_btn",     "x": 230, "y": 120, "w": 60,  "h": 20,  "text": "Send" }
+  ]
+}

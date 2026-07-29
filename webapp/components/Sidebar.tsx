@@ -1,16 +1,30 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, ChevronRight, Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupAction,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarSeparator,
+} from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import WIDGET_REGISTRY from "@/lib/widgetRegistry";
 import type { ScreenSpec } from "@/lib/types";
 
 interface Props {
   screens: ScreenSpec[];
   activeIdx: number;
+  modId?: string;
+  onGoHome: () => void;
   onSelectScreen: (idx: number) => void;
   onAddScreen: () => void;
   onRemoveScreen: (idx: number) => void;
@@ -18,7 +32,9 @@ interface Props {
   onAddWidget: (type: string) => void;
 }
 
-export default function Sidebar({ screens, activeIdx, onSelectScreen, onAddScreen, onRemoveScreen, onRenameScreen, onAddWidget }: Props) {
+export default function AppSidebar({
+  screens, activeIdx, modId, onGoHome, onSelectScreen, onAddScreen, onRemoveScreen, onRenameScreen, onAddWidget,
+}: Props) {
   const [screensOpen, setScreensOpen] = useState(true);
   const [widgetsOpen, setWidgetsOpen] = useState(true);
   const [renamingIdx, setRenamingIdx] = useState<number | null>(null);
@@ -40,107 +56,122 @@ export default function Sidebar({ screens, activeIdx, onSelectScreen, onAddScree
   };
 
   return (
-    <div className="flex flex-col h-full border-r bg-background w-56 shrink-0 overflow-hidden">
-      {/* Screens */}
-      <div className="flex flex-col shrink-0">
-        <button
-          onClick={() => setScreensOpen(v => !v)}
-          className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground w-full text-left"
-        >
-          {screensOpen ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
-          Screens
-          <span className="ml-auto text-xs text-muted-foreground font-normal">{screens.length}</span>
-        </button>
+    <Sidebar collapsible="offcanvas">
+      <SidebarHeader className="border-b">
+        <div className="flex h-8 items-center gap-1 px-1">
+          <Button variant="ghost" size="sm" className="h-7 w-7 px-0 shrink-0" onClick={onGoHome} title="Back to projects">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="font-semibold text-sm truncate text-sidebar-foreground">
+            {modId || "Unnamed project"}
+          </span>
+        </div>
+      </SidebarHeader>
 
-        {screensOpen && (
-          <div className="flex flex-col gap-0.5 px-2 pb-2">
-            {screens.map((s, idx) => {
-              const isActive = idx === activeIdx;
-              return (
-                <div
-                  key={idx}
-                  onClick={() => renamingIdx !== idx && onSelectScreen(idx)}
-                  className={`group flex items-center gap-1 rounded-md px-2 py-1.5 cursor-pointer select-none ${
-                    isActive ? "bg-primary text-primary-foreground" : "hover:bg-accent hover:text-accent-foreground"
-                  }`}
-                >
-                  {renamingIdx === idx ? (
-                    <Input
-                      ref={renameRef}
-                      className="h-6 px-1 py-0 text-sm flex-1 min-w-0"
-                      value={renameValue}
-                      onChange={e => setRenameValue(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === "Enter") commitRename();
-                        if (e.key === "Escape") setRenamingIdx(null);
-                      }}
-                      onBlur={commitRename}
-                      onClick={e => e.stopPropagation()}
-                    />
-                  ) : (
-                    <>
-                      <span className="flex-1 truncate text-sm">{s.id || "(unnamed)"}</span>
-                      <button
-                        title="Rename"
-                        className={`shrink-0 rounded p-0.5 opacity-0 group-hover:opacity-100 ${isActive ? "hover:bg-white/20" : "hover:bg-black/10 dark:hover:bg-white/10"}`}
-                        onClick={e => { e.stopPropagation(); startRename(idx); }}
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </button>
-                      <button
-                        title="Delete"
-                        disabled={screens.length <= 1}
-                        className={`shrink-0 rounded p-0.5 opacity-0 group-hover:opacity-100 disabled:pointer-events-none ${isActive ? "hover:bg-white/20" : "hover:bg-black/10 dark:hover:bg-white/10"}`}
-                        onClick={e => { e.stopPropagation(); onRemoveScreen(idx); }}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start gap-2 mt-0.5 h-8 text-muted-foreground hover:text-foreground"
-              onClick={onAddScreen}
-            >
-              <Plus className="h-4 w-4" /> Add Screen
-            </Button>
-          </div>
-        )}
-      </div>
+      <SidebarContent>
 
-      <Separator />
+        {/* ── Screens ────────────────────────────────────────── */}
+        <SidebarGroup>
+          <SidebarGroupLabel
+            className="cursor-pointer select-none"
+            onClick={() => setScreensOpen(v => !v)}
+          >
+            {screensOpen
+              ? <ChevronDown className="mr-1 h-3.5 w-3.5" />
+              : <ChevronRight className="mr-1 h-3.5 w-3.5" />}
+            Screens
+          </SidebarGroupLabel>
 
-      {/* Widgets */}
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <button
-          onClick={() => setWidgetsOpen(v => !v)}
-          className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground w-full text-left shrink-0"
-        >
-          {widgetsOpen ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
-          Widgets
-        </button>
+          <SidebarGroupAction title="Add screen" onClick={onAddScreen}>
+            <Plus />
+          </SidebarGroupAction>
 
-        {widgetsOpen && (
-          <div className="flex flex-col gap-1 px-2 pb-2 overflow-y-auto">
-            {WIDGET_REGISTRY.map(def => (
-              <Button
-                key={def.type}
-                variant="outline"
-                size="sm"
-                className="w-full justify-start gap-2 h-8"
-                onClick={() => onAddWidget(def.type)}
-              >
-                <Plus className="h-3.5 w-3.5 shrink-0" />
-                {def.label}
-              </Button>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+          {screensOpen && (
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {screens.map((s, idx) => (
+                  <SidebarMenuItem key={idx}>
+                    {renamingIdx === idx ? (
+                      <div className="px-2 py-0.5">
+                        <Input
+                          ref={renameRef}
+                          className="h-7 text-sm"
+                          value={renameValue}
+                          onChange={e => setRenameValue(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") commitRename();
+                            if (e.key === "Escape") setRenamingIdx(null);
+                          }}
+                          onBlur={commitRename}
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <SidebarMenuButton
+                          isActive={idx === activeIdx}
+                          onClick={() => onSelectScreen(idx)}
+                          className="pr-12"
+                        >
+                          <span className="truncate">{s.id || "(unnamed)"}</span>
+                        </SidebarMenuButton>
+                        {/* Hover actions — two buttons in a row, absolutely positioned */}
+                        <div className="absolute right-1 top-1.5 hidden items-center gap-0.5 group-hover/menu-item:flex">
+                          <button
+                            title="Rename"
+                            onClick={e => { e.stopPropagation(); startRename(idx); }}
+                            className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-sidebar-accent [&>svg]:size-3.5"
+                          >
+                            <Pencil />
+                          </button>
+                          <button
+                            title="Delete"
+                            disabled={screens.length <= 1}
+                            onClick={e => { e.stopPropagation(); onRemoveScreen(idx); }}
+                            className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-sidebar-accent disabled:pointer-events-none disabled:opacity-30 [&>svg]:size-3.5"
+                          >
+                            <Trash2 />
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          )}
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        {/* ── Widgets ────────────────────────────────────────── */}
+        <SidebarGroup>
+          <SidebarGroupLabel
+            className="cursor-pointer select-none"
+            onClick={() => setWidgetsOpen(v => !v)}
+          >
+            {widgetsOpen
+              ? <ChevronDown className="mr-1 h-3.5 w-3.5" />
+              : <ChevronRight className="mr-1 h-3.5 w-3.5" />}
+            Widgets
+          </SidebarGroupLabel>
+
+          {widgetsOpen && (
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {WIDGET_REGISTRY.map(def => (
+                  <SidebarMenuItem key={def.type}>
+                    <SidebarMenuButton onClick={() => onAddWidget(def.type)}>
+                      <Plus className="shrink-0" />
+                      <span>{def.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          )}
+        </SidebarGroup>
+
+      </SidebarContent>
+    </Sidebar>
   );
 }

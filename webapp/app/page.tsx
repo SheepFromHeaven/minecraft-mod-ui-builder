@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import Canvas from "@/components/Canvas";
 import PropertyPanel from "@/components/PropertyPanel";
-import Sidebar from "@/components/Sidebar";
+import AppSidebar from "@/components/Sidebar";
 import Toolbar from "@/components/Toolbar";
 import WelcomeScreen from "@/components/WelcomeScreen";
 import { TextureProvider, useTextures } from "@/lib/TextureContext";
@@ -12,6 +12,7 @@ import TextureDebug from "@/components/TextureDebug";
 import type { ScreenSpec, WidgetSpec } from "@/lib/types";
 import { getWidgetDef } from "@/lib/widgetRegistry";
 import type { ProjectSummary } from "@/components/WelcomeScreen";
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 let idCounter = 1000;
 function newId(type: string) {
@@ -97,7 +98,7 @@ function toSummaries(projects: StoredProject[]): ProjectSummary[] {
   }).sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
-const PLACEHOLDER_SCREEN: ScreenSpec = { id: "main", width: 176, height: 166, widgets: [] };
+const PLACEHOLDER_SCREEN: ScreenSpec = { id: "main", width: 320, height: 180, widgets: [] };
 const EMPTY_SESSION: SavedSession = {
   history: [{ screens: [PLACEHOLDER_SCREEN], activeIdx: 0 }],
   cursor: 0,
@@ -152,8 +153,7 @@ function Editor() {
   const [showGrid, setShowGrid] = useState(EMPTY_SESSION.showGrid);
   const [scale, setScale] = useState(3);
   const [tryMode, setTryMode] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const canvasWrapperRef = useRef<HTMLElement>(null);
+  const canvasWrapperRef = useRef<HTMLDivElement>(null);
 
   const handleOpenProject = useCallback((key: string) => {
     const project = projects.find((p) => p.key === key);
@@ -164,14 +164,13 @@ function Editor() {
     setCursor(s.cursor);
     setGridSize(s.gridSize);
     setShowGrid(s.showGrid);
-    setScale(s.scale ?? 3);
     setSelectedId(null);
     setCurrentProjectKey(key);
     setView("editor");
   }, [projects]);
 
   const handleCreateProject = useCallback((modId: string, screenId: string) => {
-    const emptyScreen: ScreenSpec = { id: screenId, modId, width: 176, height: 166, widgets: [] };
+    const emptyScreen: ScreenSpec = { id: screenId, modId, width: 320, height: 180, widgets: [] };
     const session: SavedSession = {
       history: [{ screens: [emptyScreen], activeIdx: 0 }],
       cursor: 0,
@@ -190,7 +189,6 @@ function Editor() {
     setCursor(0);
     setGridSize(4);
     setShowGrid(true);
-    setScale(3);
     setSelectedId(null);
     setCurrentProjectKey(key);
     setView("editor");
@@ -198,7 +196,31 @@ function Editor() {
 
   const zoomIn  = useCallback(() => setScale((s) => Math.min(s + 1, 8)), []);
   const zoomOut = useCallback(() => setScale((s) => Math.max(s - 1, 1)), []);
-  const zoomReset = useCallback(() => setScale(3), []);
+  const computeFit = useCallback(() => {
+    const el = canvasWrapperRef.current;
+    if (!el) return 3;
+    const buf = 64;
+    const cw = el.clientWidth  - buf * 2;
+    const ch = el.clientHeight - buf * 2;
+    if (cw <= 0 || ch <= 0) return 3;
+    // fit within a 16:9 stage centred in the wrapper
+    const sw = cw / ch > 16 / 9 ? ch * (16 / 9) : cw;
+    const sh = cw / ch > 16 / 9 ? ch : cw * (9 / 16);
+    return Math.max(1, Math.min(8, Math.floor(Math.min(sw / screen.width, sh / screen.height))));
+  }, [screen.width, screen.height]);
+
+  const zoomReset = useCallback(() => setScale(computeFit()), [computeFit]);
+
+  // Auto-fit once when entering the editor or switching to a different project.
+  const fittedForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (view !== "editor") return;
+    const key = currentProjectKey ?? "__new__";
+    if (fittedForRef.current === key) return;
+    fittedForRef.current = key;
+    const id = requestAnimationFrame(() => setScale(computeFit()));
+    return () => cancelAnimationFrame(id);
+  }, [view, currentProjectKey, computeFit]);
 
   // Persist current project whenever session state changes
   useEffect(() => {
@@ -237,7 +259,6 @@ function Editor() {
       setCursor(lastProject.session.cursor);
       setGridSize(lastProject.session.gridSize);
       setShowGrid(lastProject.session.showGrid);
-      setScale(lastProject.session.scale ?? 3);
       setCurrentProjectKey(lastProject.key);
       setView("editor");
     } else {
@@ -340,8 +361,8 @@ function Editor() {
     const newScreen: ScreenSpec = {
       id: `screen_${screens.length + 1}`,
       modId: screen.modId,
-      width: 176,
-      height: 166,
+      width: 320,
+      height: 180,
       widgets: [],
     };
     commit({ screens: [...screens, newScreen], activeIdx: screens.length });
@@ -451,71 +472,72 @@ function Editor() {
   return (
     <>
     {showTextureDebug && <TextureDebug onClose={() => setShowTextureDebug(false)} />}
-    <div className="flex flex-col h-full min-h-screen bg-gray-200">
-      <Toolbar
-        screen={screen}
-        gridSize={gridSize}
-        showGrid={showGrid}
-        canUndo={cursor > 0}
-        canRedo={cursor < history.length - 1}
-        tryMode={tryMode}
-        sidebarOpen={sidebarOpen}
-        onUndo={undo}
-        onRedo={redo}
-        onGridSizeChange={setGridSize}
-        onToggleGrid={() => setShowGrid((v) => !v)}
-        onToggleTryMode={() => { setTryMode((v) => { if (!v) setSelectedId(null); return !v; }); }}
-        onToggleSidebar={() => setSidebarOpen(v => !v)}
-        onScreenChange={(patch) => commitScreen({ ...screen, ...patch })}
-        onExport={handleExport}
-        onImport={handleImportClick}
-        onLoadPreset={handleLoadPreset}
-        onResetTextures={handleResetTextures}
-        onViewTextures={() => setShowTextureDebug(true)}
-        onGoHome={() => { setCurrentProjectKey(null); setView("welcome"); }}
-        scale={scale}
-        onZoomIn={zoomIn}
-        onZoomOut={zoomOut}
-        onZoomReset={zoomReset}
-      />
+    <SidebarProvider>
+      {!tryMode && (
+        <AppSidebar
+          screens={screens}
+          activeIdx={activeIdx}
+          modId={screen.modId}
+          onGoHome={() => { setCurrentProjectKey(null); setView("welcome"); }}
+          onSelectScreen={switchScreen}
+          onAddScreen={addScreen}
+          onRemoveScreen={removeScreen}
+          onRenameScreen={renameScreen}
+          onAddWidget={addWidget}
+        />
+      )}
 
-      <div className="flex flex-1 overflow-hidden">
-        {!tryMode && sidebarOpen && (
-          <Sidebar
-            screens={screens}
-            activeIdx={activeIdx}
-            onSelectScreen={switchScreen}
-            onAddScreen={addScreen}
-            onRemoveScreen={removeScreen}
-            onRenameScreen={renameScreen}
-            onAddWidget={addWidget}
-          />
-        )}
+      <div className="flex flex-1 flex-col overflow-hidden min-h-svh">
+        <Toolbar
+          screen={screen}
+          gridSize={gridSize}
+          showGrid={showGrid}
+          canUndo={cursor > 0}
+          canRedo={cursor < history.length - 1}
+          tryMode={tryMode}
+          onUndo={undo}
+          onRedo={redo}
+          onGridSizeChange={setGridSize}
+          onToggleGrid={() => setShowGrid((v) => !v)}
+          onToggleTryMode={() => { setTryMode((v) => { if (!v) setSelectedId(null); return !v; }); }}
+          onScreenChange={(patch) => commitScreen({ ...screen, ...patch })}
+          onExport={handleExport}
+          onImport={handleImportClick}
+          onLoadPreset={handleLoadPreset}
+          onResetTextures={handleResetTextures}
+          onViewTextures={() => setShowTextureDebug(true)}
+          scale={scale}
+          onZoomIn={zoomIn}
+          onZoomOut={zoomOut}
+          onZoomReset={zoomReset}
+        />
 
-        <main ref={canvasWrapperRef} className="flex flex-1 items-start justify-center overflow-auto p-8">
-          <Canvas
-            width={screen.width}
-            height={screen.height}
-            scale={scale}
-            widgets={screen.widgets}
-            selectedId={selectedId}
-            gridSize={gridSize}
-            showGrid={showGrid}
-            tryMode={tryMode}
-            onSelect={setSelectedId}
-            onUpdateWidget={updateWidget}
-          />
-        </main>
-
-        {!tryMode && (
-          <aside className="w-48 shrink-0 border-l border-gray-300 bg-white overflow-y-auto">
-            <PropertyPanel
-              widget={selectedWidget}
-              onUpdate={updateWidget}
-              onDelete={() => deleteWidget()}
+        <div className="flex flex-1 overflow-hidden">
+          <div ref={canvasWrapperRef} className="flex flex-1 items-center justify-center overflow-auto p-8">
+            <Canvas
+              width={screen.width}
+              height={screen.height}
+              scale={scale}
+              widgets={screen.widgets}
+              selectedId={selectedId}
+              gridSize={gridSize}
+              showGrid={showGrid}
+              tryMode={tryMode}
+              onSelect={setSelectedId}
+              onUpdateWidget={updateWidget}
             />
-          </aside>
-        )}
+          </div>
+
+          {!tryMode && (
+            <aside className="w-64 shrink-0 border-l bg-background overflow-y-auto">
+              <PropertyPanel
+                widget={selectedWidget}
+                onUpdate={updateWidget}
+                onDelete={() => deleteWidget()}
+              />
+            </aside>
+          )}
+        </div>
       </div>
 
       <input
@@ -525,7 +547,7 @@ function Editor() {
         className="hidden"
         onChange={handleImportFile}
       />
-    </div>
+    </SidebarProvider>
     </>
   );
 }

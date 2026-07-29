@@ -1,5 +1,6 @@
 "use client";
 
+import { Download, Upload } from "lucide-react";
 import type { ScreenSpec } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,8 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PanelLeft } from "lucide-react";
 import SettingsDialog from "@/components/SettingsDialog";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 interface Props {
   screen: ScreenSpec;
@@ -21,7 +22,6 @@ interface Props {
   canUndo: boolean;
   canRedo: boolean;
   tryMode: boolean;
-  sidebarOpen: boolean;
   scale: number;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -31,31 +31,23 @@ interface Props {
   onGridSizeChange: (v: number) => void;
   onToggleGrid: () => void;
   onToggleTryMode: () => void;
-  onToggleSidebar: () => void;
   onScreenChange: (patch: Partial<ScreenSpec>) => void;
   onExport: () => void;
   onImport: () => void;
   onLoadPreset: () => Promise<void>;
   onResetTextures: () => Promise<void>;
   onViewTextures: () => void;
-  onGoHome: () => void;
 }
 
 export default function Toolbar({
-  screen, gridSize, showGrid, canUndo, canRedo, tryMode, sidebarOpen,
-  onUndo, onRedo, onGridSizeChange, onToggleGrid, onToggleTryMode, onToggleSidebar,
+  screen, gridSize, showGrid, canUndo, canRedo, tryMode,
+  onUndo, onRedo, onGridSizeChange, onToggleGrid, onToggleTryMode,
   onScreenChange, onExport, onImport, onLoadPreset, onResetTextures, onViewTextures,
-  scale, onZoomIn, onZoomOut, onZoomReset, onGoHome,
+  scale, onZoomIn, onZoomOut, onZoomReset,
 }: Props) {
   return (
     <div className="flex items-center gap-2 border-b bg-background px-3 py-2 flex-wrap shrink-0">
-      <Button variant="ghost" size="sm" className="h-8" onClick={onGoHome} title="Back to projects">
-        ← Projects
-      </Button>
-
-      <Button variant="ghost" size="sm" className="h-8 w-8 px-0" onClick={onToggleSidebar} title="Toggle sidebar">
-        <PanelLeft className="h-5 w-5" />
-      </Button>
+      <SidebarTrigger className="h-8 w-8" />
 
       <Separator orientation="vertical" className="h-5" />
 
@@ -126,12 +118,14 @@ export default function Toolbar({
         {tryMode ? "⏹ Stop" : "▶ Try"}
       </Button>
 
-      <Separator orientation="vertical" className="h-5" />
-
-      <Button size="sm" className="h-8" onClick={onExport}>Export JSON</Button>
-      <Button size="sm" variant="outline" className="h-8" onClick={onImport}>Import JSON</Button>
-
       <div className="ml-auto flex items-center gap-1">
+        <Button variant="ghost" size="sm" className="h-8 w-8 px-0" onClick={onImport} title="Import JSON">
+          <Upload className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="sm" className="h-8 w-8 px-0" onClick={onExport} title="Export JSON">
+          <Download className="h-4 w-4" />
+        </Button>
+        <Separator orientation="vertical" className="h-5" />
         <SettingsDialog
           screen={screen}
           onScreenChange={onScreenChange}

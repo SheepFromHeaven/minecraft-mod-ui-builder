@@ -14,6 +14,7 @@ export interface WidgetSpec {
 
 export interface ScreenSpec {
   id: string;
+  modId?: string;
   width: number;
   height: number;
   widgets: WidgetSpec[];

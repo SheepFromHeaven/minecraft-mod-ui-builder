@@ -64,6 +64,16 @@ export default function Toolbar({
       </label>
 
       <label className="flex items-center gap-1 text-gray-700">
+        Mod ID:
+        <input
+          className={`${INPUT} w-24`}
+          value={screen.modId ?? ""}
+          onChange={(e) => onScreenChange({ modId: e.target.value || undefined })}
+          placeholder="my_mod"
+        />
+      </label>
+
+      <label className="flex items-center gap-1 text-gray-700">
         W:
         <input
           className={`${INPUT} w-14`}

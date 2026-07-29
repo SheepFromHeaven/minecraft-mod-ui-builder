@@ -10,6 +10,8 @@ import java.util.List;
  */
 public final class ScreenSpec {
     public String id;
+    /** Namespace prepended to unqualified binding/action ids (e.g. {@code "my_mod"}). */
+    public String modId;
     public int width;
     public int height;
     public List<WidgetSpec> widgets = Collections.emptyList();

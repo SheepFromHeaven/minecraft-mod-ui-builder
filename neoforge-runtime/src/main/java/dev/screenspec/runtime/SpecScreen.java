@@ -107,9 +107,20 @@ public class SpecScreen extends Screen {
     protected void onUnknownWidgetType(WidgetSpec spec) {
     }
 
+    /**
+     * Qualifies a short id with the screen's {@code modId} namespace.
+     * Ids that already contain {@code ':'} are returned unchanged.
+     */
+    private String qualify(String id) {
+        if (id == null || id.contains(":") || spec.modId == null || spec.modId.isEmpty()) {
+            return id;
+        }
+        return spec.modId + ":" + id;
+    }
+
     void dispatchAction(String widgetId, WidgetSpec widgetSpec, Object value) {
         // built-in actions
-        String action = widgetSpec.action;
+        String action = qualify(widgetSpec.action);
         if ("close".equals(action)) {
             onClose();
             return;
@@ -192,7 +203,7 @@ public class SpecScreen extends Screen {
             if (w.bindings.isEmpty()) continue;
             for (Map.Entry<String, String> entry : w.bindings.entrySet()) {
                 String target = entry.getKey();
-                String value = DataRegistry.resolve(entry.getValue());
+                String value = DataRegistry.resolve(qualify(entry.getValue()));
                 if (value == null) continue;
                 switch (target) {
                     case "text" -> {

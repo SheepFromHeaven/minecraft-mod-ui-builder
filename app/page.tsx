@@ -183,6 +183,7 @@ function Editor() {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       const inInput = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+      if (inInput) return;
       const mod = e.metaKey || e.ctrlKey;
 
       if (mod && e.key === "z" && !e.shiftKey) { e.preventDefault(); undo(); return; }
@@ -190,8 +191,6 @@ function Editor() {
       if (mod && (e.key === "=" || e.key === "+")) { e.preventDefault(); zoomIn(); return; }
       if (mod && e.key === "-") { e.preventDefault(); zoomOut(); return; }
       if (mod && e.key === "0") { e.preventDefault(); zoomReset(); return; }
-
-      if (inInput) return;
 
       if (mod && e.key === "c") { e.preventDefault(); copyWidget(); return; }
       if (mod && e.key === "v") { e.preventDefault(); pasteWidget(); return; }

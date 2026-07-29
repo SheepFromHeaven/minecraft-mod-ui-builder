@@ -118,12 +118,16 @@ function TryWidget({ widget, scale }: { widget: WidgetSpec; scale: number }) {
   const [pressed, setPressed] = useState(false);
   const [toggled, setToggled] = useState(false);
   const [sliderVal, setSliderVal] = useState(() => parseFloat(widget.props.value ?? "50"));
+  const [inputVal, setInputVal] = useState(widget.props.default_text ?? "");
+  const [focused, setFocused] = useState(false);
   const trackRef = React.useRef<HTMLDivElement>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
 
   const isToggle = widget.type === "toggle_button";
   const isSlider = widget.type === "slider";
+  const isInput = widget.type === "input";
   const isPassive = widget.type === "panel" || widget.type === "label" || widget.type === "icon";
-  const interactState = pressed ? "pressed" : hovered ? "hovered" : "idle";
+  const interactState = pressed ? "pressed" : (isInput ? focused : hovered) ? "hovered" : "idle";
 
   const handleSliderPointer = (e: React.PointerEvent) => {
     if (!isSlider || !trackRef.current) return;
@@ -145,7 +149,9 @@ function TryWidget({ widget, scale }: { widget: WidgetSpec; scale: number }) {
     window.addEventListener("pointerup", () => window.removeEventListener("pointermove", onMove), { once: true });
   };
 
-  const liveWidget = isSlider ? { ...widget, props: { ...widget.props, value: String(sliderVal) } } : widget;
+  let liveWidget = widget;
+  if (isSlider) liveWidget = { ...widget, props: { ...widget.props, value: String(sliderVal) } };
+  if (isInput) liveWidget = { ...widget, text: inputVal };
 
   return (
     <div
@@ -157,20 +163,39 @@ function TryWidget({ widget, scale }: { widget: WidgetSpec; scale: number }) {
         width: widget.w * scale,
         height: widget.h * scale,
         zIndex: widget.type === "panel" ? 2 : 3,
-        cursor: isSlider ? "ew-resize" : isPassive ? "default" : "pointer",
+        cursor: isSlider ? "ew-resize" : isInput ? "text" : isPassive ? "default" : "pointer",
         touchAction: "none",
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { setHovered(false); setPressed(false); }}
-      onMouseDown={() => !isPassive && !isSlider && setPressed(true)}
+      onMouseDown={() => {
+        if (isInput) { setFocused(true); setTimeout(() => inputRef.current?.focus(), 0); return; }
+        if (!isPassive && !isSlider) setPressed(true);
+      }}
       onMouseUp={() => {
-        if (isPassive || isSlider) return;
+        if (isPassive || isSlider || isInput) return;
         setPressed(false);
         if (isToggle) setToggled((v) => !v);
       }}
       onPointerDown={isSlider ? handleSliderPointer : undefined}
     >
       <WidgetVisual widget={liveWidget} scale={scale} interactState={interactState} toggled={toggled} />
+      {isInput && (
+        <input
+          ref={inputRef}
+          value={inputVal}
+          maxLength={parseInt(widget.props.max_length ?? "32")}
+          onChange={(e) => setInputVal(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={{
+            position: "absolute", inset: 0,
+            background: "transparent", color: "transparent", caretColor: "transparent",
+            border: "none", outline: "none", padding: 0,
+            cursor: "text", fontSize: "inherit",
+          }}
+        />
+      )}
     </div>
   );
 }

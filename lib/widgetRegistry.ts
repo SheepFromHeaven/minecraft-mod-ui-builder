@@ -42,18 +42,9 @@ const WIDGET_REGISTRY: WidgetDef[] = [
     ],
   },
   {
-    type: "tab_button",
-    label: "Tab Button",
-    defaultWidget: { type: "tab_button", x: 8, y: 8, w: 56, h: 20, text: "Tab", icon: null, props: { tab_group: "", tab_index: "0" } },
-    propSchema: [
-      { key: "tab_group", label: "Tab Group", type: "text", defaultValue: "" },
-      { key: "tab_index", label: "Tab Index", type: "number", defaultValue: "0" },
-    ],
-  },
-  {
-    type: "edit_box",
-    label: "Edit Box",
-    defaultWidget: { type: "edit_box", x: 8, y: 8, w: 120, h: 20, text: "", icon: null, props: { max_length: "32" } },
+    type: "input",
+    label: "Input",
+    defaultWidget: { type: "input", x: 8, y: 8, w: 120, h: 20, text: "", icon: null, props: { max_length: "32" } },
     propSchema: [
       { key: "max_length", label: "Max Length", type: "number", defaultValue: "32" },
       { key: "hint_text", label: "Hint Text", type: "text", defaultValue: "" },

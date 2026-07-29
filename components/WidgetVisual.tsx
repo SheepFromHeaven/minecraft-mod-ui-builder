@@ -7,8 +7,7 @@ const TYPE_STYLES: Record<string, { bg: string; border: string; text: string }> 
   panel:         { bg: "#c6c6c6", border: "#555", text: "transparent" },
   button:        { bg: "#c6c6c6", border: "#555", text: "#000" },
   toggle_button: { bg: "#a0c4a0", border: "#2a5", text: "#000" },
-  tab_button:    { bg: "#b0b8d0", border: "#446", text: "#000" },
-  edit_box:      { bg: "#fff",    border: "#888", text: "#333" },
+  input:         { bg: "#000",    border: "#888", text: "#fff" },
   slider:        { bg: "#c6c6c6", border: "#555", text: "#000" },
   label:         { bg: "transparent", border: "transparent", text: "#333" },
   icon:          { bg: "#e8e8e8", border: "#aaa", text: "#999" },
@@ -75,13 +74,27 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
     );
   }
 
-  if (widget.type === "edit_box") {
+  if (widget.type === "input") {
+    const hint = widget.props.hint_text || "";
+    const hasText = !!widget.text;
+    const focused = interactState === "hovered" || interactState === "pressed";
+    const borderColor = focused ? "#fff" : "#a0a0a0";
     return (
-      <div style={commonStyle}>
-        <span style={{ opacity: widget.text ? 1 : 0.4 }}>
-          {widget.text || widget.props.hint_text || "…"}
-        </span>
-        <span style={{ borderRight: `${scale}px solid #555`, height: "60%", marginLeft: 2 }} />
+      <div style={{
+        ...commonStyle,
+        background: "#000",
+        border: `${scale}px solid ${borderColor}`,
+        justifyContent: "flex-start",
+        padding: `0 ${2 * scale}px`,
+        color: hasText ? "#fff" : "#707070",
+        gap: 0,
+      }}>
+        {hasText
+          ? <><span>{widget.text}</span><span style={{ animation: "mc-blink 1s step-end infinite" }}>_</span></>
+          : focused
+            ? <span style={{ animation: "mc-blink 1s step-end infinite" }}>_</span>
+            : <span>{hint}</span>
+        }
       </div>
     );
   }
@@ -161,7 +174,7 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
   }
 
   // button, toggle_button, tab_button
-  if (widget.type === "button" || widget.type === "toggle_button" || widget.type === "tab_button") {
+  if (widget.type === "button" || widget.type === "toggle_button") {
     const borderPx = 2 * scale;
     const isToggle = widget.type === "toggle_button";
 

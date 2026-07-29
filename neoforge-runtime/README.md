@@ -36,7 +36,7 @@ repositories {
 }
 
 dependencies {
-    implementation "dev.screenspec:screenspec-neoforge:<version>"
+    implementation "sheepfromheaven.screenspec:screenspec-neoforge:<version>"
 }
 ```
 

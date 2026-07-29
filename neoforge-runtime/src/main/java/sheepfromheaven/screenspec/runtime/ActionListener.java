@@ -1,4 +1,4 @@
-package dev.screenspec.runtime;
+package sheepfromheaven.screenspec.runtime;
 
 /**
  * Receives action events from a {@link SpecScreen}.

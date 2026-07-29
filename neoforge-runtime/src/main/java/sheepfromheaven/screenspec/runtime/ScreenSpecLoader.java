@@ -1,4 +1,4 @@
-package dev.screenspec.runtime;
+package sheepfromheaven.screenspec.runtime;
 
 import com.google.gson.Gson;
 import net.minecraft.resources.ResourceLocation;

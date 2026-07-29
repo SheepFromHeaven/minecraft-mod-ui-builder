@@ -1,4 +1,4 @@
-package dev.screenspec.runtime;
+package sheepfromheaven.screenspec.runtime;
 
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.network.chat.Component;

@@ -83,7 +83,11 @@ export function TextureProvider({ children }: { children: React.ReactNode }) {
       }
       applyBlobs(blobs);
       setInitialized(true);
-    })().catch(console.error);
+    })().catch((e) => {
+      console.error(e);
+      setSetupRequired(true);
+      setInitialized(true);
+    });
     return () => { urlsRef.current.forEach((u) => URL.revokeObjectURL(u)); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

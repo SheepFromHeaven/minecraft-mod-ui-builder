@@ -2,13 +2,15 @@ package sheepfromheaven.screenspec.runtime;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Builds a real Minecraft {@link AbstractContainerScreen} - one with player-placeable inventory
@@ -29,90 +31,170 @@ import java.util.Objects;
  * }</pre>
  */
 public class SpecContainerScreen<T extends AbstractContainerMenu> extends AbstractContainerScreen<T> {
-    private static final Identifier SLOT_GRID_TEXTURE =
-            Identifier.withDefaultNamespace("textures/gui/container/generic_54.png");
-    private static final int TEXTURE_SIZE = 256;
-    private static final int SLOT_GRID_ORIGIN_U = 8;
-    private static final int SLOT_GRID_ORIGIN_V = 18;
-
     private final ScreenSpec spec;
     private final ContainerSpec containerSpec;
+    private final Map<String, ScrollableSlotArea> scrollableAreas;
+    private final SpecWidgetRenderer renderer;
 
     public SpecContainerScreen(T menu, Inventory playerInventory, Component title, ScreenSpec spec) {
         super(menu, playerInventory, title);
         this.spec = spec;
         this.containerSpec = Objects.requireNonNull(spec.container, "spec.container is null - use SpecScreen for slotless screens");
+        this.scrollableAreas = menu instanceof ScrollableAreaHost host ? host.scrollableAreas() : Map.of();
+        this.renderer = new SpecWidgetRenderer(spec);
         this.imageWidth = spec.width;
         this.imageHeight = spec.height;
         this.inventoryLabelY = this.imageHeight - 94;
     }
 
+    /**
+     * Sets the display text of a label widget, overriding the static {@code text} field from the
+     * spec. Safe to call from {@link #render} each frame for live data - mirrors {@link SpecScreen#bindText}.
+     */
+    protected void bindText(String widgetId, String text) {
+        renderer.bindText(widgetId, text);
+    }
+
+    @Override
+    protected void init() {
+        super.init();
+        Set<String> explicitTargets = new HashSet<>();
+        for (WidgetSpec w : this.spec.widgets) {
+            if (!w.type.equals("scrollbar")) {
+                continue;
+            }
+            String targetId = w.prop("target", "");
+            ScrollableSlotArea target = scrollableAreas.get(targetId);
+            explicitTargets.add(targetId);
+            // an explicitly-placed scrollbar still only shows up once its target actually overflows
+            if (target != null && !target.scrollable()) {
+                continue;
+            }
+            addRenderableWidget(new SpecScrollbarWidget(leftPos + w.x, topPos + w.y, w.w, w.h, this, target));
+        }
+        // no designer widget targets these, but they turned out to need one anyway - default to the area's right edge
+        for (SlotAreaSpec area : this.containerSpec.slots) {
+            ScrollableSlotArea scrollArea = scrollableAreas.get(area.id);
+            if (scrollArea == null || !scrollArea.scrollable() || explicitTargets.contains(area.id)) {
+                continue;
+            }
+            int barX = leftPos + area.x + area.cols * area.slot_size;
+            int barY = topPos + area.y;
+            int barH = scrollArea.visibleRows() * area.slot_size;
+            addRenderableWidget(new SpecScrollbarWidget(barX, barY, SpecScrollbarWidget.DEFAULT_WIDTH, barH, this, scrollArea));
+        }
+    }
+
     @Override
     protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
         graphics.fill(leftPos, topPos, leftPos + imageWidth, topPos + imageHeight, 0xFFC6C6C6);
-        for (SlotAreaSpec area : this.containerSpec.slots) {
-            drawSlotGrid(graphics, area);
-        }
+        // panels before slot grids: a full-screen panel fill would otherwise overwrite the slot borders
         for (WidgetSpec w : this.spec.widgets) {
             if (w.type.equals("panel")) {
                 renderPanel(graphics, w);
             }
         }
+        for (SlotAreaSpec area : this.containerSpec.slots) {
+            drawSlotGrid(graphics, area);
+        }
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        renderer.refreshBoundText();
         super.render(graphics, mouseX, mouseY, partialTick);
         for (WidgetSpec w : this.spec.widgets) {
             if (w.type.equals("label")) {
                 renderLabel(graphics, w);
+            } else if (w.type.equals("icon")) {
+                renderIcon(graphics, w);
+            }
+        }
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        for (SlotAreaSpec area : this.containerSpec.slots) {
+            ScrollableSlotArea scrollArea = scrollableAreas.get(area.id);
+            if (scrollArea == null) {
+                continue;
+            }
+            int x = leftPos + area.x, y = topPos + area.y;
+            int w = area.cols * area.slot_size, h = scrollArea.visibleRows() * area.slot_size;
+            if (mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h) {
+                sendScrollButton(scrollArea, scrollArea.scrollRow() - (int) Math.signum(scrollY));
+                return true;
+            }
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    /**
+     * Applies a scroll locally (for instant feedback) and networks it to the server so its copy of
+     * {@code area} stays in sync - see {@link SpecScroll}. Called by {@link SpecScrollbarWidget}
+     * and this screen's own {@link #mouseScrolled} handling; not meant for mod code to call.
+     */
+    void sendScrollButton(ScrollableSlotArea area, int row) {
+        int id = SpecScroll.encode(this.containerSpec, area.area().id, row);
+        this.menu.clickMenuButton(this.minecraft.player, id);
+        this.minecraft.gameMode.handleInventoryButtonClick(this.menu.containerId, id);
+    }
+
+    /**
+     * Draws a vanilla-styled slot grid for {@code area} by cropping {@code area.cols x} its row
+     * count straight out of the vanilla chest texture's own slot grid, so borders between adjacent
+     * cells line up exactly like a real container screen's - no per-cell art needed. For an area
+     * registered via {@link ScrollableAreaHost}, the row count is {@link ScrollableSlotArea#visibleRows()}
+     * (derived from the real container, which may be smaller than the designed viewport); rows
+     * scrolled out of view are cropped away here and their slots moved off-screen by that class.
+     * Otherwise (a fixed-size area built with {@link SpecSlots#forArea}) it's {@code area.viewport_rows} directly.
+     */
+    protected void drawSlotGrid(GuiGraphics graphics, SlotAreaSpec area) {
+        int x = leftPos + area.x;
+        int y = topPos + area.y;
+        ScrollableSlotArea scrollArea = scrollableAreas.get(area.id);
+        int rows = scrollArea != null ? scrollArea.visibleRows() : area.viewport_rows;
+        int size = area.slot_size;
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < area.cols; col++) {
+                int sx = x + col * size;
+                int sy = y + row * size;
+                graphics.fill(sx,          sy,          sx + size, sy + 1,    0xFF373737); // top dark
+                graphics.fill(sx,          sy,          sx + 1,    sy + size, 0xFF373737); // left dark
+                graphics.fill(sx,          sy + size - 1, sx + size, sy + size, 0xFFFFFFFF); // bottom light
+                graphics.fill(sx + size - 1, sy,        sx + size, sy + size, 0xFFFFFFFF); // right light
+                graphics.fill(sx + 1,      sy + 1,      sx + size - 1, sy + size - 1, 0xFF8B8B8B); // interior
             }
         }
     }
 
     /**
-     * Draws a vanilla-styled slot grid for {@code area} by cropping {@code area.cols x area.rows}
-     * cells straight out of the vanilla chest texture's own slot grid, so borders between adjacent
-     * cells line up exactly like a real container screen's - no per-cell art needed.
-     */
-    protected void drawSlotGrid(GuiGraphics graphics, SlotAreaSpec area) {
-        int x = leftPos + area.x;
-        int y = topPos + area.y;
-        int width = area.cols * area.slot_size;
-        int height = area.rows * area.slot_size;
-        graphics.blit(RenderPipelines.GUI_TEXTURED, SLOT_GRID_TEXTURE, x, y,
-                SLOT_GRID_ORIGIN_U, SLOT_GRID_ORIGIN_V, width, height, TEXTURE_SIZE, TEXTURE_SIZE);
-    }
-
-    /**
-     * Draws a {@code panel} widget. Override for custom textures per {@code style}, mirroring
-     * {@link SpecScreen#renderPanel}.
+     * Draws a {@code panel} widget using the same nine-slice sprite as {@link SpecScreen#renderPanel}
+     * - see {@link SpecWidgetRenderer}. Override for custom textures per {@code style}.
      */
     protected void renderPanel(GuiGraphics graphics, WidgetSpec w) {
-        String style = w.prop("style", "default");
-        if (style.equals("transparent")) {
-            return;
-        }
-        int fill = style.equals("dark") ? 0x80000000 : 0xFFC6C6C6;
-        int x = leftPos + w.x, y = topPos + w.y;
-        graphics.fill(x, y, x + w.w, y + w.h, fill);
+        renderer.renderPanel(graphics, w, leftPos + w.x, topPos + w.y);
     }
 
     /**
      * Draws a {@code label} widget's text, honoring the {@code color}, {@code shadow} and
-     * {@code align} props from the designer, mirroring {@link SpecScreen#renderLabel}.
+     * {@code align} props from the designer and this widget's bound/pinned text, same as
+     * {@link SpecScreen#renderLabel}.
      */
     protected void renderLabel(GuiGraphics graphics, WidgetSpec w) {
-        int color = w.propInt("color", 0x404040);
-        boolean shadow = w.propBoolean("shadow", false);
-        String align = w.prop("align", "left");
-        int textWidth = this.font.width(w.text);
-        int baseX = leftPos + w.x;
-        int x = switch (align) {
-            case "center" -> baseX + (w.w - textWidth) / 2;
-            case "right" -> baseX + w.w - textWidth;
-            default -> baseX;
-        };
-        graphics.drawString(this.font, w.text, x, topPos + w.y, color, shadow);
+        renderer.renderLabel(graphics, this.font, w, leftPos + w.x, topPos + w.y);
+    }
+
+    /**
+     * Draws an {@code icon} widget. No-op by default; override {@link #resolveIcon} to map an icon
+     * id to your mod's texture, same as {@link SpecScreen#renderIcon}.
+     */
+    protected void renderIcon(GuiGraphics graphics, WidgetSpec w) {
+        renderer.renderIcon(graphics, w, leftPos + w.x, topPos + w.y, this::resolveIcon);
+    }
+
+    /** Resolves an {@code icon} widget's {@code icon} id to a texture location. Returns {@code null} (no-op) by default. */
+    protected Identifier resolveIcon(WidgetSpec w) {
+        return null;
     }
 }

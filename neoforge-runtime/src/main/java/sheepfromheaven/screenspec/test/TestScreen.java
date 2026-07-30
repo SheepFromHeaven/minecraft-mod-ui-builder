@@ -3,23 +3,23 @@ package sheepfromheaven.screenspec.test;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import sheepfromheaven.screenspec.runtime.ScreenSpec;
-import sheepfromheaven.screenspec.runtime.ScreenSpecLoader;
 import sheepfromheaven.screenspec.runtime.SpecScreen;
+import sheepfromheaven.screenspec.runtime.WidgetSpec;
 
-/** Smoke-test screen loaded from assets/screenspec/screenspec/test_screen.json. */
+/**
+ * Smoke-test screen loaded from assets/screenspec/screenspec/test_screen.json. Constructed by
+ * {@link TestClientSetup} via {@link sheepfromheaven.screenspec.runtime.ScreenSpecs#open} - see
+ * that class for how it and {@link TestContainerScreen} both get opened from the same call site
+ * without {@link TestClientSetup} needing to know which one has slots.
+ */
 public class TestScreen extends SpecScreen {
 
     private String currentInput = "";
 
-    private TestScreen(ScreenSpec spec) {
+    TestScreen(ScreenSpec spec) {
         super(Component.literal("ScreenSpec Test"), spec);
-    }
-
-    public static void open() {
-        Minecraft mc = Minecraft.getInstance();
-        ScreenSpec spec = ScreenSpecLoader.fromResource(mc.getResourceManager(), "screenspec", "test_screen");
-        mc.setScreen(new TestScreen(spec));
     }
 
     @Override
@@ -48,5 +48,11 @@ public class TestScreen extends SpecScreen {
         if (mc.player == null || currentInput.isBlank()) return;
         mc.player.connection.sendChat(currentInput);
         onClose();
+    }
+
+    /** Exercises {@code icon} widget rendering - see {@code diamond_icon} in test_screen.json. */
+    @Override
+    protected Identifier resolveIcon(WidgetSpec w) {
+        return "diamond".equals(w.icon) ? Identifier.withDefaultNamespace("textures/item/diamond.png") : null;
     }
 }

@@ -350,21 +350,34 @@ custom storage UI — opt in with a `container` key alongside `widgets`:
   "width": 176, "height": 166,
   "container": {
     "slots": [
-      { "id": "input",         "x": 20, "y": 20, "cols": 3, "rows": 3, "slot_size": 18 },
-      { "id": "output",        "x": 116, "y": 35, "cols": 1, "rows": 1, "slot_size": 18 },
-      { "id": "player_inv",    "x": 8,  "y": 84,  "cols": 9, "rows": 3, "slot_size": 18, "source": "player" },
-      { "id": "player_hotbar", "x": 8,  "y": 142, "cols": 9, "rows": 1, "slot_size": 18, "source": "player_hotbar" }
+      { "id": "input",         "x": 20, "y": 20, "cols": 3, "viewport_rows": 3, "slot_size": 18 },
+      { "id": "output",        "x": 116, "y": 35, "cols": 1, "viewport_rows": 1, "slot_size": 18 },
+      { "id": "player_inv",    "x": 8,  "y": 84,  "cols": 9, "viewport_rows": 3, "slot_size": 18, "source": "player" },
+      { "id": "player_hotbar", "x": 8,  "y": 142, "cols": 9, "viewport_rows": 1, "slot_size": 18, "source": "player_hotbar" }
     ]
   },
   "widgets": [...]
 }
 ```
 
-`cols` and `rows` size each slot area independently, so a single spec can mix
-a 3x3 crafting grid with a 1x1 output slot and the standard 9x3 player
-inventory. `source: "player"` / `"player_hotbar"` are reserved ids resolved
-against the player's own inventory; every other id is a mod-provided
-`Container` you supply when building the menu.
+`cols` sizes each slot area's grid width; `viewport_rows` is how many rows of
+it are visible at once — *not* necessarily the true row count. The designer
+can't know that: it depends on whatever `Container` you actually bind at
+runtime (your own block's inventory, sized however you like), which is only
+known once your mod hooks the spec up in Java. There are two ways to bind an
+area, matching that distinction:
+
+- **Fixed-size areas** (`SpecSlots#forArea`) — a crafting grid, an output
+  slot, the player's own inventory — where `viewport_rows` is trusted as the
+  literal row count because you already know it exactly. These never scroll.
+- **Runtime-sized areas** (`SpecSlots#forScrollableViewport`) — bound to a
+  `Container` whose size isn't fixed at design time. The true row count is
+  derived from `container.getContainerSize() / cols`; if that's more rows
+  than `viewport_rows`, the area scrolls to reveal the rest (see below).
+
+`source: "player"` / `"player_hotbar"` are reserved ids resolved against the
+player's own inventory; every other id is a mod-provided `Container` you
+supply when building the menu.
 
 This library only handles *rendering* and slot layout — the server-side
 `AbstractContainerMenu` (slot syncing, shift-click behavior, recipe/game
@@ -400,8 +413,74 @@ public class MyScreen extends SpecContainerScreen<MyMenu> {
 vanilla chest texture's own slot grid, so borders between adjacent cells line
 up exactly like a real container screen's — no custom art required. `panel`
 and `label` widgets from the spec are drawn the same way `SpecScreen` draws
-them; interactive widgets (buttons, sliders, etc.) alongside slots aren't
-supported yet — see Known limitations.
+them; interactive widgets other than `scrollbar` (buttons, sliders, etc.)
+alongside slots aren't supported yet — see Known limitations.
+
+### Scrolling a slot area
+
+Bind a runtime-sized `Container` with `SpecSlots#forScrollableViewport`
+instead of `forArea`, and wrap the result in a `ScrollableSlotArea` so its
+true size — and therefore whether it needs to scroll at all — is known:
+
+```json
+{ "id": "storage", "x": 8, "y": 8, "cols": 9, "slot_size": 18, "viewport_rows": 4 }
+```
+
+Because `Slot.x`/`Slot.y` are `final` in vanilla, scrolling can't reposition
+existing `Slot`s — instead `ScrollableSlotArea` replaces the area's entries
+in the menu's slot list with fresh `Slot`s pointing at whichever container
+indices are now in view, at the same list index (so the slot's network id
+never changes, only what it displays). Build one alongside the area's
+initial slots and expose it via `ScrollableAreaHost`:
+
+```java
+public class MyMenu extends AbstractContainerMenu implements ScrollableAreaHost {
+    private final Map<String, ScrollableSlotArea> scrollableAreas = new HashMap<>();
+
+    public MyMenu(MenuType<?> type, int containerId, ScreenSpec spec, Container storage) {
+        super(type, containerId);
+        SlotAreaSpec area = spec.container.area("storage");
+        int firstIndex = this.slots.size();
+        SpecSlots.forScrollableViewport(area, storage).forEach(this::addSlot);
+        scrollableAreas.put(area.id, new ScrollableSlotArea(area, storage, this.slots, firstIndex));
+    }
+
+    @Override
+    public Map<String, ScrollableSlotArea> scrollableAreas() {
+        return scrollableAreas;
+    }
+
+    @Override
+    public boolean clickMenuButton(Player player, int id) {
+        // resolves ids produced by SpecScroll.encode, sent by SpecContainerScreen
+        return SpecScroll.handleClickMenuButton(spec.container, scrollableAreas, id);
+    }
+}
+```
+
+`storage` can be any size — a 6-slot furnace-like inventory, a 200-slot
+mega-chest — the exact same JSON and menu code handles it, since the row
+count comes from `storage.getContainerSize()` at construction time, not from
+the spec. If it turns out to fit within `viewport_rows`,
+`ScrollableSlotArea#scrollable()` is `false` and nothing scrolls.
+
+A `scrollbar` widget in the spec, whose `target` prop names the area's id,
+places and styles the scrollbar yourself; `SpecContainerScreen` skips
+building it if the target isn't actually scrollable, so an explicitly-placed
+scrollbar still only appears when there's something to scroll. If you don't
+place one at all, `SpecContainerScreen` auto-attaches a default-styled
+scrollbar along the area's right edge whenever it's scrollable, so binding
+any inventory gets working scroll for free with zero layout effort — you
+only need to place a `scrollbar` widget yourself for custom positioning.
+
+Scrolling rides vanilla's container-button packet
+(`AbstractContainerMenu#clickMenuButton`) rather than a custom payload — both
+sides load the same `ScreenSpec`, so encoding "which area, which row" as a
+single int is enough for the server to independently reproduce the client's
+scroll and stay in sync for item interactions. `SpecContainerScreen` drives
+the scrollbar from mouse drag and mouse wheel (both over the widget and over
+the slot area itself), and clips the rendered slot grid to the viewport
+automatically — no rendering code needed in `MyScreen`.
 
 ---
 
@@ -413,9 +492,17 @@ supported yet — see Known limitations.
 - **`panel` and `icon` rendering** are intentional placeholders — real artwork
   is mod-specific; override `renderPanel` / `resolveIcon` for your textures.
 - **`SpecContainerScreen`** doesn't yet support interactive widgets (button,
-  toggle_button, input, slider) alongside slots — only `panel`/`label` are
-  drawn. It also doesn't yet support a designer canvas widget for laying out
-  slot areas visually; author the `container` JSON by hand for now.
+  toggle_button, input, slider) alongside slots — only `panel`/`label`/`icon`/
+  `scrollbar` are handled. (`panel`/`label`/`icon` rendering, `text` bindings,
+  and `bindText` are shared with `SpecScreen` via `SpecWidgetRenderer`, so
+  those behave identically on both — only slot support is exclusive to
+  `SpecContainerScreen`.) It also doesn't yet support a designer canvas widget
+  for laying out slot areas visually; author the `container` JSON by hand for
+  now.
+- **Scrolling** is vertical-only (`scrollbar` widgets with `"axis": "x"`
+  render but don't drive a horizontal scroll) and only wired up for
+  `SpecContainerScreen` slot areas — not the slotless `SpecScreen` or the
+  `list`/`scroll` widget types.
 - **Porting to other MC versions** means updating `neo_version` and
   `minecraft_version` in `gradle.properties` and auditing API drift (e.g.
   `GuiGraphics.blit` changed signature between 1.21.1 and 1.21.5 — always

@@ -1,0 +1,120 @@
+{
+  "id": "test_container",
+  "modId": "screenspec",
+  "width": 250,
+  "height": 220,
+  "widgets": [
+    {
+      "type": "panel",
+      "id": "bg",
+      "x": 0,
+      "y": 0,
+      "w": 250,
+      "h": 220,
+      "props": {}
+    },
+    {
+      "type": "label",
+      "id": "title",
+      "x": 10,
+      "y": 8,
+      "w": 230,
+      "h": 12,
+      "text": "Container A (scrollable, 10 rows)",
+      "props": {}
+    },
+    {
+      "type": "scrollbar",
+      "id": "inv_scrollbar",
+      "x": 172,
+      "y": 24,
+      "w": 14,
+      "h": 54,
+      "props": {
+        "axis": "y",
+        "target": "inv_10row"
+      }
+    },
+    {
+      "type": "icon",
+      "id": "diamond_icon",
+      "x": 190,
+      "y": 8,
+      "w": 16,
+      "h": 16,
+      "icon": "diamond",
+      "props": {}
+    },
+    {
+      "type": "label",
+      "id": "scroll_label",
+      "x": 192,
+      "y": 40,
+      "w": 50,
+      "h": 12,
+      "text": "Row: ...",
+      "props": {}
+    },
+    {
+      "type": "label",
+      "id": "second_label",
+      "x": 10,
+      "y": 86,
+      "w": 230,
+      "h": 12,
+      "text": "Container B (scrollable, different size)",
+      "props": {}
+    },
+    {
+      "type": "scrollbar",
+      "id": "inv_second_scrollbar",
+      "x": 100,
+      "y": 100,
+      "w": 14,
+      "h": 36,
+      "props": {
+        "axis": "y",
+        "target": "inv_second"
+      }
+    },
+    {
+      "type": "label",
+      "id": "player_label",
+      "x": 10,
+      "y": 146,
+      "w": 230,
+      "h": 12,
+      "text": "Player inventory (fixed)",
+      "props": {}
+    }
+  ],
+  "container": {
+    "slots": [
+      {
+        "id": "inv_10row",
+        "x": 10,
+        "y": 24,
+        "cols": 9,
+        "slot_size": 18,
+        "viewport_rows": 3
+      },
+      {
+        "id": "inv_second",
+        "x": 10,
+        "y": 100,
+        "cols": 5,
+        "slot_size": 18,
+        "viewport_rows": 2
+      },
+      {
+        "id": "player_inv",
+        "x": 10,
+        "y": 160,
+        "cols": 9,
+        "slot_size": 18,
+        "viewport_rows": 3,
+        "source": "player"
+      }
+    ]
+  }
+}

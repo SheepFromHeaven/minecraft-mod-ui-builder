@@ -27,9 +27,14 @@ import java.util.List;
 public final class SpecSlots {
     private SpecSlots() {}
 
-    /** One slot per cell, in row-major order, capped at {@code container.getContainerSize()}. */
+    /**
+     * One slot per cell, in row-major order, for a fixed-size area (a crafting grid, an output
+     * slot) where {@code area.viewport_rows} is trusted as the true row count - it never scrolls.
+     * For an area whose real size is only known once the mod binds a runtime-sized {@code
+     * Container} (see {@link ScrollableSlotArea}), use {@link #forScrollableViewport} instead.
+     */
     public static List<Slot> forArea(SlotAreaSpec area, Container container) {
-        int capacity = Math.min(container.getContainerSize(), area.cols * area.rows);
+        int capacity = Math.min(container.getContainerSize(), area.cols * area.viewport_rows);
         List<Slot> slots = new ArrayList<>(capacity);
         for (int i = 0; i < capacity; i++) {
             int col = i % area.cols;
@@ -39,10 +44,11 @@ public final class SpecSlots {
         return slots;
     }
 
-    /** The player's main 3x9 inventory (indices 9-35), laid out over {@code area.cols x area.rows}. */
+    /** The player's main inventory (indices 9-35), laid out over {@code area.cols} columns. */
     public static List<Slot> forPlayerInventory(SlotAreaSpec area, Inventory playerInventory) {
-        List<Slot> slots = new ArrayList<>(area.cols * area.rows);
-        for (int row = 0; row < area.rows; row++) {
+        int rows = area.totalRows(27);
+        List<Slot> slots = new ArrayList<>(area.cols * rows);
+        for (int row = 0; row < rows; row++) {
             for (int col = 0; col < area.cols; col++) {
                 int index = 9 + col + row * area.cols;
                 slots.add(new Slot(playerInventory, index, area.slotX(col), area.slotY(row)));
@@ -56,6 +62,33 @@ public final class SpecSlots {
         List<Slot> slots = new ArrayList<>(area.cols);
         for (int col = 0; col < area.cols; col++) {
             slots.add(new Slot(playerInventory, col, area.slotX(col), area.slotY(0)));
+        }
+        return slots;
+    }
+
+    /**
+     * One slot per cell of {@code area}'s initial (scroll row 0) viewport, for an area bound to a
+     * runtime-sized {@code Container} - its true row count comes from {@code
+     * container.getContainerSize()}, not anything authored, since the real inventory (a custom
+     * block's, sized however that mod likes) is only known once the mod hooks it up. Wrap the
+     * result in a {@link ScrollableSlotArea} after adding it to the menu; see that class's javadoc
+     * for the full pattern.
+     */
+    public static List<Slot> forScrollableViewport(SlotAreaSpec area, Container container) {
+        int cols = area.cols;
+        int size = container.getContainerSize();
+        int visibleRows = Math.min(area.viewport_rows, area.totalRows(size));
+        List<Slot> slots = new ArrayList<>(cols * visibleRows);
+        for (int viewRow = 0; viewRow < visibleRows; viewRow++) {
+            for (int col = 0; col < cols; col++) {
+                int dataIndex = viewRow * cols + col;
+                if (dataIndex < size) {
+                    slots.add(new Slot(container, dataIndex, area.slotX(col), area.slotY(viewRow)));
+                } else {
+                    // partial last row (or an empty container) - an inert off-screen slot keeps the viewport's slot count fixed
+                    slots.add(new Slot(container, Math.max(0, size - 1), ScrollableSlotArea.OFFSCREEN, ScrollableSlotArea.OFFSCREEN));
+                }
+            }
         }
         return slots;
     }

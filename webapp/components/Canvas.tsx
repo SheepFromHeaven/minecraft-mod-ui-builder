@@ -191,16 +191,19 @@ export default function Canvas({
         position: "relative",
         width: cssWidth,
         height: cssHeight,
-        backgroundImage: `url("${WORLD_IMAGE_URL}")`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
         flexShrink: 0,
         boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
         cursor: tryMode ? "default" : undefined,
       }}
       onMouseDown={handleCanvasMouseDown}
     >
-      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.48)", pointerEvents: "none", zIndex: 0 }} />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={WORLD_IMAGE_URL}
+        alt=""
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none", zIndex: 0 }}
+      />
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.48)", pointerEvents: "none", zIndex: 1 }} />
 
       {gridDataUrl && (
         <div style={{

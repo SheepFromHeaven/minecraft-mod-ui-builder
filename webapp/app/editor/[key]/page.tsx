@@ -139,7 +139,7 @@ export default function EditorPage() {
   const router = useRouter();
   const projectKey = params.key;
 
-  const { reset, extractPack, initialized, ready } = useTextures();
+  const { reset, extractPack, initialized, ready, setupRequired } = useTextures();
   const [showTextureDebug, setShowTextureDebug] = useState(false);
   const [projectLoaded, setProjectLoaded] = useState(false);
 
@@ -168,8 +168,8 @@ export default function EditorPage() {
 
   // Redirect to setup if textures aren't ready after init.
   useEffect(() => {
-    if (initialized && !ready) router.replace("/");
-  }, [initialized, ready, router]);
+    if (initialized && setupRequired && !ready) router.replace("/");
+  }, [initialized, setupRequired, ready, router]);
 
   // Load project from localStorage by key.
   useEffect(() => {

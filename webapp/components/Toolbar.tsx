@@ -1,6 +1,7 @@
 "use client";
 
-import { Download, Upload } from "lucide-react";
+import { Download, Upload, BookOpen } from "lucide-react";
+import Link from "next/link";
 import type { ScreenSpec, BindingsSchema } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -149,6 +150,9 @@ export default function Toolbar({
           onChangeActions={onUpdateActions}
           modId={modId}
         />
+        <Link href="/docs" target="_blank" title="Documentation" className="inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+          <BookOpen className="h-4 w-4" />
+        </Link>
         <SettingsDialog
           screen={screen}
           onScreenChange={onScreenChange}

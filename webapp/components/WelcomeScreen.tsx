@@ -22,6 +22,7 @@ interface Props {
   projects: ProjectSummary[];
   onOpenProject: (key: string) => void;
   onCreateProject: (modId: string, screenId: string) => void;
+  onEditTestScreen?: () => void;
 }
 
 function relativeTime(ts: number): string {
@@ -34,7 +35,7 @@ function relativeTime(ts: number): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-export default function WelcomeScreen({ projects, onOpenProject, onCreateProject }: Props) {
+export default function WelcomeScreen({ projects, onOpenProject, onCreateProject, onEditTestScreen }: Props) {
   const [open, setOpen] = useState(false);
   const [modId, setModId] = useState("");
   const [screenId, setScreenId] = useState("main");
@@ -84,6 +85,11 @@ export default function WelcomeScreen({ projects, onOpenProject, onCreateProject
         )}
 
         <Button className="w-full" onClick={() => setOpen(true)}>+ New Project</Button>
+        {process.env.NODE_ENV === "development" && onEditTestScreen && (
+          <Button className="w-full" variant="outline" onClick={onEditTestScreen}>
+            Edit test screen
+          </Button>
+        )}
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>

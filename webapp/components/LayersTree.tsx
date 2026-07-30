@@ -254,13 +254,16 @@ function TreeNode({ widget, depth, isOpen, selectedId, dragOver, onSelect, onAdd
         {...listeners}
       >
         {isContainer ? (
-          <button
+          <span
+            role="button"
+            tabIndex={0}
             className="mr-0.5 shrink-0 opacity-60 hover:opacity-100"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); onToggle(); }}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onToggle(); } }}
           >
             {isOpen ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
-          </button>
+          </span>
         ) : (
           // spacer so labels align when siblings include containers
           <span className="mr-0.5 size-3 shrink-0 inline-block" />

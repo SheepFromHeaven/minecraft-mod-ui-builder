@@ -10,6 +10,8 @@ export const REQUIRED_TEXTURES = [
   "mc_slider_handle_slice.png",
   "mc_button_normal.png",
   "mc_button_hover.png",
+  "mc_slot_tile.png",
+  "mc_scrollbar_handle.png",
 ] as const;
 
 export type TextureName = (typeof REQUIRED_TEXTURES)[number];

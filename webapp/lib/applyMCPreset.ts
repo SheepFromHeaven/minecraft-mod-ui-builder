@@ -13,6 +13,9 @@ const ZONES: Record<string, [number, number, number]> = {
   // slider track zones
   TRACK_BORDER: [0,   220, 255], // cyan
   TRACK_FILL:   [0,   80,  120], // dark teal
+  // scrollbar handle stripe zones
+  STRIPE_A:     [0,   255, 255], // aqua
+  STRIPE_B:     [255, 0,   200], // magenta-pink
 };
 
 // MC vanilla palette — measured from the rendered widget colors (plain RGB
@@ -31,6 +34,13 @@ const MC = {
   hoverShadow:      [92,  92,  92 ] as [number,number,number],
   trackFill:        [43,  43,  43 ] as [number,number,number], // dark recessed slider track
   handleFill:       [109, 109, 109] as [number,number,number], // same tone as button face
+  slotDark:         [55,  55,  55 ] as [number,number,number], // #373737 recessed slot top/left edge
+  slotLight:        [255, 255, 255] as [number,number,number], // white slot bottom/right edge
+  slotFill:         [139, 139, 139] as [number,number,number], // #8b8b8b slot interior
+  scrollOuterLight: [255, 255, 255] as [number,number,number], // white outer bevel
+  scrollOuterDark:  [85,  85,  85 ] as [number,number,number], // #555 outer bevel
+  scrollStripeA:    [170, 170, 170] as [number,number,number], // light interior stripe
+  scrollStripeB:    [148, 148, 148] as [number,number,number], // dark interior stripe
 };
 
 // Per-texture swap tables: zone name → target [r,g,b]
@@ -62,6 +72,17 @@ const SWAPS: Record<string, Array<{ from: [number,number,number]; to: [number,nu
     { from: ZONES.INNER_LIGHT,  to: MC.buttonHighlight },
     { from: ZONES.INNER_DARK,   to: MC.buttonShadow    },
     { from: ZONES.FILL,         to: MC.handleFill      },
+  ],
+  "mc_slot_tile.png": [
+    { from: ZONES.INNER_DARK,   to: MC.slotDark  },
+    { from: ZONES.INNER_LIGHT,  to: MC.slotLight },
+    { from: ZONES.FILL,         to: MC.slotFill  },
+  ],
+  "mc_scrollbar_handle.png": [
+    { from: ZONES.INNER_LIGHT,  to: MC.scrollOuterLight },
+    { from: ZONES.INNER_DARK,   to: MC.scrollOuterDark  },
+    { from: ZONES.STRIPE_A,     to: MC.scrollStripeA    },
+    { from: ZONES.STRIPE_B,     to: MC.scrollStripeB    },
   ],
 };
 

@@ -56,6 +56,10 @@ function migrateSession(raw: Record<string, unknown>): SavedSession {
   return raw as unknown as SavedSession;
 }
 
+function normalizeScreen(s: ScreenSpec): ScreenSpec {
+  return { ...s, widgets: s.widgets.map((w) => ({ ...w, props: w.props ?? {} })) };
+}
+
 function loadProjects(): StoredProject[] {
   try {
     // migrate legacy single-session format
@@ -154,6 +158,70 @@ function Editor() {
   const [scale, setScale] = useState(3);
   const [tryMode, setTryMode] = useState(false);
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
+
+  const handleEditTestScreen = useCallback(async () => {
+    try {
+      const res = await fetch("/api/dev/test-screen");
+      if (!res.ok) throw new Error("Failed to load test screen");
+      const parsed = normalizeScreen(await res.json() as ScreenSpec);
+      if (!parsed.id || !Array.isArray(parsed.widgets)) throw new Error("Invalid ScreenSpec");
+      const DEV_TEST_KEY = "__dev_test_screen__";
+      const session: SavedSession = {
+        history: [{ screens: [parsed], activeIdx: 0 }],
+        cursor: 0,
+        gridSize: 4,
+        showGrid: true,
+        scale: 3,
+      };
+      syncIdCounter([parsed]);
+      setProjects((prev) => {
+        const exists = prev.find((p) => p.key === DEV_TEST_KEY);
+        const updated = exists
+          ? prev.map((p) => p.key === DEV_TEST_KEY ? { ...p, session, updatedAt: Date.now() } : p)
+          : [...prev, { key: DEV_TEST_KEY, session, updatedAt: Date.now() }];
+        saveProjects(updated);
+        return updated;
+      });
+      setHistory(session.history);
+      setCursor(0);
+      setGridSize(4);
+      setShowGrid(true);
+      setSelectedId(null);
+      setCurrentProjectKey(DEV_TEST_KEY);
+      setView("editor");
+    } catch (e) {
+      alert(`Could not load test screen: ${e instanceof Error ? e.message : e}`);
+    }
+  }, []);
+
+  const handleSaveToTestMod = useCallback(async () => {
+    try {
+      const inventoryWidgets = screen.widgets.filter((w) => w.type === "inventory_area");
+      const regularWidgets   = screen.widgets.filter((w) => w.type !== "inventory_area");
+      const container = inventoryWidgets.length > 0
+        ? {
+            slots: inventoryWidgets.map((w) => ({
+              id:        w.id,
+              x:         w.x,
+              y:         w.y,
+              cols:      parseInt(w.props.cols      ?? "1", 10),
+              rows:      parseInt(w.props.rows      ?? "1", 10),
+              slot_size: parseInt(w.props.slot_size ?? "18", 10),
+              ...(w.props.source ? { source: w.props.source } : {}),
+            })),
+          }
+        : undefined;
+      const exported = { ...screen, widgets: regularWidgets, ...(container ? { container } : {}) };
+      const res = await fetch("/api/dev/test-screen", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(exported),
+      });
+      if (!res.ok) throw new Error("Server error");
+    } catch (e) {
+      alert(`Could not save to test mod: ${e instanceof Error ? e.message : e}`);
+    }
+  }, [screen]);
 
   const handleOpenProject = useCallback((key: string) => {
     const project = projects.find((p) => p.key === key);
@@ -362,6 +430,14 @@ function Editor() {
     commitScreen({ ...screen, widgets: next });
   }, [screen, commitScreen]);
 
+  const updateBindingsSchema = useCallback((schema: import("@/lib/types").BindingsSchema) => {
+    commitScreen({ ...screen, bindingsSchema: Object.keys(schema).length ? schema : undefined });
+  }, [screen, commitScreen]);
+
+  const updateActions = useCallback((actions: string[]) => {
+    commitScreen({ ...screen, actions: actions.length ? actions : undefined });
+  }, [screen, commitScreen]);
+
   const reparentWidget = useCallback((id: string, newParentId: string | null) => {
     const widget = screen.widgets.find(w => w.id === id);
     if (!widget) return;
@@ -481,7 +557,23 @@ function Editor() {
   }, [undo, redo, copyWidget, pasteWidget, duplicateWidget, deleteWidget, nudgeWidget, gridSize, tryMode, zoomIn, zoomOut, zoomReset]);
 
   const handleExport = useCallback(() => {
-    const json = JSON.stringify(screen, null, 2);
+    const inventoryWidgets = screen.widgets.filter((w) => w.type === "inventory_area");
+    const regularWidgets   = screen.widgets.filter((w) => w.type !== "inventory_area");
+    const container = inventoryWidgets.length > 0
+      ? {
+          slots: inventoryWidgets.map((w) => ({
+            id:        w.id,
+            x:         w.x,
+            y:         w.y,
+            cols:      parseInt(w.props.cols      ?? "1", 10),
+            rows:      parseInt(w.props.rows      ?? "1", 10),
+            slot_size: parseInt(w.props.slot_size ?? "18", 10),
+            ...(w.props.source ? { source: w.props.source } : {}),
+          })),
+        }
+      : undefined;
+    const exported = { ...screen, widgets: regularWidgets, ...(container ? { container } : {}) };
+    const json = JSON.stringify(exported, null, 2);
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -499,7 +591,7 @@ function Editor() {
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
-        const parsed = JSON.parse(ev.target?.result as string) as ScreenSpec;
+        const parsed = normalizeScreen(JSON.parse(ev.target?.result as string) as ScreenSpec);
         if (!parsed.id || !Array.isArray(parsed.widgets)) throw new Error("Invalid ScreenSpec");
         commitScreen(parsed);
         setSelectedId(null);
@@ -525,6 +617,7 @@ function Editor() {
         projects={toSummaries(projects)}
         onOpenProject={handleOpenProject}
         onCreateProject={handleCreateProject}
+        onEditTestScreen={handleEditTestScreen}
       />
     );
   }
@@ -572,10 +665,16 @@ function Editor() {
           onLoadPreset={handleLoadPreset}
           onResetTextures={handleResetTextures}
           onViewTextures={() => setShowTextureDebug(true)}
+          onSaveToTestMod={process.env.NODE_ENV === "development" ? handleSaveToTestMod : undefined}
           scale={scale}
           onZoomIn={zoomIn}
           onZoomOut={zoomOut}
           onZoomReset={zoomReset}
+          bindingsSchema={screen.bindingsSchema ?? {}}
+          onUpdateBindingsSchema={updateBindingsSchema}
+          actions={screen.actions ?? []}
+          onUpdateActions={updateActions}
+          modId={screen.modId}
         />
 
         <div className="flex flex-1 overflow-hidden">
@@ -591,6 +690,7 @@ function Editor() {
               tryMode={tryMode}
               onSelect={setSelectedId}
               onUpdateWidget={updateWidget}
+              bindingsSchema={screen.bindingsSchema ?? {}}
             />
           </div>
 
@@ -600,6 +700,8 @@ function Editor() {
                 widget={selectedWidget}
                 onUpdate={updateWidget}
                 onDelete={() => deleteWidget()}
+                bindingsSchema={screen.bindingsSchema ?? {}}
+                actions={screen.actions ?? []}
               />
             </aside>
           )}

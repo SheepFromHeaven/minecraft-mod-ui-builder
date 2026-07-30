@@ -1,7 +1,7 @@
 "use client";
 
 import { Download, Upload } from "lucide-react";
-import type { ScreenSpec } from "@/lib/types";
+import type { ScreenSpec, BindingsSchema } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import SettingsDialog from "@/components/SettingsDialog";
+import BindingsModal from "@/components/BindingsModal";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
 interface Props {
@@ -37,13 +38,20 @@ interface Props {
   onLoadPreset: () => Promise<void>;
   onResetTextures: () => Promise<void>;
   onViewTextures: () => void;
+  onSaveToTestMod?: () => Promise<void>;
+  bindingsSchema: BindingsSchema;
+  onUpdateBindingsSchema: (schema: BindingsSchema) => void;
+  actions: string[];
+  onUpdateActions: (actions: string[]) => void;
+  modId?: string;
 }
 
 export default function Toolbar({
   screen, gridSize, showGrid, canUndo, canRedo, tryMode,
   onUndo, onRedo, onGridSizeChange, onToggleGrid, onToggleTryMode,
   onScreenChange, onExport, onImport, onLoadPreset, onResetTextures, onViewTextures,
-  scale, onZoomIn, onZoomOut, onZoomReset,
+  scale, onZoomIn, onZoomOut, onZoomReset, onSaveToTestMod,
+  bindingsSchema, onUpdateBindingsSchema, actions, onUpdateActions, modId,
 }: Props) {
   return (
     <div className="flex items-center gap-2 border-b bg-background px-3 py-2 flex-wrap shrink-0">
@@ -119,6 +127,14 @@ export default function Toolbar({
       </Button>
 
       <div className="ml-auto flex items-center gap-1">
+        {process.env.NODE_ENV === "development" && onSaveToTestMod && (
+          <>
+            <Button variant="outline" size="sm" className="h-8" onClick={onSaveToTestMod} title="Save to neoforge-runtime test_screen.json">
+              Save to test mod
+            </Button>
+            <Separator orientation="vertical" className="h-5" />
+          </>
+        )}
         <Button variant="ghost" size="sm" className="h-8 w-8 px-0" onClick={onImport} title="Import JSON">
           <Upload className="h-4 w-4" />
         </Button>
@@ -126,6 +142,13 @@ export default function Toolbar({
           <Download className="h-4 w-4" />
         </Button>
         <Separator orientation="vertical" className="h-5" />
+        <BindingsModal
+          schema={bindingsSchema}
+          onChangeSchema={onUpdateBindingsSchema}
+          actions={actions}
+          onChangeActions={onUpdateActions}
+          modId={modId}
+        />
         <SettingsDialog
           screen={screen}
           onScreenChange={onScreenChange}

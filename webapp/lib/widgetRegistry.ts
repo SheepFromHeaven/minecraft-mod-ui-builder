@@ -96,6 +96,37 @@ const WIDGET_REGISTRY: WidgetDef[] = [
     ],
   },
   {
+    type: "scrollbar",
+    label: "Scrollbar",
+    defaultWidget: {
+      type: "scrollbar",
+      x: 8, y: 8, w: 14, h: 54,
+      text: "", icon: null,
+      props: { axis: "y", target: "" },
+    },
+    propSchema: [
+      { key: "axis",   label: "Axis",            type: "select", options: ["y", "x"], defaultValue: "y" },
+      { key: "target", label: "Target widget ID", type: "text",   defaultValue: "" },
+    ],
+  },
+  {
+    type: "inventory_area",
+    label: "Inventory Area",
+    defaultWidget: {
+      type: "inventory_area",
+      x: 8, y: 8,
+      w: 9 * 18, h: 3 * 18,  // 9 cols × 3 rows × 18px slot_size
+      text: "", icon: null,
+      props: { cols: "9", rows: "3", slot_size: "18", source: "" },
+    },
+    propSchema: [
+      { key: "cols",      label: "Columns",   type: "number",  defaultValue: "9"  },
+      { key: "rows",      label: "Rows",      type: "number",  defaultValue: "3"  },
+      { key: "slot_size", label: "Slot Size", type: "number",  defaultValue: "18" },
+      { key: "source",    label: "Source",    type: "select",  options: ["", "player", "player_hotbar"], defaultValue: "" },
+    ],
+  },
+  {
     type: "list",
     label: "List",
     defaultWidget: {

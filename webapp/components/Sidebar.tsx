@@ -70,7 +70,7 @@ export default function AppSidebar({
           <Button variant="ghost" size="sm" className="h-7 w-7 px-0 shrink-0" onClick={onGoHome} title="Back to projects">
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="font-semibold text-sm truncate text-sidebar-foreground">
+          <span className="font-semibold truncate text-sidebar-foreground">
             {modId || "Unnamed project"}
           </span>
         </div>
@@ -103,7 +103,7 @@ export default function AppSidebar({
                       <div className="px-2 py-0.5">
                         <Input
                           ref={renameRef}
-                          className="h-7 text-sm"
+                          className="h-6 text-xs"
                           value={renameValue}
                           onChange={e => setRenameValue(e.target.value)}
                           onKeyDown={e => {
@@ -116,6 +116,7 @@ export default function AppSidebar({
                     ) : (
                       <>
                         <SidebarMenuButton
+                          size="sm"
                           isActive={idx === activeIdx}
                           onClick={() => onSelectScreen(idx)}
                           className="pr-12"
@@ -176,6 +177,7 @@ export default function AppSidebar({
             </SidebarGroupContent>
           )}
         </SidebarGroup>
+
 
       </SidebarContent>
     </Sidebar>

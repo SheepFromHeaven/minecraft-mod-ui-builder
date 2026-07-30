@@ -151,6 +151,40 @@ const HANDLE = [
   OB, OB, OB, OB, OB,
 ];
 
+// Slot tile: 18×18, recessed inventory slot — dark top+left edge, light
+// bottom+right edge, flat fill. Tiles seamlessly for slot grids.
+const SLOT_TILE = (() => {
+  const w = 18, h = 18;
+  const grid = [];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (x === 0 || y === 0) grid.push(ID);
+      else if (x === w - 1 || y === h - 1) grid.push(IL);
+      else grid.push(FL);
+    }
+  }
+  return grid;
+})();
+
+// Scrollbar handle: 12×15, raised — outer + inner bevel ring, alternating
+// horizontal stripe fill (matches the real widget's striped interior).
+const SA = [0,   255, 255, 255]; // stripe A — aqua
+const SB = [255, 0,   200, 255]; // stripe B — magenta-pink
+const SCROLLBAR_HANDLE = (() => {
+  const w = 12, h = 15;
+  const grid = [];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (x === 0 || y === 0) grid.push(IL);
+      else if (x === w - 1 || y === h - 1) grid.push(ID);
+      else if (x === 1 || y === 1) grid.push(SA);
+      else if (x === w - 2 || y === h - 2) grid.push(SB);
+      else grid.push((y - 2) % 2 === 0 ? SA : SB);
+    }
+  }
+  return grid;
+})();
+
 // ── Write files ───────────────────────────────────────────────────────────────
 function gridToRGBA(grid) {
   const buf = new Uint8Array(grid.length * 4);
@@ -172,6 +206,8 @@ const sprites = [
   { name: "mc_button_hover.png",       width: 5, height: 5, grid: BTN_H  },
   { name: "mc_slider_track_slice.png", width: 5, height: 5, grid: TRACK  },
   { name: "mc_slider_handle_slice.png",width: 5, height: 5, grid: HANDLE },
+  { name: "mc_slot_tile.png",          width: 18, height: 18, grid: SLOT_TILE },
+  { name: "mc_scrollbar_handle.png",   width: 12, height: 15, grid: SCROLLBAR_HANDLE },
 ];
 
 for (const { name, width, height, grid } of sprites) {

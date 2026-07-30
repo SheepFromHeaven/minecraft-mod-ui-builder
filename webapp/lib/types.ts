@@ -14,10 +14,37 @@ export interface WidgetSpec {
   parentId?: string;
 }
 
+export interface SlotAreaSpec {
+  id: string;
+  x: number;
+  y: number;
+  cols: number;
+  rows: number;
+  slot_size: number;
+  source?: "player" | "player_hotbar" | null;
+}
+
+export interface ContainerSpec {
+  slots: SlotAreaSpec[];
+}
+
+export type BindingType = "string" | "number" | "boolean";
+
+export interface BindingNode {
+  type?: BindingType;
+  previewValue?: string | number | boolean;
+  children?: Record<string, BindingNode>;
+}
+
+export type BindingsSchema = Record<string, BindingNode>;
+
 export interface ScreenSpec {
   id: string;
   modId?: string;
   width: number;
   height: number;
   widgets: WidgetSpec[];
+  container?: ContainerSpec | null;
+  bindingsSchema?: BindingsSchema;
+  actions?: string[];
 }

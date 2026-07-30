@@ -1,8 +1,10 @@
 "use client";
 
 import React from "react";
-import type { WidgetSpec } from "@/lib/types";
+import type { WidgetSpec, BindingsSchema } from "@/lib/types";
 import { getWidgetDef } from "@/lib/widgetRegistry";
+import { getBindingNode, getPathsByType } from "@/components/BindingsTree";
+import type { BindingType } from "@/lib/types";
 
 const INPUT = "w-full rounded border border-gray-300 bg-white px-1.5 py-0.5 text-xs text-gray-900 focus:border-blue-400 focus:outline-none";
 
@@ -16,13 +18,21 @@ const BINDING_TARGETS: Record<string, string[]> = {
   panel:         ["visible"],
 };
 
+const BINDING_TARGET_TYPES: Record<string, BindingType> = {
+  text:    "string",
+  enabled: "boolean",
+  visible: "boolean",
+};
+
 interface Props {
   widget: WidgetSpec | null;
   onUpdate: (w: WidgetSpec) => void;
   onDelete: () => void;
+  bindingsSchema: BindingsSchema;
+  actions: string[];
 }
 
-export default function PropertyPanel({ widget, onUpdate, onDelete }: Props) {
+export default function PropertyPanel({ widget, onUpdate, onDelete, bindingsSchema, actions }: Props) {
   if (!widget) {
     return (
       <div className="flex flex-col gap-2 p-3 text-xs text-gray-400 italic">
@@ -67,8 +77,12 @@ export default function PropertyPanel({ widget, onUpdate, onDelete }: Props) {
         <div className="grid grid-cols-2 gap-1">
           <Field label="X"><NumInput value={widget.x} onChange={(v) => set({ x: v })} /></Field>
           <Field label="Y"><NumInput value={widget.y} onChange={(v) => set({ y: v })} /></Field>
-          <Field label="W"><NumInput value={widget.w} onChange={(v) => set({ w: v })} /></Field>
-          <Field label="H"><NumInput value={widget.h} onChange={(v) => set({ h: v })} /></Field>
+          {!(widget.type === "scrollbar" && (widget.props.axis ?? "y") === "y") && (
+            <Field label="W"><NumInput value={widget.w} onChange={(v) => set({ w: v })} /></Field>
+          )}
+          {!(widget.type === "scrollbar" && widget.props.axis === "x") && (
+            <Field label="H"><NumInput value={widget.h} onChange={(v) => set({ h: v })} /></Field>
+          )}
         </div>
       )}
 
@@ -124,50 +138,83 @@ export default function PropertyPanel({ widget, onUpdate, onDelete }: Props) {
       )}
 
       {widget.type !== "group" && (
-        <Field label="Action ID">
-          <input
-            className={INPUT}
-            value={widget.action ?? ""}
-            onChange={(e) => set({ action: e.target.value || undefined })}
-            placeholder="e.g. close, my_mod:save"
-          />
+        <Field label="Action">
+          {actions.length > 0 ? (
+            <select
+              className={INPUT}
+              value={widget.action ?? ""}
+              onChange={(e) => set({ action: e.target.value || undefined })}
+            >
+              <option value="">(none)</option>
+              <option value="close">close</option>
+              {actions.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+          ) : (
+            <input
+              className={INPUT}
+              value={widget.action ?? ""}
+              onChange={(e) => set({ action: e.target.value || undefined })}
+              placeholder="e.g. close, my_mod.save"
+            />
+          )}
         </Field>
       )}
 
       {availableTargets.length > 0 && (
         <>
           <div className="font-semibold text-gray-500 mt-1">Bindings</div>
-          {Object.entries(bindings).map(([target, providerId]) => (
-            <div key={target} className="flex gap-1 items-center">
-              <select
-                className="shrink-0 rounded border border-gray-300 bg-white px-1 py-0.5 text-xs text-gray-700 focus:outline-none"
-                value={target}
-                onChange={(e) => changeBindingTarget(target, e.target.value)}
-              >
-                {availableTargets
-                  .filter((t) => t === target || !(t in bindings))
-                  .map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <input
-                className={INPUT}
-                value={providerId}
-                onChange={(e) => setBinding(target, e.target.value)}
-                placeholder="provider id"
-              />
-              <button
-                className="shrink-0 text-gray-400 hover:text-red-500 px-1"
-                onClick={() => removeBinding(target)}
-              >✕</button>
-            </div>
-          ))}
-          {unusedTargets.length > 0 && (
-            <button
-              className="w-full rounded border border-dashed border-gray-300 py-0.5 text-gray-400 hover:border-gray-400 hover:text-gray-600"
-              onClick={() => setBinding(unusedTargets[0], "")}
-            >
-              + Add binding
-            </button>
-          )}
+          <>
+            {Object.entries(bindings).map(([target, path]) => {
+              const expectedType = BINDING_TARGET_TYPES[target] ?? "string";
+              const paths = getPathsByType(bindingsSchema, expectedType);
+              const currentNode = getBindingNode(bindingsSchema, path);
+              const currentCompatible = !path || (currentNode?.type ?? "string") === expectedType;
+              return (
+                <div key={target} className="flex gap-1 items-center">
+                  <select
+                    className="shrink-0 rounded border border-gray-300 bg-white px-1 py-0.5 text-xs text-gray-700 focus:outline-none"
+                    value={target}
+                    onChange={(e) => changeBindingTarget(target, e.target.value)}
+                  >
+                    {availableTargets
+                      .filter((t) => t === target || !(t in bindings))
+                      .map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <select
+                    className={INPUT + (!currentCompatible ? " border-orange-400" : "")}
+                    value={path}
+                    onChange={(e) => setBinding(target, e.target.value)}
+                  >
+                    {paths.length === 0 && (
+                      <option value="" disabled>No {expectedType} bindings defined</option>
+                    )}
+                    {!paths.includes(path) && path && (
+                      <option value={path}>{path} ⚠ wrong type</option>
+                    )}
+                    {paths.map((p) => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  <button
+                    className="shrink-0 text-gray-400 hover:text-red-500 px-1"
+                    onClick={() => removeBinding(target)}
+                  >✕</button>
+                </div>
+              );
+            })}
+            {unusedTargets.length > 0 && (() => {
+              const firstTarget = unusedTargets[0];
+              const expectedType = BINDING_TARGET_TYPES[firstTarget] ?? "string";
+              const paths = getPathsByType(bindingsSchema, expectedType);
+              return (
+                <button
+                  className="w-full rounded border border-dashed border-gray-300 py-0.5 text-gray-400 hover:border-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={paths.length === 0}
+                  onClick={() => setBinding(firstTarget, paths[0])}
+                >
+                  {paths.length === 0 ? `Define a ${expectedType} binding first` : "+ Add binding"}
+                </button>
+              );
+            })()}
+          </>
         </>
       )}
 

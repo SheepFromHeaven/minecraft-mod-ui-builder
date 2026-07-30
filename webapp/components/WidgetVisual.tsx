@@ -4,6 +4,8 @@ import type { WidgetSpec } from "@/lib/types";
 import { useTextures } from "@/lib/TextureContext";
 
 const TYPE_STYLES: Record<string, { bg: string; border: string; text: string }> = {
+  inventory_area:  { bg: "#8b8b8b", border: "#555555", text: "#ffffff" },
+  scrollbar:       { bg: "#000000", border: "#000000", text: "#8b8b8b" },
   list:          { bg: "#000",    border: "#888", text: "#fff" },
   scroll:        { bg: "#0a0a0a", border: "#666", text: "transparent" },
   panel:         { bg: "#c6c6c6", border: "#555", text: "transparent" },
@@ -51,6 +53,82 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
     padding: `0 ${2 * scale}px`,
   };
 
+  if (widget.type === "scrollbar") {
+    const axis = widget.props.axis ?? "y";
+    const isVertical = axis === "y";
+    // Handle is fixed 12×15 — no scaling, just position it within the track
+    const handleW = 12 * scale;
+    const handleH = 15 * scale;
+    return (
+      <div style={{
+        width: "100%", height: "100%", boxSizing: "border-box", position: "relative",
+        borderWidth: scale, borderStyle: "solid", borderColor: "transparent",
+        borderImage: `url("${tex("mc_slot_tile.png")}") 1 fill / ${scale}px stretch`,
+        imageRendering: "pixelated",
+      }}>
+        <div style={{
+          position: "absolute",
+          ...(isVertical ? { top: 0, left: 0 } : { left: 0, top: 0 }),
+          width: handleW, height: handleH,
+          backgroundImage: `url("${tex("mc_scrollbar_handle.png")}")`,
+          backgroundSize: `${handleW}px ${handleH}px`,
+          backgroundRepeat: "no-repeat",
+          imageRendering: "pixelated",
+        }} />
+      </div>
+    );
+  }
+
+  if (widget.type === "inventory_area") {
+    const cols = parseInt(widget.props.cols ?? "9", 10);
+    const rows = parseInt(widget.props.rows ?? "3", 10);
+    const slotSize = parseInt(widget.props.slot_size ?? "18", 10) * scale;
+    const fullW = cols * slotSize;
+    const fullH = rows * slotSize;
+    const source = widget.props.source ?? "";
+    const label = source === "player" ? "player inv" : source === "player_hotbar" ? "hotbar" : `${cols}×${rows}`;
+    const clippedH = widget.h * scale < fullH - 1;
+    const clippedW = widget.w * scale < fullW - 1;
+    return (
+      <div style={{
+        width: "100%", height: "100%",
+        boxSizing: "border-box",
+        overflow: "hidden",
+        position: "relative",
+      }}>
+        {/* Full-size slot grid — clipped by the viewport when smaller than cols×rows */}
+        <div style={{
+          width: fullW,
+          height: fullH,
+          backgroundImage: `url("${tex("mc_slot_tile.png")}")`,
+          backgroundSize: `${slotSize}px ${slotSize}px`,
+          backgroundRepeat: "repeat",
+          imageRendering: "pixelated",
+          flexShrink: 0,
+        }} />
+        {/* Scroll hint when the viewport clips the grid */}
+        {(clippedW || clippedH) && (
+          <div style={{
+            position: "absolute", inset: 0,
+            background: "linear-gradient(to bottom right, transparent 60%, rgba(0,0,0,0.7) 100%)",
+            pointerEvents: "none",
+          }} />
+        )}
+        <span style={{
+          position: "absolute", bottom: 2 * scale, right: 3 * scale,
+          fontSize: Math.max(6, 6 * scale),
+          fontFamily: '"Minecraft", monospace',
+          color: "#ffffff",
+          userSelect: "none",
+          pointerEvents: "none",
+          textShadow: `0 0 ${scale * 2}px #000, 0 0 ${scale}px #000`,
+        }}>
+          {label}{(clippedW || clippedH) ? " ↕" : ""}
+        </span>
+      </div>
+    );
+  }
+
   if (widget.type === "group") {
     return (
       <div style={{
@@ -79,8 +157,9 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
         width: "100%",
         height: "100%",
         boxSizing: "border-box",
-        background: "transparent",
-        border: `${borderPx}px solid transparent`,
+        background: fillColor,
+        backgroundClip: "padding-box",
+        borderWidth: borderPx, borderStyle: "solid", borderColor: "transparent",
         borderImage: `url("${tex("mc_panel_slice.png")}") 3 fill`,
         imageRendering: "pixelated",
       }} />
@@ -129,7 +208,7 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
         {/* Track — recessed slider texture */}
         <div style={{
           position: "absolute", inset: 0,
-          border: `${borderPx}px solid transparent`,
+          borderWidth: borderPx, borderStyle: "solid", borderColor: "transparent",
           borderImage: `url("${tex("mc_slider_track_slice.png")}") 2 fill / ${borderPx}px`,
           imageRendering: "pixelated",
           boxSizing: "border-box",
@@ -142,7 +221,7 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
           left: handleLeft,
           width: handleWidthPx,
           height: "100%",
-          border: `${borderPx}px solid transparent`,
+          borderWidth: borderPx, borderStyle: "solid", borderColor: "transparent",
           borderImage: `url("${tex("mc_slider_handle_slice.png")}") 2 fill / ${borderPx}px`,
           imageRendering: "pixelated",
           boxSizing: "border-box",

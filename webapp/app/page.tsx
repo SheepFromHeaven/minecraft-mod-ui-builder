@@ -101,11 +101,10 @@ export default function ProjectsPage() {
       cursor: 0, gridSize: 4, showGrid: true, scale: 3,
     };
     const key = `project_${Date.now()}`;
-    setProjects((prev) => {
-      const updated = [...prev, { key, session, updatedAt: Date.now() }];
-      saveProjects(updated);
-      return updated;
-    });
+    const newProject = { key, session, updatedAt: Date.now() };
+    const current = loadProjects();
+    saveProjects([...current, newProject]);
+    setProjects((prev) => [...prev, newProject]);
     router.push(`/editor/${key}`);
   }, [router]);
 
@@ -128,14 +127,13 @@ export default function ProjectsPage() {
         history: [{ screens: [parsed], activeIdx: 0 }],
         cursor: 0, gridSize: 4, showGrid: true, scale: 3,
       };
-      setProjects((prev) => {
-        const exists = prev.find(p => p.key === DEV_TEST_KEY);
-        const updated = exists
-          ? prev.map(p => p.key === DEV_TEST_KEY ? { ...p, session, updatedAt: Date.now() } : p)
-          : [...prev, { key: DEV_TEST_KEY, session, updatedAt: Date.now() }];
-        saveProjects(updated);
-        return updated;
-      });
+      const current = loadProjects();
+      const exists = current.find(p => p.key === DEV_TEST_KEY);
+      const updatedList = exists
+        ? current.map(p => p.key === DEV_TEST_KEY ? { ...p, session, updatedAt: Date.now() } : p)
+        : [...current, { key: DEV_TEST_KEY, session, updatedAt: Date.now() }];
+      saveProjects(updatedList);
+      setProjects(updatedList);
       router.push(`/editor/${DEV_TEST_KEY}`);
     } catch (e) {
       alert(`Could not load test screen: ${e instanceof Error ? e.message : e}`);

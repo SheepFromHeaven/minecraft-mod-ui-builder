@@ -67,16 +67,34 @@ public final class SpecSlots {
     }
 
     /**
-     * One slot per cell of {@code area}'s initial (scroll row 0) viewport, for an area bound to a
-     * runtime-sized {@code Container} - its true row count comes from {@code
-     * container.getContainerSize()}, not anything authored, since the real inventory (a custom
-     * block's, sized however that mod likes) is only known once the mod hooks it up. Wrap the
-     * result in a {@link ScrollableSlotArea} after adding it to the menu; see that class's javadoc
-     * for the full pattern.
+     * One slot per cell of {@code area}'s initial (scroll line 0) viewport, for an area bound to a
+     * runtime-sized {@code Container} - its true row (or, if {@code area.axis} is {@code "x"},
+     * column) count comes from {@code container.getContainerSize()}, not anything authored, since
+     * the real inventory (a custom block's, sized however that mod likes) is only known once the
+     * mod hooks it up. Wrap the result in a {@link ScrollableSlotArea} after adding it to the menu;
+     * see that class's javadoc for the full pattern.
      */
     public static List<Slot> forScrollableViewport(SlotAreaSpec area, Container container) {
-        int cols = area.cols;
         int size = container.getContainerSize();
+        if ("x".equals(area.axis)) {
+            int totalCols = area.totalCols(size);
+            int visibleCols = Math.min(area.cols, totalCols);
+            int rows = area.viewport_rows;
+            List<Slot> slots = new ArrayList<>(visibleCols * rows);
+            for (int row = 0; row < rows; row++) {
+                for (int viewCol = 0; viewCol < visibleCols; viewCol++) {
+                    int dataIndex = row * totalCols + viewCol;
+                    if (dataIndex < size) {
+                        slots.add(new Slot(container, dataIndex, area.slotX(viewCol), area.slotY(row)));
+                    } else {
+                        // partial last column (or an empty container) - an inert off-screen slot keeps the viewport's slot count fixed
+                        slots.add(new Slot(container, Math.max(0, size - 1), ScrollableSlotArea.OFFSCREEN, ScrollableSlotArea.OFFSCREEN));
+                    }
+                }
+            }
+            return slots;
+        }
+        int cols = area.cols;
         int visibleRows = Math.min(area.viewport_rows, area.totalRows(size));
         List<Slot> slots = new ArrayList<>(cols * visibleRows);
         for (int viewRow = 0; viewRow < visibleRows; viewRow++) {

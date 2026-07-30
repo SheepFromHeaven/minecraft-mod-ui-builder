@@ -123,19 +123,36 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
             ScrollableSlotArea target = scrollableAreas.get(targetId);
             explicitTargets.add(targetId);
             // an explicitly-placed scrollbar still only shows up once its target actually overflows
-            if (target != null && !target.scrollable()) continue;
-            int[] origin = builder().originOf(w);
-            addRenderableWidget(new SpecScrollbarWidget(origin[0], origin[1], w.w, w.h, this, target));
+            if (target != null && !target.scrollable()) {
+                continue;
+            }
+            // the target's own axis is the source of truth once it resolves; the widget's prop only matters standalone
+            boolean horizontal = target != null ? target.horizontal() : "x".equals(w.prop("axis", "y"));
+            addRenderableWidget(new SpecScrollbarWidget(leftPos + w.x, topPos + w.y, w.w, w.h, this, target, horizontal));
         }
-        // no designer widget targets these — default to the area's right edge
+        // no designer widget targets these, but they turned out to need one anyway - default to the area's right (or bottom) edge
         for (SlotAreaSpec area : this.containerSpec.slots) {
             if (!isAreaVisible(area.id)) continue;
             ScrollableSlotArea scrollArea = scrollableAreas.get(area.id);
-            if (scrollArea == null || !scrollArea.scrollable() || explicitTargets.contains(area.id)) continue;
-            int barX = leftPos + area.x + area.cols * area.slot_size;
-            int barY = topPos + area.y;
-            int barH = scrollArea.visibleRows() * area.slot_size;
-            addRenderableWidget(new SpecScrollbarWidget(barX, barY, SpecScrollbarWidget.DEFAULT_WIDTH, barH, this, scrollArea));
+            if (scrollArea == null || !scrollArea.scrollable() || explicitTargets.contains(area.id)) {
+                continue;
+            }
+            boolean horizontal = scrollArea.horizontal();
+            int gridW = scrollArea.visibleCols() * area.slot_size;
+            int gridH = scrollArea.visibleRows() * area.slot_size;
+            int barX, barY, barW, barH;
+            if (horizontal) {
+                barX = leftPos + area.x;
+                barY = topPos + area.y + gridH;
+                barW = gridW;
+                barH = SpecScrollbarWidget.DEFAULT_WIDTH;
+            } else {
+                barX = leftPos + area.x + gridW;
+                barY = topPos + area.y;
+                barW = SpecScrollbarWidget.DEFAULT_WIDTH;
+                barH = gridH;
+            }
+            addRenderableWidget(new SpecScrollbarWidget(barX, barY, barW, barH, this, scrollArea, horizontal));
         }
     }
 
@@ -218,7 +235,7 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
             ScrollableSlotArea scrollArea = scrollableAreas.get(area.id);
             if (scrollArea == null) continue;
             int x = leftPos + area.x, y = topPos + area.y;
-            int w = area.cols * area.slot_size, h = scrollArea.visibleRows() * area.slot_size;
+            int w = scrollArea.visibleCols() * area.slot_size, h = scrollArea.visibleRows() * area.slot_size;
             if (mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h) {
                 sendScrollButton(scrollArea, scrollArea.scrollRow() - (int) Math.signum(scrollY));
                 return true;
@@ -246,9 +263,10 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
         int y = topPos + area.y;
         ScrollableSlotArea scrollArea = scrollableAreas.get(area.id);
         int rows = scrollArea != null ? scrollArea.visibleRows() : area.viewport_rows;
+        int cols = scrollArea != null ? scrollArea.visibleCols() : area.cols;
         int size = area.slot_size;
         for (int row = 0; row < rows; row++) {
-            for (int col = 0; col < area.cols; col++) {
+            for (int col = 0; col < cols; col++) {
                 int sx = x + col * size;
                 int sy = y + row * size;
                 graphics.fill(sx,            sy,            sx + size,     sy + 1,        0xFF373737);

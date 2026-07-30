@@ -1,6 +1,7 @@
 "use client";
 
-import { Download, Upload } from "lucide-react";
+import { Download, Upload, BookOpen } from "lucide-react";
+import Link from "next/link";
 import type { ScreenSpec, BindingsSchema } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,9 +36,9 @@ interface Props {
   onScreenChange: (patch: Partial<ScreenSpec>) => void;
   onExport: () => void;
   onImport: () => void;
-  onLoadPreset: () => Promise<void>;
   onResetTextures: () => Promise<void>;
   onViewTextures: () => void;
+  onExtractPack: (file: File) => Promise<{ extracted: string[]; missing: string[] }>;
   onSaveToTestMod?: () => Promise<void>;
   bindingsSchema: BindingsSchema;
   onUpdateBindingsSchema: (schema: BindingsSchema) => void;
@@ -49,7 +50,7 @@ interface Props {
 export default function Toolbar({
   screen, gridSize, showGrid, canUndo, canRedo, tryMode,
   onUndo, onRedo, onGridSizeChange, onToggleGrid, onToggleTryMode,
-  onScreenChange, onExport, onImport, onLoadPreset, onResetTextures, onViewTextures,
+  onScreenChange, onExport, onImport, onResetTextures, onViewTextures, onExtractPack,
   scale, onZoomIn, onZoomOut, onZoomReset, onSaveToTestMod,
   bindingsSchema, onUpdateBindingsSchema, actions, onUpdateActions, modId,
 }: Props) {
@@ -149,12 +150,15 @@ export default function Toolbar({
           onChangeActions={onUpdateActions}
           modId={modId}
         />
+        <Link href="/docs" target="_blank" title="Documentation" className="inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+          <BookOpen className="h-4 w-4" />
+        </Link>
         <SettingsDialog
           screen={screen}
           onScreenChange={onScreenChange}
-          onLoadPreset={onLoadPreset}
           onResetTextures={onResetTextures}
           onViewTextures={onViewTextures}
+          onExtractPack={onExtractPack}
         />
       </div>
     </div>

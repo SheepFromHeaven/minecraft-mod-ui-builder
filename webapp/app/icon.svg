@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <clipPath id="r">
+      <!-- 2-step pixel stair at each corner (each step = 4px = 1 pixel unit) -->
+      <polygon points="8,0 56,0 56,4 60,4 60,8 64,8 64,56 60,56 60,60 56,60 56,64 8,64 4,64 4,60 0,60 0,8 4,8 4,4 8,4"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#r)" shape-rendering="crispEdges">
+  <!-- Base panel fill -->
+  <rect width="64" height="64" fill="#8B8B8B"/>
+
+  <!-- Outer bevel: top highlight -->
+  <rect x="0" y="0" width="62" height="2" fill="#FFFFFF"/>
+  <!-- Outer bevel: left highlight -->
+  <rect x="0" y="2" width="2" height="60" fill="#FFFFFF"/>
+  <!-- Outer bevel: bottom shadow -->
+  <rect x="0" y="62" width="64" height="2" fill="#373737"/>
+  <!-- Outer bevel: right shadow -->
+  <rect x="62" y="0" width="2" height="62" fill="#373737"/>
+
+  <!-- Inner bevel: top highlight -->
+  <rect x="2" y="2" width="58" height="2" fill="#C6C6C6"/>
+  <!-- Inner bevel: left highlight -->
+  <rect x="2" y="4" width="2" height="56" fill="#C6C6C6"/>
+  <!-- Inner bevel: bottom shadow -->
+  <rect x="2" y="60" width="60" height="2" fill="#555555"/>
+  <!-- Inner bevel: right shadow -->
+  <rect x="60" y="2" width="2" height="58" fill="#555555"/>
+
+  <!-- Pixel-art M — shadow layer (+4,+4 offset), color #1D1D1D -->
+  <!-- Row 0 shadow: col 0, col 4 -->
+  <rect x="26" y="26" width="4" height="4" fill="#1D1D1D"/>
+  <rect x="42" y="26" width="4" height="4" fill="#1D1D1D"/>
+  <!-- Row 1 shadow: col 0, col 1, col 3, col 4 -->
+  <rect x="26" y="30" width="4" height="4" fill="#1D1D1D"/>
+  <rect x="30" y="30" width="4" height="4" fill="#1D1D1D"/>
+  <rect x="38" y="30" width="4" height="4" fill="#1D1D1D"/>
+  <rect x="42" y="30" width="4" height="4" fill="#1D1D1D"/>
+  <!-- Row 2 shadow: col 0, col 2, col 4 -->
+  <rect x="26" y="34" width="4" height="4" fill="#1D1D1D"/>
+  <rect x="34" y="34" width="4" height="4" fill="#1D1D1D"/>
+  <rect x="42" y="34" width="4" height="4" fill="#1D1D1D"/>
+  <!-- Row 3 shadow: col 0, col 4 -->
+  <rect x="26" y="38" width="4" height="4" fill="#1D1D1D"/>
+  <rect x="42" y="38" width="4" height="4" fill="#1D1D1D"/>
+  <!-- Row 4 shadow: col 0, col 4 -->
+  <rect x="26" y="42" width="4" height="4" fill="#1D1D1D"/>
+  <rect x="42" y="42" width="4" height="4" fill="#1D1D1D"/>
+
+  <!-- Pixel-art M — main layer, color #FFFFFF -->
+  <!-- Row 0: col 0 (x=22), col 4 (x=38) -->
+  <rect x="22" y="22" width="4" height="4" fill="#FFFFFF"/>
+  <rect x="38" y="22" width="4" height="4" fill="#FFFFFF"/>
+  <!-- Row 1: col 0, col 1 (x=26), col 3 (x=34), col 4 -->
+  <rect x="22" y="26" width="4" height="4" fill="#FFFFFF"/>
+  <rect x="26" y="26" width="4" height="4" fill="#FFFFFF"/>
+  <rect x="34" y="26" width="4" height="4" fill="#FFFFFF"/>
+  <rect x="38" y="26" width="4" height="4" fill="#FFFFFF"/>
+  <!-- Row 2: col 0, col 2 (x=30), col 4 -->
+  <rect x="22" y="30" width="4" height="4" fill="#FFFFFF"/>
+  <rect x="30" y="30" width="4" height="4" fill="#FFFFFF"/>
+  <rect x="38" y="30" width="4" height="4" fill="#FFFFFF"/>
+  <!-- Row 3: col 0, col 4 -->
+  <rect x="22" y="34" width="4" height="4" fill="#FFFFFF"/>
+  <rect x="38" y="34" width="4" height="4" fill="#FFFFFF"/>
+  <!-- Row 4: col 0, col 4 -->
+  <rect x="22" y="38" width="4" height="4" fill="#FFFFFF"/>
+  <rect x="38" y="38" width="4" height="4" fill="#FFFFFF"/>
+  </g>
+</svg>

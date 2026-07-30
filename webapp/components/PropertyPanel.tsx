@@ -92,7 +92,7 @@ export default function PropertyPanel({ widget, onUpdate, onDelete, bindingsSche
         <Field label="Text">
           <input
             className={`${INPUT} ${bindings.text ? "text-blue-500 italic" : ""}`}
-            value={bindings.text ? bindings.text : widget.text}
+            value={bindings.text ? bindings.text : (widget.text ?? "")}
             disabled={!!bindings.text}
             onChange={(e) => set({ text: e.target.value })}
             placeholder={bindings.text ? undefined : ""}
@@ -116,6 +116,36 @@ export default function PropertyPanel({ widget, onUpdate, onDelete, bindingsSche
           <div className="font-semibold text-gray-500 mt-1">Widget Props</div>
           {def.propSchema.map((field) => {
             const currentValue = widget.props[field.key] ?? field.defaultValue ?? "";
+            if (widget.type === "scrollbar" && field.key === "axis") {
+              // Swap w/h on orientation change — a vertical bar's height is the horizontal bar's
+              // width (and vice versa), so keeping the old values would leave it sized for the
+              // wrong axis (e.g. a tall, 14px-wide vertical bar becoming a tall, 14px-wide
+              // "horizontal" one instead of a wide, short one).
+              return (
+                <Field key={field.key} label={field.label}>
+                  <select
+                    className={INPUT}
+                    value={currentValue}
+                    onChange={(e) => {
+                      const newAxis = e.target.value;
+                      if (newAxis !== currentValue) {
+                        // A vertical bar's bottom-left corner is where a real scroll area's bar attaches,
+                        // so that's what should land at the horizontal bar's top-right corner (and vice versa).
+                        const newW = widget.h, newH = widget.w;
+                        const [newX, newY] = newAxis === "x"
+                          ? [widget.x - newW, widget.y + widget.h]
+                          : [widget.x + widget.w, widget.y - newH];
+                        onUpdate({ ...widget, x: newX, y: newY, w: newW, h: newH, props: { ...widget.props, axis: newAxis } });
+                      }
+                    }}
+                  >
+                    {(field.options ?? []).map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </Field>
+              );
+            }
             if (widget.type === "scrollbar" && field.key === "target") {
               // Free text risks a typo'd id silently producing no scrollbar (see runtime README) —
               // once there's more than one inventory_area, picking from the real ids is much safer.

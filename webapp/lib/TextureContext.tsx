@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { clearTextures, loadAllTextures, saveTexture } from "./textureStore";
-import { applyMCPreset } from "./applyMCPreset";
+import { extractFromPack, type ExtractResult } from "./extractFromPack";
 
 export const REQUIRED_TEXTURES = [
   "mc_panel_slice.png",
@@ -30,7 +30,10 @@ export type TextureName = (typeof REQUIRED_TEXTURES)[number];
 interface TextureCtx {
   textures: Partial<Record<TextureName, string>>;
   ready: boolean;
+  initialized: boolean;
+  setupRequired: boolean;
   uploadFiles: (files: FileList) => Promise<void>;
+  extractPack: (file: File) => Promise<ExtractResult>;
   reload: () => Promise<void>;
   reset: () => Promise<void>;
 }
@@ -38,7 +41,10 @@ interface TextureCtx {
 const Ctx = createContext<TextureCtx>({
   textures: {},
   ready: false,
+  initialized: false,
+  setupRequired: false,
   uploadFiles: async () => {},
+  extractPack: async () => ({ extracted: [], missing: [] }),
   reload: async () => {},
   reset: async () => {},
 });
@@ -49,13 +55,13 @@ export function useTextures() {
 
 export function TextureProvider({ children }: { children: React.ReactNode }) {
   const [textures, setTextures] = useState<Partial<Record<TextureName, string>>>({});
+  const [initialized, setInitialized] = useState(false);
+  const [setupRequired, setSetupRequired] = useState(false);
   const urlsRef = useRef<string[]>([]);
 
   const applyBlobs = (blobs: Record<string, Blob>) => {
-    // revoke previous object URLs
     urlsRef.current.forEach((u) => URL.revokeObjectURL(u));
     urlsRef.current = [];
-
     const next: Partial<Record<TextureName, string>> = {};
     for (const name of REQUIRED_TEXTURES) {
       if (blobs[name]) {
@@ -69,16 +75,14 @@ export function TextureProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      let blobs = await loadAllTextures();
-      // First visit (or after Reset Textures): recolor the original placeholder
-      // sprites to the MC palette client-side and cache in IndexedDB. This never
-      // touches Mojang's actual texture files — only a small set of reference colors.
-      const hasAll = REQUIRED_TEXTURES.every((n) => !!blobs[n]);
-      if (!hasAll) {
-        await applyMCPreset();
-        blobs = await loadAllTextures();
+      const blobs = await loadAllTextures();
+      if (Object.keys(blobs).length === 0) {
+        setSetupRequired(true);
+        setInitialized(true);
+        return;
       }
       applyBlobs(blobs);
+      setInitialized(true);
     })().catch(console.error);
     return () => { urlsRef.current.forEach((u) => URL.revokeObjectURL(u)); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -95,9 +99,17 @@ export function TextureProvider({ children }: { children: React.ReactNode }) {
     applyBlobs(blobs);
   };
 
+  const extractPackFn = async (file: File): Promise<ExtractResult> => {
+    const buffer = await file.arrayBuffer();
+    const result = await extractFromPack(buffer);
+    applyBlobs(await loadAllTextures());
+    setSetupRequired(false);
+    setInitialized(true);
+    return result;
+  };
+
   const reload = async () => {
-    const blobs = await loadAllTextures();
-    applyBlobs(blobs);
+    applyBlobs(await loadAllTextures());
   };
 
   const reset = async () => {
@@ -105,12 +117,13 @@ export function TextureProvider({ children }: { children: React.ReactNode }) {
     urlsRef.current.forEach((u) => URL.revokeObjectURL(u));
     urlsRef.current = [];
     setTextures({});
+    setSetupRequired(true);
   };
 
   const ready = REQUIRED_TEXTURES.every((n) => !!textures[n]);
 
   return (
-    <Ctx.Provider value={{ textures, ready, uploadFiles, reload, reset }}>
+    <Ctx.Provider value={{ textures, ready, initialized, setupRequired, uploadFiles, extractPack: extractPackFn, reload, reset }}>
       {children}
     </Ctx.Provider>
   );

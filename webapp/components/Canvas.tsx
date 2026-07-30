@@ -28,8 +28,7 @@ const ScrollCtx = React.createContext<ScrollCtxVal>({
   setMaxScroll: () => undefined,
 });
 
-const WORLD_IMAGE_URL =
-  "https://res.cloudinary.com/ddbybfkod/image/upload/v1710808247/blogs/Roman/tips-for-starting-a-new-world-in-minecraft/img1_usdnlh.jpg";
+const WORLD_IMAGE_URL = "/mc-world-bg.jpg";
 
 const CONTAINER_TYPES = new Set(
   WIDGET_REGISTRY.filter(d => d.isContainer).map(d => d.type),
@@ -195,16 +194,19 @@ export default function Canvas({
         position: "relative",
         width: cssWidth,
         height: cssHeight,
-        backgroundImage: `url("${WORLD_IMAGE_URL}")`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
         flexShrink: 0,
         boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
         cursor: tryMode ? "default" : undefined,
       }}
       onMouseDown={handleCanvasMouseDown}
     >
-      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.48)", pointerEvents: "none", zIndex: 0 }} />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={WORLD_IMAGE_URL}
+        alt=""
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none", zIndex: 0 }}
+      />
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.48)", pointerEvents: "none", zIndex: 1 }} />
 
       {gridDataUrl && (
         <div style={{
@@ -676,7 +678,7 @@ function TryInventoryArea({ widget, scale, zBase, externalScrollbarIdY, external
   externalScrollbarIdX?: string;
 }) {
   const { textures } = React.useContext(TextureCtx);
-  const tex = (name: string) => (textures as Record<string, string>)[name] ?? `/textures/${name}`;
+  const tex = (name: string) => (textures as Record<string, string>)[name];
   const scrollCtx = React.useContext(ScrollCtx);
 
   const cols     = parseInt(widget.props.cols      ?? "9",  10);
@@ -808,7 +810,7 @@ function TryScrollbar({ widget, scale, zBase }: {
   zBase: number;
 }) {
   const { textures } = React.useContext(TextureCtx);
-  const tex = (name: string) => (textures as Record<string, string>)[name] ?? `/textures/${name}`;
+  const tex = (name: string) => (textures as Record<string, string>)[name];
   const scrollCtx = React.useContext(ScrollCtx);
 
   const axis       = widget.props.axis ?? "y";
@@ -892,13 +894,17 @@ function TryScrollbar({ widget, scale, zBase }: {
       <div
         style={{
           position: "absolute",
-          ...(isVertical ? { top: thumbOffset, left: 0 } : { left: thumbOffset, top: 0 }),
+          ...(isVertical
+            ? { top: thumbOffset, left: 0 }
+            : { left: thumbOffset, top: (12 * scale - 15 * scale) / 2 }),
           width: 12 * scale, height: 15 * scale,
           backgroundImage: `url("${tex("mc_scrollbar_handle.png")}")`,
           backgroundSize: `${12 * scale}px ${15 * scale}px`,
           backgroundRepeat: "no-repeat",
           imageRendering: "pixelated",
           pointerEvents: "none",
+          transform: isVertical ? undefined : "rotate(90deg)",
+          transformOrigin: "center",
         }}
       />
     </div>

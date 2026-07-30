@@ -17,6 +17,11 @@ package sheepfromheaven.screenspec.runtime;
  * the true row count. For a runtime-sized area built via {@link SpecSlots#forScrollableViewport},
  * the true row count is derived from the real {@code Container} instead - see
  * {@link ScrollableSlotArea}.
+ *
+ * <p>{@code axis} picks which dimension of the grid scrolls: {@code "y"} (default) means {@code
+ * cols} is the fixed/true column count and rows overflow past {@code viewport_rows}; {@code "x"}
+ * flips this so {@code viewport_rows} is the fixed/true row count and columns overflow past
+ * {@code cols} instead - see {@link ScrollableSlotArea}.
  */
 public final class SlotAreaSpec {
     public String id;
@@ -26,6 +31,7 @@ public final class SlotAreaSpec {
     public int slot_size = 18;
     public String source;
     public int viewport_rows = 1;
+    public String axis = "y";
 
     public int slotX(int col) {
         return x + col * slot_size + 1;
@@ -35,8 +41,13 @@ public final class SlotAreaSpec {
         return y + row * slot_size + 1;
     }
 
-    /** {@code ceil(itemCount / cols)}, at least 1 - the row count needed to hold itemCount items. */
+    /** {@code ceil(itemCount / cols)}, at least 1 - the row count needed to hold itemCount items, when {@code axis == "y"}. */
     public int totalRows(int itemCount) {
         return Math.max(1, (itemCount + cols - 1) / cols);
+    }
+
+    /** {@code ceil(itemCount / viewport_rows)}, at least 1 - the column count needed to hold itemCount items, when {@code axis == "x"}. */
+    public int totalCols(int itemCount) {
+        return Math.max(1, (itemCount + viewport_rows - 1) / viewport_rows);
     }
 }

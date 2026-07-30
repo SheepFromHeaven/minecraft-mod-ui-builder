@@ -566,6 +566,7 @@ export default function EditorPage() {
                 tryMode={tryMode}
                 onSelect={setSelectedId}
                 onUpdateWidget={updateWidget}
+                onUpdateWidgets={(widgets) => commitScreen({ ...screen, widgets })}
                 bindingsSchema={screen.bindingsSchema ?? {}}
               />
             </div>

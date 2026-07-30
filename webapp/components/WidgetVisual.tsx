@@ -33,7 +33,7 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
   const s = TYPE_STYLES[widget.type] ?? fallbackStyle;
 
   // Use uploaded texture from IndexedDB if present, otherwise fall back to bundled placeholder.
-  const tex = (name: string) => textures[name as keyof typeof textures] ?? `/textures/${name}`;
+  const tex = (name: string) => textures[name as keyof typeof textures];
   const fontSize = Math.max(8, 7 * scale);
 
   const commonStyle: React.CSSProperties = {

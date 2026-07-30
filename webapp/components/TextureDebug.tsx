@@ -85,7 +85,7 @@ export default function TextureDebug({ onClose }: Props) {
               fontSize: 12,
             }}
           >
-            Reset to Placeholders
+            Reset Textures
           </button>
           <button
             onClick={onClose}
@@ -104,7 +104,7 @@ export default function TextureDebug({ onClose }: Props) {
         </div>
 
         <p style={{ color: "#555", fontSize: 10, marginTop: 10, marginBottom: 0 }}>
-          IndexedDB textures shown above. Placeholders (no badge) are served from /textures/*.
+          All textures shown above are extracted from your JAR / resource pack and stored in IndexedDB.
         </p>
       </div>
     </div>

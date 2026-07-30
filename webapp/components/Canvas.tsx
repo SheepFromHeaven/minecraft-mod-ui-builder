@@ -372,7 +372,7 @@ function TryInventoryArea({ widget, scale, zBase, externalScrollbarIdY, external
   externalScrollbarIdX?: string;
 }) {
   const { textures } = React.useContext(TextureCtx);
-  const tex = (name: string) => (textures as Record<string, string>)[name] ?? `/textures/${name}`;
+  const tex = (name: string) => (textures as Record<string, string>)[name];
   const scrollCtx = React.useContext(ScrollCtx);
 
   const cols     = parseInt(widget.props.cols      ?? "9",  10);
@@ -504,7 +504,7 @@ function TryScrollbar({ widget, scale, zBase }: {
   zBase: number;
 }) {
   const { textures } = React.useContext(TextureCtx);
-  const tex = (name: string) => (textures as Record<string, string>)[name] ?? `/textures/${name}`;
+  const tex = (name: string) => (textures as Record<string, string>)[name];
   const scrollCtx = React.useContext(ScrollCtx);
 
   const axis       = widget.props.axis ?? "y";

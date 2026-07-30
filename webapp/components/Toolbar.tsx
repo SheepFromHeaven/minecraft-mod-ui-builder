@@ -36,9 +36,9 @@ interface Props {
   onScreenChange: (patch: Partial<ScreenSpec>) => void;
   onExport: () => void;
   onImport: () => void;
-  onLoadPreset: () => Promise<void>;
   onResetTextures: () => Promise<void>;
   onViewTextures: () => void;
+  onExtractPack: (file: File) => Promise<{ extracted: string[]; missing: string[] }>;
   onSaveToTestMod?: () => Promise<void>;
   bindingsSchema: BindingsSchema;
   onUpdateBindingsSchema: (schema: BindingsSchema) => void;
@@ -50,7 +50,7 @@ interface Props {
 export default function Toolbar({
   screen, gridSize, showGrid, canUndo, canRedo, tryMode,
   onUndo, onRedo, onGridSizeChange, onToggleGrid, onToggleTryMode,
-  onScreenChange, onExport, onImport, onLoadPreset, onResetTextures, onViewTextures,
+  onScreenChange, onExport, onImport, onResetTextures, onViewTextures, onExtractPack,
   scale, onZoomIn, onZoomOut, onZoomReset, onSaveToTestMod,
   bindingsSchema, onUpdateBindingsSchema, actions, onUpdateActions, modId,
 }: Props) {
@@ -156,9 +156,9 @@ export default function Toolbar({
         <SettingsDialog
           screen={screen}
           onScreenChange={onScreenChange}
-          onLoadPreset={onLoadPreset}
           onResetTextures={onResetTextures}
           onViewTextures={onViewTextures}
+          onExtractPack={onExtractPack}
         />
       </div>
     </div>

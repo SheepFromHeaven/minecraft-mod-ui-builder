@@ -52,6 +52,10 @@ TASKS = [
     dict(name="mc_slider_handle_slice.png", jar="assets/minecraft/textures/gui/sprites/widget/slider_handle.png",      slice=2),
     dict(name="mc_panel_slice.png",         jar="assets/minecraft/textures/gui/container/inventory.png",               slice=3,
          content_w=176, content_h=166, mid_col=88, mid_row=10),
+    # slot tile: try sprite first, crop fallback handled separately below
+    dict(name="mc_slot_tile.png",           jar="assets/minecraft/textures/gui/sprites/container/slot.png",            slice=0),
+    # scrollbar handle: creative-inventory scroller (12x15, used as-is, no 9-slice)
+    dict(name="mc_scrollbar_handle.png",    jar="assets/minecraft/textures/gui/sprites/container/creative_inventory/scroller.png", slice=0),
 ]
 
 OUT.mkdir(parents=True, exist_ok=True)

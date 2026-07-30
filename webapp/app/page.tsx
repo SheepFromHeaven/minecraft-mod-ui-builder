@@ -1,64 +1,15 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
-import Canvas from "@/components/Canvas";
-import PropertyPanel from "@/components/PropertyPanel";
-import AppSidebar from "@/components/Sidebar";
-import Toolbar from "@/components/Toolbar";
+import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import WelcomeScreen from "@/components/WelcomeScreen";
-import { TextureProvider, useTextures } from "@/lib/TextureContext";
-import { applyMCPreset } from "@/lib/applyMCPreset";
-import TextureDebug from "@/components/TextureDebug";
-import type { ContainerSpec, ScreenSpec, WidgetSpec } from "@/lib/types";
-import { getWidgetDef } from "@/lib/widgetRegistry";
+import SetupScreen from "@/components/SetupScreen";
+import { useTextures } from "@/lib/TextureContext";
+import type { ScreenSpec } from "@/lib/types";
 import type { ProjectSummary } from "@/components/WelcomeScreen";
-import { SidebarProvider } from "@/components/ui/sidebar";
 
-let idCounter = 1000;
-function newId(type: string) {
-  return `${type}_${++idCounter}`;
-}
-
-/**
- * Builds the exported `container` block from a screen's `inventory_area` widgets, or `undefined`
- * if there are none. Multiple areas (an input grid, the player's own inventory, a mod's own
- * runtime-sized container, ...) are expected to coexist — the runtime resolves them by id (see
- * neoforge-runtime's ContainerSpec#validate), so a duplicate id here would silently misroute
- * scroll clicks and slot lookups to the wrong area once exported. Throws rather than exporting
- * that.
- */
-function buildContainerSpec(widgets: WidgetSpec[]): ContainerSpec | undefined {
-  const inventoryWidgets = widgets.filter((w) => w.type === "inventory_area");
-  if (inventoryWidgets.length === 0) return undefined;
-
-  const seen = new Set<string>();
-  for (const w of inventoryWidgets) {
-    if (seen.has(w.id)) {
-      throw new Error(`Duplicate inventory_area id "${w.id}" — give each inventory area a unique ID before exporting.`);
-    }
-    seen.add(w.id);
-  }
-
-  return {
-    slots: inventoryWidgets.map((w) => {
-      const slotSize = parseInt(w.props.slot_size ?? "18", 10);
-      return {
-        id:            w.id,
-        x:             w.x,
-        y:             w.y,
-        cols:          parseInt(w.props.cols ?? "1", 10),
-        slot_size:     slotSize,
-        viewport_rows: Math.max(1, Math.floor(w.h / slotSize)),
-        ...(w.props.source ? { source: w.props.source as "player" | "player_hotbar" } : {}),
-      };
-    }),
-  };
-}
-
-const MAX_HISTORY = 100;
 const PROJECTS_KEY = "mc-ui-builder-projects";
 const LEGACY_KEY = "mc-ui-builder-session";
-const LAST_PROJECT_KEY = "mc-ui-builder-last-project";
 
 interface HistoryEntry {
   screens: ScreenSpec[];
@@ -81,24 +32,17 @@ interface StoredProject {
 
 function migrateSession(raw: Record<string, unknown>): SavedSession {
   const hist = raw.history as unknown[];
-  if (!Array.isArray(hist) || hist.length === 0) return EMPTY_SESSION;
+  if (!Array.isArray(hist) || hist.length === 0) {
+    return { history: [{ screens: [{ id: "main", width: 320, height: 180, widgets: [] }], activeIdx: 0 }], cursor: 0, gridSize: 4, showGrid: true };
+  }
   if ('widgets' in (hist[0] as object)) {
-    // old format: history was ScreenSpec[]
-    return {
-      ...raw,
-      history: (hist as ScreenSpec[]).map(s => ({ screens: [s], activeIdx: 0 })),
-    } as SavedSession;
+    return { ...raw, history: (hist as ScreenSpec[]).map(s => ({ screens: [s], activeIdx: 0 })) } as SavedSession;
   }
   return raw as unknown as SavedSession;
 }
 
-function normalizeScreen(s: ScreenSpec): ScreenSpec {
-  return { ...s, widgets: s.widgets.map((w) => ({ ...w, props: w.props ?? {} })) };
-}
-
 function loadProjects(): StoredProject[] {
   try {
-    // migrate legacy single-session format
     const oldRaw = localStorage.getItem(LEGACY_KEY);
     if (oldRaw) {
       const old = JSON.parse(oldRaw) as Record<string, unknown>;
@@ -117,10 +61,7 @@ function loadProjects(): StoredProject[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw) as StoredProject[];
     if (!Array.isArray(parsed)) return [];
-    return parsed.map(p => ({
-      ...p,
-      session: migrateSession(p.session as unknown as Record<string, unknown>),
-    }));
+    return parsed.map(p => ({ ...p, session: migrateSession(p.session as unknown as Record<string, unknown>) }));
   } catch {
     return [];
   }
@@ -138,130 +79,35 @@ function toSummaries(projects: StoredProject[]): ProjectSummary[] {
   }).sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
-const PLACEHOLDER_SCREEN: ScreenSpec = { id: "main", width: 320, height: 180, widgets: [] };
-const EMPTY_SESSION: SavedSession = {
-  history: [{ screens: [PLACEHOLDER_SCREEN], activeIdx: 0 }],
-  cursor: 0,
-  gridSize: 4,
-  showGrid: true,
-};
-
-function syncIdCounter(screens: ScreenSpec[]) {
-  for (const screen of screens) {
-    for (const w of screen.widgets) {
-      const n = parseInt(w.id.split("_").pop() ?? "0", 10);
-      if (n > idCounter) idCounter = n;
-    }
-  }
-}
-
-export default function EditorPage() {
-  return (
-    <TextureProvider>
-      <Editor />
-    </TextureProvider>
-  );
-}
-
-function Editor() {
-  const { reload, reset } = useTextures();
-  const [showTextureDebug, setShowTextureDebug] = useState(false);
-  const [view, setView] = useState<"loading" | "welcome" | "editor">("loading");
+export default function ProjectsPage() {
+  const router = useRouter();
+  const { initialized, setupRequired, ready } = useTextures();
   const [projects, setProjects] = useState<StoredProject[]>([]);
-  const [currentProjectKey, setCurrentProjectKey] = useState<string | null>(null);
+  const [projectsLoaded, setProjectsLoaded] = useState(false);
 
-  const handleLoadPreset = async () => {
-    await applyMCPreset();
-    await reload();
-  };
-
-  const handleResetTextures = async () => {
-    await reset();
-  };
-
-  // undo/redo history — present is history[cursor]
-  const [history, setHistory] = useState<HistoryEntry[]>(EMPTY_SESSION.history);
-  const [cursor, setCursor] = useState(EMPTY_SESSION.cursor);
-
-  const entry = history[cursor];
-  const screens = entry.screens;
-  const activeIdx = entry.activeIdx;
-  const screen = screens[activeIdx];
-
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  // Range-selection made in the layers tree (shift-click). Only meaningful while
-  // selectedId is still one of its ids — otherwise it's stale and ignored.
-  const [multiSelect, setMultiSelect] = useState<{ ids: string[] } | null>(null);
-  const [gridSize, setGridSize] = useState(EMPTY_SESSION.gridSize);
-  const [showGrid, setShowGrid] = useState(EMPTY_SESSION.showGrid);
-  const [scale, setScale] = useState(3);
-  const [tryMode, setTryMode] = useState(false);
-  const canvasWrapperRef = useRef<HTMLDivElement>(null);
-
-  const handleEditTestScreen = useCallback(async () => {
-    try {
-      const res = await fetch("/api/dev/test-screen");
-      if (!res.ok) throw new Error("Failed to load test screen");
-      const parsed = normalizeScreen(await res.json() as ScreenSpec);
-      if (!parsed.id || !Array.isArray(parsed.widgets)) throw new Error("Invalid ScreenSpec");
-      const DEV_TEST_KEY = "__dev_test_screen__";
-      const session: SavedSession = {
-        history: [{ screens: [parsed], activeIdx: 0 }],
-        cursor: 0,
-        gridSize: 4,
-        showGrid: true,
-        scale: 3,
-      };
-      syncIdCounter([parsed]);
-      setProjects((prev) => {
-        const exists = prev.find((p) => p.key === DEV_TEST_KEY);
-        const updated = exists
-          ? prev.map((p) => p.key === DEV_TEST_KEY ? { ...p, session, updatedAt: Date.now() } : p)
-          : [...prev, { key: DEV_TEST_KEY, session, updatedAt: Date.now() }];
-        saveProjects(updated);
-        return updated;
-      });
-      setHistory(session.history);
-      setCursor(0);
-      setGridSize(4);
-      setShowGrid(true);
-      setSelectedId(null);
-      setCurrentProjectKey(DEV_TEST_KEY);
-      setView("editor");
-    } catch (e) {
-      alert(`Could not load test screen: ${e instanceof Error ? e.message : e}`);
-    }
+  useEffect(() => {
+    setProjects(loadProjects());
+    setProjectsLoaded(true);
   }, []);
 
-  const handleSaveToTestMod = useCallback(async () => {
-    try {
-      const regularWidgets = screen.widgets.filter((w) => w.type !== "inventory_area");
-      const container = buildContainerSpec(screen.widgets);
-      const exported = { ...screen, widgets: regularWidgets, ...(container ? { container } : {}) };
-      const res = await fetch("/api/dev/test-screen", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(exported),
-      });
-      if (!res.ok) throw new Error("Server error");
-    } catch (e) {
-      alert(`Could not save to test mod: ${e instanceof Error ? e.message : e}`);
-    }
-  }, [screen]);
-
   const handleOpenProject = useCallback((key: string) => {
-    const project = projects.find((p) => p.key === key);
-    if (!project) return;
-    const s = project.session;
-    syncIdCounter(s.history.flatMap(e => e.screens));
-    setHistory(s.history);
-    setCursor(s.cursor);
-    setGridSize(s.gridSize);
-    setShowGrid(s.showGrid);
-    setSelectedId(null);
-    setCurrentProjectKey(key);
-    setView("editor");
-  }, [projects]);
+    router.push(`/editor/${key}`);
+  }, [router]);
+
+  const handleCreateProject = useCallback((modId: string, screenId: string) => {
+    const emptyScreen: ScreenSpec = { id: screenId, modId, width: 320, height: 180, widgets: [] };
+    const session: SavedSession = {
+      history: [{ screens: [emptyScreen], activeIdx: 0 }],
+      cursor: 0, gridSize: 4, showGrid: true, scale: 3,
+    };
+    const key = `project_${Date.now()}`;
+    setProjects((prev) => {
+      const updated = [...prev, { key, session, updatedAt: Date.now() }];
+      saveProjects(updated);
+      return updated;
+    });
+    router.push(`/editor/${key}`);
+  }, [router]);
 
   const handleDeleteProject = useCallback((key: string) => {
     setProjects((prev) => {
@@ -271,403 +117,32 @@ function Editor() {
     });
   }, []);
 
-  const handleCreateProject = useCallback((modId: string, screenId: string) => {
-    const emptyScreen: ScreenSpec = { id: screenId, modId, width: 320, height: 180, widgets: [] };
-    const session: SavedSession = {
-      history: [{ screens: [emptyScreen], activeIdx: 0 }],
-      cursor: 0,
-      gridSize: 4,
-      showGrid: true,
-      scale: 3,
-    };
-    const key = `project_${Date.now()}`;
-    const newProject: StoredProject = { key, session, updatedAt: Date.now() };
-    setProjects((prev) => {
-      const updated = [...prev, newProject];
-      saveProjects(updated);
-      return updated;
-    });
-    setHistory([{ screens: [emptyScreen], activeIdx: 0 }]);
-    setCursor(0);
-    setGridSize(4);
-    setShowGrid(true);
-    setSelectedId(null);
-    setCurrentProjectKey(key);
-    setView("editor");
-  }, []);
-
-  const zoomIn  = useCallback(() => setScale((s) => Math.min(s + 1, 8)), []);
-  const zoomOut = useCallback(() => setScale((s) => Math.max(s - 1, 1)), []);
-  const computeFit = useCallback(() => {
-    const el = canvasWrapperRef.current;
-    if (!el) return 3;
-    const buf = 64;
-    const cw = el.clientWidth  - buf * 2;
-    const ch = el.clientHeight - buf * 2;
-    if (cw <= 0 || ch <= 0) return 3;
-    // fit within a 16:9 stage centred in the wrapper
-    const sw = cw / ch > 16 / 9 ? ch * (16 / 9) : cw;
-    const sh = cw / ch > 16 / 9 ? ch : cw * (9 / 16);
-    return Math.max(1, Math.min(8, Math.floor(Math.min(sw / screen.width, sh / screen.height))));
-  }, [screen.width, screen.height]);
-
-  const zoomReset = useCallback(() => setScale(computeFit()), [computeFit]);
-
-  // Auto-fit once when entering the editor or switching to a different project.
-  const fittedForRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (view !== "editor") return;
-    const key = currentProjectKey ?? "__new__";
-    if (fittedForRef.current === key) return;
-    fittedForRef.current = key;
-    const id = requestAnimationFrame(() => setScale(computeFit()));
-    return () => cancelAnimationFrame(id);
-  }, [view, currentProjectKey, computeFit]);
-
-  // Persist current project whenever session state changes
-  useEffect(() => {
-    if (!currentProjectKey) return;
-    setProjects((prev) => {
-      const updated = prev.map((p) =>
-        p.key === currentProjectKey
-          ? { ...p, session: { history, cursor, gridSize, showGrid, scale }, updatedAt: Date.now() }
-          : p
-      );
-      saveProjects(updated);
-      return updated;
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [history, cursor, gridSize, showGrid, scale, currentProjectKey]);
-
-  // Persist (or clear) the last-open project key so reload restores it.
-  // Skip during "loading" so the init effect below can read it first.
-  useEffect(() => {
-    if (view === "loading") return;
+  const handleEditTestScreen = useCallback(async () => {
     try {
-      if (currentProjectKey) localStorage.setItem(LAST_PROJECT_KEY, currentProjectKey);
-      else localStorage.removeItem(LAST_PROJECT_KEY);
-    } catch { /* quota */ }
-  }, [currentProjectKey, view]);
-
-  // Client-only init: read localStorage and jump straight to the last project (or welcome)
-  useEffect(() => {
-    const projs = loadProjects();
-    setProjects(projs);
-    const lastKey = localStorage.getItem(LAST_PROJECT_KEY);
-    const lastProject = lastKey ? (projs.find((p) => p.key === lastKey) ?? null) : null;
-    if (lastProject) {
-      syncIdCounter(lastProject.session.history.flatMap(e => e.screens));
-      setHistory(lastProject.session.history);
-      setCursor(lastProject.session.cursor);
-      setGridSize(lastProject.session.gridSize);
-      setShowGrid(lastProject.session.showGrid);
-      setCurrentProjectKey(lastProject.key);
-      setView("editor");
-    } else {
-      setView("welcome");
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Ctrl+scroll to zoom — needs non-passive listener so we can preventDefault
-  useEffect(() => {
-    const el = canvasWrapperRef.current;
-    if (!el) return;
-    const handler = (e: WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return;
-      e.preventDefault();
-      if (e.deltaY < 0) setScale((s) => Math.min(s + 1, 8));
-      else               setScale((s) => Math.max(s - 1, 1));
-    };
-    el.addEventListener("wheel", handler, { passive: false });
-    return () => el.removeEventListener("wheel", handler);
-  }, []);
-  const clipboardRef = useRef<WidgetSpec | null>(null);
-  const importRef = useRef<HTMLInputElement>(null);
-
-  const selectedWidget = screen.widgets.find((w) => w.id === selectedId) ?? null;
-
-  // Effective multi-selection: the range only applies while selectedId is still part of it.
-  const selectedIds = multiSelect && selectedId && multiSelect.ids.includes(selectedId)
-    ? multiSelect.ids
-    : selectedId ? [selectedId] : [];
-
-  // Layers-tree selection: plain click selects one; shift-click selects the range of
-  // siblings (same parent) between the previous selection and the clicked item.
-  const selectWidgetInTree = useCallback((id: string, shiftKey: boolean) => {
-    if (shiftKey && selectedId) {
-      const anchor = screen.widgets.find((w) => w.id === selectedId);
-      const target = screen.widgets.find((w) => w.id === id);
-      if (anchor && target && anchor.parentId === target.parentId) {
-        const siblings = screen.widgets.filter((w) => w.parentId === anchor.parentId);
-        const i = siblings.findIndex((w) => w.id === anchor.id);
-        const j = siblings.findIndex((w) => w.id === target.id);
-        const [lo, hi] = i < j ? [i, j] : [j, i];
-        setMultiSelect({ ids: siblings.slice(lo, hi + 1).map((w) => w.id) });
-        setSelectedId(id);
-        return;
-      }
-    }
-    setMultiSelect(null);
-    setSelectedId(id);
-  }, [screen.widgets, selectedId]);
-
-  // push a new HistoryEntry, discarding any redo tail
-  const commit = useCallback((next: HistoryEntry) => {
-    setHistory((h) => {
-      const trimmed = h.slice(0, cursor + 1);
-      const capped = trimmed.length >= MAX_HISTORY ? trimmed.slice(1) : trimmed;
-      return [...capped, next];
-    });
-    setCursor((c) => Math.min(c + 1, MAX_HISTORY - 1));
-  }, [cursor]);
-
-  // Wraps an active screen change into a HistoryEntry
-  const commitScreen = useCallback((next: ScreenSpec) => {
-    commit({ screens: screens.map((s, i) => i === activeIdx ? next : s), activeIdx });
-  }, [screens, activeIdx, commit]);
-
-  const undo = useCallback(() => {
-    setCursor((c) => Math.max(0, c - 1));
-    setSelectedId(null);
-  }, []);
-
-  const redo = useCallback(() => {
-    setCursor((c) => Math.min(history.length - 1, c + 1));
-    setSelectedId(null);
-  }, [history.length]);
-
-  const updateWidget = useCallback((updated: WidgetSpec) => {
-    commitScreen({ ...screen, widgets: screen.widgets.map((w) => (w.id === updated.id ? updated : w)) });
-    if (updated.id !== selectedId) setSelectedId(updated.id);
-  }, [screen, commitScreen, selectedId]);
-
-  const deleteWidget = useCallback((id = selectedId) => {
-    if (!id) return;
-    commitScreen({ ...screen, widgets: screen.widgets.filter((w) => w.id !== id) });
-    setSelectedId(null);
-  }, [screen, commitScreen, selectedId]);
-
-  const addWidget = useCallback((type: string, parentId?: string) => {
-    const def = getWidgetDef(type);
-    if (!def) return;
-    const id = newId(type);
-    const widget: WidgetSpec = { ...def.defaultWidget, id, ...(parentId ? { parentId } : {}) };
-    commitScreen({ ...screen, widgets: [...screen.widgets, widget] });
-    setSelectedId(id);
-  }, [screen, commitScreen]);
-
-  const reorderWidget = useCallback((draggedIds: string[], overId: string, placement: "before" | "after" | "inside") => {
-    if (draggedIds.length === 0 || draggedIds.includes(overId)) return;
-    const widgets = screen.widgets;
-    const draggedSet = new Set(draggedIds);
-    const over = widgets.find(w => w.id === overId);
-    if (!over) return;
-
-    const absPos = (wid: string): { x: number; y: number } => {
-      const w = widgets.find(v => v.id === wid);
-      if (!w) return { x: 0, y: 0 };
-      if (!w.parentId) return { x: w.x, y: w.y };
-      const parent = absPos(w.parentId);
-      return { x: parent.x + w.x, y: parent.y + w.y };
-    };
-
-    const newParentId: string | undefined =
-      placement === "inside" ? overId : over.parentId;
-
-    // Refuse to drop a dragged item into itself or one of its own descendants.
-    const isSelfOrDescendant = (candidate: string | undefined): boolean => {
-      let cur = candidate;
-      while (cur) {
-        if (draggedSet.has(cur)) return true;
-        cur = widgets.find(w => w.id === cur)?.parentId;
-      }
-      return false;
-    };
-    if (newParentId && isSelfOrDescendant(newParentId)) return;
-
-    const newParentAbs = newParentId ? absPos(newParentId) : { x: 0, y: 0 };
-
-    // Build new array: remove all dragged widgets, insert them together at the drop point,
-    // preserving their original relative order.
-    const without = widgets.filter(w => !draggedSet.has(w.id));
-    const overIdx = without.findIndex(w => w.id === overId);
-    const insertIdx = placement === "before" ? overIdx : overIdx + 1;
-    const orderedDragged = widgets.filter(w => draggedSet.has(w.id));
-    const updatedDragged = orderedDragged.map(w => {
-      const abs = absPos(w.id);
-      return { ...w, x: abs.x - newParentAbs.x, y: abs.y - newParentAbs.y, parentId: newParentId };
-    });
-    const next = [...without.slice(0, insertIdx), ...updatedDragged, ...without.slice(insertIdx)];
-
-    commitScreen({ ...screen, widgets: next });
-  }, [screen, commitScreen]);
-
-  const updateBindingsSchema = useCallback((schema: import("@/lib/types").BindingsSchema) => {
-    commitScreen({ ...screen, bindingsSchema: Object.keys(schema).length ? schema : undefined });
-  }, [screen, commitScreen]);
-
-  const updateActions = useCallback((actions: string[]) => {
-    commitScreen({ ...screen, actions: actions.length ? actions : undefined });
-  }, [screen, commitScreen]);
-
-  const reparentWidget = useCallback((id: string, newParentId: string | null) => {
-    const widget = screen.widgets.find(w => w.id === id);
-    if (!widget) return;
-
-    // Convert coordinates: absolute → relative to new parent (or back to screen-absolute)
-    const absPos = (wid: string): { x: number; y: number } => {
-      const w = screen.widgets.find(v => v.id === wid);
-      if (!w) return { x: 0, y: 0 };
-      if (!w.parentId) return { x: w.x, y: w.y };
-      const parent = absPos(w.parentId);
-      return { x: parent.x + w.x, y: parent.y + w.y };
-    };
-
-    const current = absPos(id);
-    const newParentAbs = newParentId ? absPos(newParentId) : { x: 0, y: 0 };
-    const newX = current.x - newParentAbs.x;
-    const newY = current.y - newParentAbs.y;
-
-    commitScreen({
-      ...screen,
-      widgets: screen.widgets.map(w =>
-        w.id === id
-          ? { ...w, x: newX, y: newY, parentId: newParentId ?? undefined }
-          : w,
-      ),
-    });
-  }, [screen, commitScreen]);
-
-  const copyWidget = useCallback(() => {
-    if (selectedWidget) clipboardRef.current = selectedWidget;
-  }, [selectedWidget]);
-
-  const pasteWidget = useCallback(() => {
-    const src = clipboardRef.current;
-    if (!src) return;
-    const id = newId(src.type);
-    const pasted: WidgetSpec = { ...src, id, x: src.x + 8, y: src.y + 8 };
-    commitScreen({ ...screen, widgets: [...screen.widgets, pasted] });
-    setSelectedId(id);
-  }, [screen, commitScreen]);
-
-  const duplicateWidget = useCallback(() => {
-    if (!selectedWidget) return;
-    const id = newId(selectedWidget.type);
-    const dup: WidgetSpec = { ...selectedWidget, id, x: selectedWidget.x + 8, y: selectedWidget.y + 8 };
-    commitScreen({ ...screen, widgets: [...screen.widgets, dup] });
-    setSelectedId(id);
-  }, [screen, commitScreen, selectedWidget]);
-
-  const nudgeWidget = useCallback((dx: number, dy: number) => {
-    if (!selectedWidget) return;
-    updateWidget({ ...selectedWidget, x: selectedWidget.x + dx, y: selectedWidget.y + dy });
-  }, [selectedWidget, updateWidget]);
-
-  // Screen management callbacks
-  const addScreen = useCallback(() => {
-    const newScreen: ScreenSpec = {
-      id: `screen_${screens.length + 1}`,
-      modId: screen.modId,
-      width: 320,
-      height: 180,
-      widgets: [],
-    };
-    commit({ screens: [...screens, newScreen], activeIdx: screens.length });
-    setSelectedId(null);
-  }, [screens, screen.modId, commit]);
-
-  const removeScreen = useCallback((idx: number) => {
-    if (screens.length <= 1) return;
-    const next = screens.filter((_, i) => i !== idx);
-    const newActiveIdx = idx < activeIdx ? activeIdx - 1 : idx === activeIdx ? Math.min(activeIdx, next.length - 1) : activeIdx;
-    commit({ screens: next, activeIdx: newActiveIdx });
-    setSelectedId(null);
-  }, [screens, activeIdx, commit]);
-
-  const renameScreen = useCallback((idx: number, name: string) => {
-    commit({ screens: screens.map((s, i) => i === idx ? { ...s, id: name } : s), activeIdx });
-  }, [screens, activeIdx, commit]);
-
-  const switchScreen = useCallback((idx: number) => {
-    // navigation: update activeIdx without pushing to undo stack
-    setHistory(h => h.map((e, i) => i === cursor ? { ...e, activeIdx: idx } : e));
-    setSelectedId(null);
-  }, [cursor]);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement).tagName;
-      const inInput = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
-      if (inInput) return;
-      const mod = e.metaKey || e.ctrlKey;
-
-      if (mod && e.key === "z" && !e.shiftKey) { e.preventDefault(); undo(); return; }
-      if (mod && (e.key === "y" || (e.key === "z" && e.shiftKey))) { e.preventDefault(); redo(); return; }
-      if (mod && (e.key === "=" || e.key === "+")) { e.preventDefault(); zoomIn(); return; }
-      if (mod && e.key === "-") { e.preventDefault(); zoomOut(); return; }
-      if (mod && e.key === "0") { e.preventDefault(); zoomReset(); return; }
-
-      if (mod && e.key === "c") { e.preventDefault(); copyWidget(); return; }
-      if (mod && e.key === "v") { e.preventDefault(); pasteWidget(); return; }
-      if (mod && e.key === "d") { e.preventDefault(); duplicateWidget(); return; }
-
-      if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); deleteWidget(); return; }
-      if (e.key === "Escape") { if (tryMode) setTryMode(false); else setSelectedId(null); return; }
-      if (e.key === "t" || e.key === "T") { setTryMode((v) => { if (!v) setSelectedId(null); return !v; }); return; }
-
-      // arrow nudge — 1px normally, gridSize with shift
-      const step = e.shiftKey ? gridSize : 1;
-      if (e.key === "ArrowLeft")  { e.preventDefault(); nudgeWidget(-step, 0); return; }
-      if (e.key === "ArrowRight") { e.preventDefault(); nudgeWidget(step, 0);  return; }
-      if (e.key === "ArrowUp")    { e.preventDefault(); nudgeWidget(0, -step); return; }
-      if (e.key === "ArrowDown")  { e.preventDefault(); nudgeWidget(0, step);  return; }
-    };
-
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [undo, redo, copyWidget, pasteWidget, duplicateWidget, deleteWidget, nudgeWidget, gridSize, tryMode, zoomIn, zoomOut, zoomReset]);
-
-  const handleExport = useCallback(() => {
-    try {
-      const regularWidgets = screen.widgets.filter((w) => w.type !== "inventory_area");
-      const container = buildContainerSpec(screen.widgets);
-      const exported = { ...screen, widgets: regularWidgets, ...(container ? { container } : {}) };
-      const json = JSON.stringify(exported, null, 2);
-      const blob = new Blob([json], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${screen.id}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const res = await fetch("/api/dev/test-screen");
+      if (!res.ok) throw new Error("Failed to load test screen");
+      const parsed = await res.json() as ScreenSpec;
+      if (!parsed.id || !Array.isArray(parsed.widgets)) throw new Error("Invalid ScreenSpec");
+      const DEV_TEST_KEY = "__dev_test_screen__";
+      const session: SavedSession = {
+        history: [{ screens: [parsed], activeIdx: 0 }],
+        cursor: 0, gridSize: 4, showGrid: true, scale: 3,
+      };
+      setProjects((prev) => {
+        const exists = prev.find(p => p.key === DEV_TEST_KEY);
+        const updated = exists
+          ? prev.map(p => p.key === DEV_TEST_KEY ? { ...p, session, updatedAt: Date.now() } : p)
+          : [...prev, { key: DEV_TEST_KEY, session, updatedAt: Date.now() }];
+        saveProjects(updated);
+        return updated;
+      });
+      router.push(`/editor/${DEV_TEST_KEY}`);
     } catch (e) {
-      alert(`Could not export: ${e instanceof Error ? e.message : e}`);
+      alert(`Could not load test screen: ${e instanceof Error ? e.message : e}`);
     }
-  }, [screen]);
+  }, [router]);
 
-  const handleImportClick = () => importRef.current?.click();
-
-  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const parsed = normalizeScreen(JSON.parse(ev.target?.result as string) as ScreenSpec);
-        if (!parsed.id || !Array.isArray(parsed.widgets)) throw new Error("Invalid ScreenSpec");
-        commitScreen(parsed);
-        setSelectedId(null);
-      } catch {
-        alert("Failed to parse ScreenSpec JSON.");
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = "";
-  };
-
-  if (view === "loading") {
+  if (!initialized || !projectsLoaded) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-200">
         <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-400 border-t-transparent" />
@@ -675,114 +150,17 @@ function Editor() {
     );
   }
 
-  if (view === "welcome") {
-    return (
-      <WelcomeScreen
-        projects={toSummaries(projects)}
-        onOpenProject={handleOpenProject}
-        onCreateProject={handleCreateProject}
-        onDeleteProject={handleDeleteProject}
-        onEditTestScreen={handleEditTestScreen}
-      />
-    );
+  if (setupRequired && !ready) {
+    return <SetupScreen />;
   }
 
   return (
-    <>
-    {showTextureDebug && <TextureDebug onClose={() => setShowTextureDebug(false)} />}
-    <SidebarProvider>
-      {!tryMode && (
-        <AppSidebar
-          screens={screens}
-          activeIdx={activeIdx}
-          modId={screen.modId}
-          widgets={screen.widgets}
-          selectedId={selectedId}
-          selectedIds={selectedIds}
-          onGoHome={() => { setCurrentProjectKey(null); setView("welcome"); }}
-          onSelectScreen={switchScreen}
-          onAddScreen={addScreen}
-          onRemoveScreen={removeScreen}
-          onRenameScreen={renameScreen}
-          onAddWidget={addWidget}
-          onSelectWidget={selectWidgetInTree}
-          onDeleteWidget={deleteWidget}
-          onReparentWidget={reparentWidget}
-          onReorderWidget={reorderWidget}
-        />
-      )}
-
-      <div className="flex flex-1 flex-col overflow-hidden min-h-svh">
-        <Toolbar
-          screen={screen}
-          gridSize={gridSize}
-          showGrid={showGrid}
-          canUndo={cursor > 0}
-          canRedo={cursor < history.length - 1}
-          tryMode={tryMode}
-          onUndo={undo}
-          onRedo={redo}
-          onGridSizeChange={setGridSize}
-          onToggleGrid={() => setShowGrid((v) => !v)}
-          onToggleTryMode={() => { setTryMode((v) => { if (!v) setSelectedId(null); return !v; }); }}
-          onScreenChange={(patch) => commitScreen({ ...screen, ...patch })}
-          onExport={handleExport}
-          onImport={handleImportClick}
-          onLoadPreset={handleLoadPreset}
-          onResetTextures={handleResetTextures}
-          onViewTextures={() => setShowTextureDebug(true)}
-          onSaveToTestMod={process.env.NODE_ENV === "development" ? handleSaveToTestMod : undefined}
-          scale={scale}
-          onZoomIn={zoomIn}
-          onZoomOut={zoomOut}
-          onZoomReset={zoomReset}
-          bindingsSchema={screen.bindingsSchema ?? {}}
-          onUpdateBindingsSchema={updateBindingsSchema}
-          actions={screen.actions ?? []}
-          onUpdateActions={updateActions}
-          modId={screen.modId}
-        />
-
-        <div className="flex flex-1 overflow-hidden">
-          <div ref={canvasWrapperRef} className="flex flex-1 items-center justify-center overflow-auto p-8">
-            <Canvas
-              width={screen.width}
-              height={screen.height}
-              scale={scale}
-              widgets={screen.widgets}
-              selectedId={selectedId}
-              gridSize={gridSize}
-              showGrid={showGrid}
-              tryMode={tryMode}
-              onSelect={setSelectedId}
-              onUpdateWidget={updateWidget}
-              bindingsSchema={screen.bindingsSchema ?? {}}
-            />
-          </div>
-
-          {!tryMode && (
-            <aside className="w-64 shrink-0 border-l bg-background overflow-y-auto">
-              <PropertyPanel
-                widget={selectedWidget}
-                onUpdate={updateWidget}
-                onDelete={() => deleteWidget()}
-                bindingsSchema={screen.bindingsSchema ?? {}}
-                actions={screen.actions ?? []}
-                inventoryAreaIds={screen.widgets.filter((w) => w.type === "inventory_area").map((w) => w.id)}
-              />
-            </aside>
-          )}
-        </div>
-      </div>
-
-      <input
-        ref={importRef}
-        type="file"
-        accept=".json,application/json"
-        className="hidden"
-        onChange={handleImportFile}
-      />
-    </SidebarProvider>
-    </>
+    <WelcomeScreen
+      projects={toSummaries(projects)}
+      onOpenProject={handleOpenProject}
+      onCreateProject={handleCreateProject}
+      onDeleteProject={handleDeleteProject}
+      onEditTestScreen={handleEditTestScreen}
+    />
   );
 }

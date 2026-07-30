@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { Settings, Sun, Moon, Monitor, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,34 +18,45 @@ import type { ScreenSpec } from "@/lib/types";
 interface Props {
   screen: ScreenSpec;
   onScreenChange: (patch: Partial<ScreenSpec>) => void;
-  onLoadPreset: () => Promise<void>;
   onResetTextures: () => Promise<void>;
   onViewTextures: () => void;
+  onExtractPack: (file: File) => Promise<{ extracted: string[]; missing: string[] }>;
 }
 
 export default function SettingsDialog({
   screen,
   onScreenChange,
-  onLoadPreset,
   onResetTextures,
   onViewTextures,
+  onExtractPack,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [presetLoading, setPresetLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+  const [packLoading, setPackLoading] = useState(false);
+  const [packResult, setPackResult] = useState<{ extracted: string[]; missing: string[] } | null>(null);
+  const packInputRef = useRef<HTMLInputElement>(null);
   const { theme, setTheme } = useTheme();
-
-  const handlePreset = async () => {
-    setPresetLoading(true);
-    try { await onLoadPreset(); } finally { setPresetLoading(false); }
-  };
 
   const handleReset = async () => {
     setResetLoading(true);
     try { await onResetTextures(); } finally { setResetLoading(false); }
   };
 
-  const busy = presetLoading || resetLoading;
+  const handlePackFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setPackLoading(true);
+    setPackResult(null);
+    try {
+      const result = await onExtractPack(file);
+      setPackResult(result);
+    } finally {
+      setPackLoading(false);
+    }
+  };
+
+  const busy = resetLoading || packLoading;
 
   return (
     <>
@@ -118,13 +129,40 @@ export default function SettingsDialog({
             <section className="flex flex-col gap-3">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Textures</p>
               <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm">Minecraft Preset</p>
-                    <p className="text-xs text-muted-foreground">Load default MC GUI textures</p>
+                <input
+                  ref={packInputRef}
+                  type="file"
+                  accept=".jar,.zip"
+                  className="hidden"
+                  onChange={handlePackFile}
+                />
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm">Load from JAR / Resource Pack</p>
+                    <p className="text-xs text-muted-foreground">
+                      Upload your own <code className="font-mono">1.21.x.jar</code> or a <code className="font-mono">.zip</code> resource pack — textures are extracted client-side and never sent to a server.
+                    </p>
+                    {packResult && (
+                      <p className="text-xs mt-1">
+                        <span className="text-green-600 dark:text-green-400">
+                          {packResult.extracted.length} extracted
+                        </span>
+                        {packResult.missing.filter(n => n !== "mc_scrollbar_handle.png").length > 0 && (
+                          <span className="text-muted-foreground">
+                            {" · "}not found: {packResult.missing.filter(n => n !== "mc_scrollbar_handle.png").join(", ")}
+                          </span>
+                        )}
+                      </p>
+                    )}
                   </div>
-                  <Button size="sm" variant="outline" onClick={handlePreset} disabled={busy} className="shrink-0">
-                    {presetLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Apply"}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => packInputRef.current?.click()}
+                    disabled={busy}
+                    className="shrink-0"
+                  >
+                    {packLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Browse"}
                   </Button>
                 </div>
                 <div className="flex items-center justify-between">

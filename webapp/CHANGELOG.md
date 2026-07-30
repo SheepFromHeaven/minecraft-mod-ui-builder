@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.3.0...webapp-v0.3.1) (2026-07-30)
+
+
+### Bug Fixes
+
+* **webapp:** only redirect to setup when setupRequired, not on partial textures ([f3146cd](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/f3146cd5ee448a8ee2b66d47de1b410d33e403fe))
+
 ## [0.3.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.2.0...webapp-v0.3.0) (2026-07-30)
 
 

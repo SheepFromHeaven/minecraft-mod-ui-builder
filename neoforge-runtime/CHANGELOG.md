@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.7.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.6.0...neoforge-runtime-v0.7.0) (2026-07-30)
+
+
+### Features
+
+* add tabs widget with vanilla-accurate rendering, panel fixes, and hot-reload ([8e47175](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/8e47175fe86c2901362afa9d3f75d78bb52bbb1e))
+* **neoforge-runtime:** add container slot areas and schema-validated bindings ([9246b1b](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/9246b1b30e7c026bc3eab49b6ad19d7e3ae4ec58))
+* **neoforge-runtime:** add horizontal scroll axis to slot areas and scrollbar ([152c033](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/152c0338c261db23f9a41cc22286ca1a793030f7))
+* **neoforge-runtime:** add scrollable container screen with multi-area support ([9ee188c](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/9ee188c88f29b2fdd5fc457cbc6108ab59bf9186))
+* **neoforge-runtime:** add tabs widget with vanilla-accurate rendering and hot-reload ([c2630d4](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/c2630d4b50eb3d767da0fc1019d9a6691b4604e3))
+
 ## [0.6.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.5.0...neoforge-runtime-v0.6.0) (2026-07-29)
 
 

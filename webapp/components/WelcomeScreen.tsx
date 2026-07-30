@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,7 @@ interface Props {
   projects: ProjectSummary[];
   onOpenProject: (key: string) => void;
   onCreateProject: (modId: string, screenId: string) => void;
+  onDeleteProject?: (key: string) => void;
   onEditTestScreen?: () => void;
 }
 
@@ -35,10 +37,11 @@ function relativeTime(ts: number): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-export default function WelcomeScreen({ projects, onOpenProject, onCreateProject, onEditTestScreen }: Props) {
+export default function WelcomeScreen({ projects, onOpenProject, onCreateProject, onDeleteProject, onEditTestScreen }: Props) {
   const [open, setOpen] = useState(false);
   const [modId, setModId] = useState("");
   const [screenId, setScreenId] = useState("main");
+  const [pendingDelete, setPendingDelete] = useState<ProjectSummary | null>(null);
 
   const canCreate = modId.trim().length > 0;
 
@@ -65,21 +68,35 @@ export default function WelcomeScreen({ projects, onOpenProject, onCreateProject
         ) : (
           <div className="flex flex-col gap-2 w-full">
             {projects.map((p) => (
-              <button
+              <div
                 key={p.key}
-                onClick={() => onOpenProject(p.key)}
-                className="flex items-center justify-between rounded-lg border bg-background px-4 py-3 text-left hover:bg-accent hover:text-accent-foreground transition-colors w-full"
+                className="group flex items-center justify-between rounded-lg border bg-background pl-4 pr-2 py-3 hover:bg-accent hover:text-accent-foreground transition-colors w-full"
               >
-                <div>
-                  <p className="text-sm font-medium">{p.screenId || "(unnamed)"}</p>
+                <button
+                  onClick={() => onOpenProject(p.key)}
+                  className="flex-1 text-left min-w-0"
+                >
+                  <p className="text-sm font-medium truncate">{p.screenId || "(unnamed)"}</p>
                   {p.modId && (
-                    <p className="text-xs text-muted-foreground">{p.modId}</p>
+                    <p className="text-xs text-muted-foreground truncate">{p.modId}</p>
                   )}
-                </div>
+                </button>
                 <span className="text-xs text-muted-foreground shrink-0 ml-4">
                   {relativeTime(p.updatedAt)}
                 </span>
-              </button>
+                {onDeleteProject && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="ml-2 shrink-0 text-muted-foreground hover:text-destructive"
+                    aria-label={`Delete project ${p.screenId || "(unnamed)"}`}
+                    onClick={(e) => { e.stopPropagation(); setPendingDelete(p); }}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                )}
+              </div>
             ))}
           </div>
         )}
@@ -134,6 +151,33 @@ export default function WelcomeScreen({ projects, onOpenProject, onCreateProject
             </Button>
             <Button disabled={!canCreate} onClick={submit}>
               Create
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={pendingDelete !== null} onOpenChange={(v) => { if (!v) setPendingDelete(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete project?</DialogTitle>
+          </DialogHeader>
+
+          <p className="text-sm text-muted-foreground py-2">
+            {pendingDelete && `"${pendingDelete.screenId || "(unnamed)"}"`} will be permanently deleted. This can&apos;t be undone.
+          </p>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setPendingDelete(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (pendingDelete) onDeleteProject?.(pendingDelete.key);
+                setPendingDelete(null);
+              }}
+            >
+              Delete
             </Button>
           </div>
         </DialogContent>

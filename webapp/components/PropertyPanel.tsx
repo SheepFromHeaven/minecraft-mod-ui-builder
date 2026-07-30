@@ -30,9 +30,11 @@ interface Props {
   onDelete: () => void;
   bindingsSchema: BindingsSchema;
   actions: string[];
+  /** Ids of inventory_area widgets on the current screen, for the scrollbar target picker. */
+  inventoryAreaIds?: string[];
 }
 
-export default function PropertyPanel({ widget, onUpdate, onDelete, bindingsSchema, actions }: Props) {
+export default function PropertyPanel({ widget, onUpdate, onDelete, bindingsSchema, actions, inventoryAreaIds = [] }: Props) {
   if (!widget) {
     return (
       <div className="flex flex-col gap-2 p-3 text-xs text-gray-400 italic">
@@ -112,28 +114,52 @@ export default function PropertyPanel({ widget, onUpdate, onDelete, bindingsSche
       {def && def.propSchema.length > 0 && (
         <>
           <div className="font-semibold text-gray-500 mt-1">Widget Props</div>
-          {def.propSchema.map((field) => (
-            <Field key={field.key} label={field.label}>
-              {field.type === "select" ? (
-                <select
-                  className={INPUT}
-                  value={widget.props[field.key] ?? field.defaultValue ?? ""}
-                  onChange={(e) => setProp(field.key, e.target.value)}
-                >
-                  {(field.options ?? []).map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  className={INPUT}
-                  type={field.type === "number" ? "number" : "text"}
-                  value={widget.props[field.key] ?? field.defaultValue ?? ""}
-                  onChange={(e) => setProp(field.key, e.target.value)}
-                />
-              )}
-            </Field>
-          ))}
+          {def.propSchema.map((field) => {
+            const currentValue = widget.props[field.key] ?? field.defaultValue ?? "";
+            if (widget.type === "scrollbar" && field.key === "target") {
+              // Free text risks a typo'd id silently producing no scrollbar (see runtime README) —
+              // once there's more than one inventory_area, picking from the real ids is much safer.
+              return (
+                <Field key={field.key} label={field.label}>
+                  <select
+                    className={INPUT}
+                    value={currentValue}
+                    onChange={(e) => setProp(field.key, e.target.value)}
+                  >
+                    <option value="">(none)</option>
+                    {!!currentValue && !inventoryAreaIds.includes(currentValue) && (
+                      <option value={currentValue}>{currentValue} ⚠ not found</option>
+                    )}
+                    {inventoryAreaIds.map((id) => (
+                      <option key={id} value={id}>{id}</option>
+                    ))}
+                  </select>
+                </Field>
+              );
+            }
+            return (
+              <Field key={field.key} label={field.label}>
+                {field.type === "select" ? (
+                  <select
+                    className={INPUT}
+                    value={currentValue}
+                    onChange={(e) => setProp(field.key, e.target.value)}
+                  >
+                    {(field.options ?? []).map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    className={INPUT}
+                    type={field.type === "number" ? "number" : "text"}
+                    value={currentValue}
+                    onChange={(e) => setProp(field.key, e.target.value)}
+                  />
+                )}
+              </Field>
+            );
+          })}
         </>
       )}
 

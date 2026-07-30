@@ -19,8 +19,14 @@ export interface SlotAreaSpec {
   x: number;
   y: number;
   cols: number;
-  rows: number;
   slot_size: number;
+  /**
+   * Rows visible at once. The real total row count isn't known here — it's determined at
+   * runtime by whatever inventory the mod actually binds (see neoforge-runtime's
+   * ScrollableSlotArea), so it scrolls vertically whenever that turns out to be more rows
+   * than fit in this viewport.
+   */
+  viewport_rows: number;
   source?: "player" | "player_hotbar" | null;
 }
 

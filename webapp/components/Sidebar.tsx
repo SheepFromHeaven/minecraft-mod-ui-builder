@@ -26,20 +26,21 @@ interface Props {
   modId?: string;
   widgets: WidgetSpec[];
   selectedId: string | null;
+  selectedIds?: string[];
   onGoHome: () => void;
   onSelectScreen: (idx: number) => void;
   onAddScreen: () => void;
   onRemoveScreen: (idx: number) => void;
   onRenameScreen: (idx: number, name: string) => void;
   onAddWidget: (type: string, parentId?: string) => void;
-  onSelectWidget: (id: string) => void;
+  onSelectWidget: (id: string, shiftKey: boolean) => void;
   onDeleteWidget: (id: string) => void;
   onReparentWidget: (id: string, newParentId: string | null) => void;
-  onReorderWidget: (draggedId: string, overId: string, placement: "before" | "after" | "inside") => void;
+  onReorderWidget: (draggedIds: string[], overId: string, placement: "before" | "after" | "inside") => void;
 }
 
 export default function AppSidebar({
-  screens, activeIdx, modId, widgets, selectedId,
+  screens, activeIdx, modId, widgets, selectedId, selectedIds,
   onGoHome, onSelectScreen, onAddScreen, onRemoveScreen, onRenameScreen,
   onAddWidget, onSelectWidget, onDeleteWidget, onReparentWidget, onReorderWidget,
 }: Props) {
@@ -169,6 +170,7 @@ export default function AppSidebar({
               <LayersTree
                 widgets={widgets}
                 selectedId={selectedId}
+                selectedIds={selectedIds}
                 onSelect={onSelectWidget}
                 onAdd={onAddWidget}
                 onDelete={onDeleteWidget}

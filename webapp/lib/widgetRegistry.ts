@@ -120,10 +120,10 @@ const WIDGET_REGISTRY: WidgetDef[] = [
       props: { cols: "9", rows: "3", slot_size: "18", source: "" },
     },
     propSchema: [
-      { key: "cols",      label: "Columns",   type: "number",  defaultValue: "9"  },
-      { key: "rows",      label: "Rows",      type: "number",  defaultValue: "3"  },
-      { key: "slot_size", label: "Slot Size", type: "number",  defaultValue: "18" },
-      { key: "source",    label: "Source",    type: "select",  options: ["", "player", "player_hotbar"], defaultValue: "" },
+      { key: "cols",      label: "Columns",      type: "number",  defaultValue: "9"  },
+      { key: "rows",      label: "Preview rows", type: "number",  defaultValue: "3"  },
+      { key: "slot_size", label: "Slot Size",    type: "number",  defaultValue: "18" },
+      { key: "source",    label: "Source",       type: "select",  options: ["", "player", "player_hotbar"], defaultValue: "" },
     ],
   },
   {

@@ -9,7 +9,7 @@ import WelcomeScreen from "@/components/WelcomeScreen";
 import { TextureProvider, useTextures } from "@/lib/TextureContext";
 import { applyMCPreset } from "@/lib/applyMCPreset";
 import TextureDebug from "@/components/TextureDebug";
-import type { ScreenSpec, WidgetSpec } from "@/lib/types";
+import type { ContainerSpec, ScreenSpec, WidgetSpec } from "@/lib/types";
 import { getWidgetDef } from "@/lib/widgetRegistry";
 import type { ProjectSummary } from "@/components/WelcomeScreen";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -17,6 +17,42 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 let idCounter = 1000;
 function newId(type: string) {
   return `${type}_${++idCounter}`;
+}
+
+/**
+ * Builds the exported `container` block from a screen's `inventory_area` widgets, or `undefined`
+ * if there are none. Multiple areas (an input grid, the player's own inventory, a mod's own
+ * runtime-sized container, ...) are expected to coexist — the runtime resolves them by id (see
+ * neoforge-runtime's ContainerSpec#validate), so a duplicate id here would silently misroute
+ * scroll clicks and slot lookups to the wrong area once exported. Throws rather than exporting
+ * that.
+ */
+function buildContainerSpec(widgets: WidgetSpec[]): ContainerSpec | undefined {
+  const inventoryWidgets = widgets.filter((w) => w.type === "inventory_area");
+  if (inventoryWidgets.length === 0) return undefined;
+
+  const seen = new Set<string>();
+  for (const w of inventoryWidgets) {
+    if (seen.has(w.id)) {
+      throw new Error(`Duplicate inventory_area id "${w.id}" — give each inventory area a unique ID before exporting.`);
+    }
+    seen.add(w.id);
+  }
+
+  return {
+    slots: inventoryWidgets.map((w) => {
+      const slotSize = parseInt(w.props.slot_size ?? "18", 10);
+      return {
+        id:            w.id,
+        x:             w.x,
+        y:             w.y,
+        cols:          parseInt(w.props.cols ?? "1", 10),
+        slot_size:     slotSize,
+        viewport_rows: Math.max(1, Math.floor(w.h / slotSize)),
+        ...(w.props.source ? { source: w.props.source as "player" | "player_hotbar" } : {}),
+      };
+    }),
+  };
 }
 
 const MAX_HISTORY = 100;
@@ -153,6 +189,9 @@ function Editor() {
   const screen = screens[activeIdx];
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Range-selection made in the layers tree (shift-click). Only meaningful while
+  // selectedId is still one of its ids — otherwise it's stale and ignored.
+  const [multiSelect, setMultiSelect] = useState<{ ids: string[] } | null>(null);
   const [gridSize, setGridSize] = useState(EMPTY_SESSION.gridSize);
   const [showGrid, setShowGrid] = useState(EMPTY_SESSION.showGrid);
   const [scale, setScale] = useState(3);
@@ -196,21 +235,8 @@ function Editor() {
 
   const handleSaveToTestMod = useCallback(async () => {
     try {
-      const inventoryWidgets = screen.widgets.filter((w) => w.type === "inventory_area");
-      const regularWidgets   = screen.widgets.filter((w) => w.type !== "inventory_area");
-      const container = inventoryWidgets.length > 0
-        ? {
-            slots: inventoryWidgets.map((w) => ({
-              id:        w.id,
-              x:         w.x,
-              y:         w.y,
-              cols:      parseInt(w.props.cols      ?? "1", 10),
-              rows:      parseInt(w.props.rows      ?? "1", 10),
-              slot_size: parseInt(w.props.slot_size ?? "18", 10),
-              ...(w.props.source ? { source: w.props.source } : {}),
-            })),
-          }
-        : undefined;
+      const regularWidgets = screen.widgets.filter((w) => w.type !== "inventory_area");
+      const container = buildContainerSpec(screen.widgets);
       const exported = { ...screen, widgets: regularWidgets, ...(container ? { container } : {}) };
       const res = await fetch("/api/dev/test-screen", {
         method: "POST",
@@ -236,6 +262,14 @@ function Editor() {
     setCurrentProjectKey(key);
     setView("editor");
   }, [projects]);
+
+  const handleDeleteProject = useCallback((key: string) => {
+    setProjects((prev) => {
+      const updated = prev.filter((p) => p.key !== key);
+      saveProjects(updated);
+      return updated;
+    });
+  }, []);
 
   const handleCreateProject = useCallback((modId: string, screenId: string) => {
     const emptyScreen: ScreenSpec = { id: screenId, modId, width: 320, height: 180, widgets: [] };
@@ -353,6 +387,31 @@ function Editor() {
 
   const selectedWidget = screen.widgets.find((w) => w.id === selectedId) ?? null;
 
+  // Effective multi-selection: the range only applies while selectedId is still part of it.
+  const selectedIds = multiSelect && selectedId && multiSelect.ids.includes(selectedId)
+    ? multiSelect.ids
+    : selectedId ? [selectedId] : [];
+
+  // Layers-tree selection: plain click selects one; shift-click selects the range of
+  // siblings (same parent) between the previous selection and the clicked item.
+  const selectWidgetInTree = useCallback((id: string, shiftKey: boolean) => {
+    if (shiftKey && selectedId) {
+      const anchor = screen.widgets.find((w) => w.id === selectedId);
+      const target = screen.widgets.find((w) => w.id === id);
+      if (anchor && target && anchor.parentId === target.parentId) {
+        const siblings = screen.widgets.filter((w) => w.parentId === anchor.parentId);
+        const i = siblings.findIndex((w) => w.id === anchor.id);
+        const j = siblings.findIndex((w) => w.id === target.id);
+        const [lo, hi] = i < j ? [i, j] : [j, i];
+        setMultiSelect({ ids: siblings.slice(lo, hi + 1).map((w) => w.id) });
+        setSelectedId(id);
+        return;
+      }
+    }
+    setMultiSelect(null);
+    setSelectedId(id);
+  }, [screen.widgets, selectedId]);
+
   // push a new HistoryEntry, discarding any redo tail
   const commit = useCallback((next: HistoryEntry) => {
     setHistory((h) => {
@@ -398,11 +457,12 @@ function Editor() {
     setSelectedId(id);
   }, [screen, commitScreen]);
 
-  const reorderWidget = useCallback((draggedId: string, overId: string, placement: "before" | "after" | "inside") => {
+  const reorderWidget = useCallback((draggedIds: string[], overId: string, placement: "before" | "after" | "inside") => {
+    if (draggedIds.length === 0 || draggedIds.includes(overId)) return;
     const widgets = screen.widgets;
-    const dragged = widgets.find(w => w.id === draggedId);
+    const draggedSet = new Set(draggedIds);
     const over = widgets.find(w => w.id === overId);
-    if (!dragged || !over) return;
+    if (!over) return;
 
     const absPos = (wid: string): { x: number; y: number } => {
       const w = widgets.find(v => v.id === wid);
@@ -415,17 +475,30 @@ function Editor() {
     const newParentId: string | undefined =
       placement === "inside" ? overId : over.parentId;
 
-    const draggedAbs = absPos(draggedId);
-    const newParentAbs = newParentId ? absPos(newParentId) : { x: 0, y: 0 };
-    const newX = draggedAbs.x - newParentAbs.x;
-    const newY = draggedAbs.y - newParentAbs.y;
+    // Refuse to drop a dragged item into itself or one of its own descendants.
+    const isSelfOrDescendant = (candidate: string | undefined): boolean => {
+      let cur = candidate;
+      while (cur) {
+        if (draggedSet.has(cur)) return true;
+        cur = widgets.find(w => w.id === cur)?.parentId;
+      }
+      return false;
+    };
+    if (newParentId && isSelfOrDescendant(newParentId)) return;
 
-    // Build new array: remove dragged, insert at correct position
-    const without = widgets.filter(w => w.id !== draggedId);
+    const newParentAbs = newParentId ? absPos(newParentId) : { x: 0, y: 0 };
+
+    // Build new array: remove all dragged widgets, insert them together at the drop point,
+    // preserving their original relative order.
+    const without = widgets.filter(w => !draggedSet.has(w.id));
     const overIdx = without.findIndex(w => w.id === overId);
     const insertIdx = placement === "before" ? overIdx : overIdx + 1;
-    const updated = { ...dragged, x: newX, y: newY, parentId: newParentId };
-    const next = [...without.slice(0, insertIdx), updated, ...without.slice(insertIdx)];
+    const orderedDragged = widgets.filter(w => draggedSet.has(w.id));
+    const updatedDragged = orderedDragged.map(w => {
+      const abs = absPos(w.id);
+      return { ...w, x: abs.x - newParentAbs.x, y: abs.y - newParentAbs.y, parentId: newParentId };
+    });
+    const next = [...without.slice(0, insertIdx), ...updatedDragged, ...without.slice(insertIdx)];
 
     commitScreen({ ...screen, widgets: next });
   }, [screen, commitScreen]);
@@ -557,30 +630,21 @@ function Editor() {
   }, [undo, redo, copyWidget, pasteWidget, duplicateWidget, deleteWidget, nudgeWidget, gridSize, tryMode, zoomIn, zoomOut, zoomReset]);
 
   const handleExport = useCallback(() => {
-    const inventoryWidgets = screen.widgets.filter((w) => w.type === "inventory_area");
-    const regularWidgets   = screen.widgets.filter((w) => w.type !== "inventory_area");
-    const container = inventoryWidgets.length > 0
-      ? {
-          slots: inventoryWidgets.map((w) => ({
-            id:        w.id,
-            x:         w.x,
-            y:         w.y,
-            cols:      parseInt(w.props.cols      ?? "1", 10),
-            rows:      parseInt(w.props.rows      ?? "1", 10),
-            slot_size: parseInt(w.props.slot_size ?? "18", 10),
-            ...(w.props.source ? { source: w.props.source } : {}),
-          })),
-        }
-      : undefined;
-    const exported = { ...screen, widgets: regularWidgets, ...(container ? { container } : {}) };
-    const json = JSON.stringify(exported, null, 2);
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${screen.id}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const regularWidgets = screen.widgets.filter((w) => w.type !== "inventory_area");
+      const container = buildContainerSpec(screen.widgets);
+      const exported = { ...screen, widgets: regularWidgets, ...(container ? { container } : {}) };
+      const json = JSON.stringify(exported, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${screen.id}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert(`Could not export: ${e instanceof Error ? e.message : e}`);
+    }
   }, [screen]);
 
   const handleImportClick = () => importRef.current?.click();
@@ -617,6 +681,7 @@ function Editor() {
         projects={toSummaries(projects)}
         onOpenProject={handleOpenProject}
         onCreateProject={handleCreateProject}
+        onDeleteProject={handleDeleteProject}
         onEditTestScreen={handleEditTestScreen}
       />
     );
@@ -633,13 +698,14 @@ function Editor() {
           modId={screen.modId}
           widgets={screen.widgets}
           selectedId={selectedId}
+          selectedIds={selectedIds}
           onGoHome={() => { setCurrentProjectKey(null); setView("welcome"); }}
           onSelectScreen={switchScreen}
           onAddScreen={addScreen}
           onRemoveScreen={removeScreen}
           onRenameScreen={renameScreen}
           onAddWidget={addWidget}
-          onSelectWidget={setSelectedId}
+          onSelectWidget={selectWidgetInTree}
           onDeleteWidget={deleteWidget}
           onReparentWidget={reparentWidget}
           onReorderWidget={reorderWidget}
@@ -702,6 +768,7 @@ function Editor() {
                 onDelete={() => deleteWidget()}
                 bindingsSchema={screen.bindingsSchema ?? {}}
                 actions={screen.actions ?? []}
+                inventoryAreaIds={screen.widgets.filter((w) => w.type === "inventory_area").map((w) => w.id)}
               />
             </aside>
           )}

@@ -95,16 +95,17 @@ function flattenTree(
 export interface LayersTreeProps {
   widgets: WidgetSpec[];
   selectedId: string | null;
-  onSelect: (id: string) => void;
+  selectedIds?: string[];
+  onSelect: (id: string, shiftKey: boolean) => void;
   onAdd: (type: string, parentId?: string) => void;
   onDelete: (id: string) => void;
-  onReorder: (draggedId: string, overId: string, placement: Placement) => void;
+  onReorder: (draggedIds: string[], overId: string, placement: Placement) => void;
 }
 
 // ── main component ─────────────────────────────────────────────────────────────
 
 export default function LayersTree({
-  widgets, selectedId, onSelect, onAdd, onDelete, onReorder,
+  widgets, selectedId, selectedIds, onSelect, onAdd, onDelete, onReorder,
 }: LayersTreeProps) {
   const [expanded, setExpanded] = useState<Set<string>>(() =>
     new Set(widgets.filter(w => CONTAINER_TYPES.has(w.type)).map(w => w.id)),
@@ -156,16 +157,20 @@ export default function LayersTree({
     setDragOver(null);
     const { active, over } = e;
     if (!over || active.id === over.id) return;
+    const activeId = String(active.id);
     const overId = String(over.id);
     const overItem = flatItems.find(f => f.id === overId);
     if (!overItem) return;
     const placement = dragOver?.overId === overId
       ? dragOver.placement
       : computePlacement(pointerY.current, over, overItem.isContainer);
-    onReorder(String(active.id), overId, placement);
+    // Dragging a member of the current multi-selection moves the whole group together.
+    const draggedIds = selectedIds?.includes(activeId) ? selectedIds : [activeId];
+    onReorder(draggedIds, overId, placement);
   };
 
   const draggingWidget = draggingId ? widgets.find(w => w.id === draggingId) : null;
+  const draggingGroupSize = draggingId && selectedIds?.includes(draggingId) ? selectedIds.length : 1;
 
   return (
     <DndContext
@@ -190,6 +195,7 @@ export default function LayersTree({
                 depth={item.depth}
                 isOpen={item.isContainer && expanded.has(item.id)}
                 selectedId={selectedId}
+                isMultiSelected={!!selectedIds && selectedIds.length > 1 && selectedIds.includes(item.id)}
                 dragOver={dragOver}
                 onSelect={onSelect}
                 onAdd={(type) => expandAndAdd(type, widget.id)}
@@ -206,6 +212,11 @@ export default function LayersTree({
           <div className="flex items-center gap-1.5 rounded bg-sidebar-accent px-2 py-1 text-xs shadow-lg opacity-90 border border-sidebar-border">
             {(() => { const I = WIDGET_ICONS[draggingWidget.type] ?? HelpCircle; return <I className="size-3.5" />; })()}
             <span>{draggingWidget.id}</span>
+            {draggingGroupSize > 1 && (
+              <span className="ml-1 rounded-full bg-blue-500 px-1.5 text-[10px] font-medium text-white">
+                +{draggingGroupSize - 1}
+              </span>
+            )}
           </div>
         )}
       </DragOverlay>
@@ -215,13 +226,14 @@ export default function LayersTree({
 
 // ── unified tree node (all depths) ────────────────────────────────────────────
 
-function TreeNode({ widget, depth, isOpen, selectedId, dragOver, onSelect, onAdd, onDelete, onToggle }: {
+function TreeNode({ widget, depth, isOpen, selectedId, isMultiSelected, dragOver, onSelect, onAdd, onDelete, onToggle }: {
   widget: WidgetSpec;
   depth: number;
   isOpen: boolean;
   selectedId: string | null;
+  isMultiSelected: boolean;
   dragOver: DragOverState;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, shiftKey: boolean) => void;
   onAdd: (type: string) => void;
   onDelete: (id: string) => void;
   onToggle: () => void;
@@ -244,10 +256,11 @@ function TreeNode({ widget, depth, isOpen, selectedId, dragOver, onSelect, onAdd
 
       <SidebarMenuButton
         isActive={widget.id === selectedId}
-        onClick={() => onSelect(widget.id)}
+        onClick={(e) => onSelect(widget.id, e.shiftKey)}
         className="cursor-grab active:cursor-grabbing pr-16"
         style={{
           paddingLeft: BASE_PL + depth * INDENT,
+          ...(isMultiSelected && widget.id !== selectedId ? { background: "hsl(217 91% 60% / 0.15)" } : {}),
           ...(insideHighlight ? { outline: "2px solid hsl(217 91% 60%)", outlineOffset: "-2px", borderRadius: "4px" } : {}),
         }}
         {...attributes}

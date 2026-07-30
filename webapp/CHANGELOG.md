@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.3.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.2.0...webapp-v0.3.0) (2026-07-30)
+
+
+### Features
+
+* add tabs widget with vanilla-accurate rendering, panel fixes, and hot-reload ([8e47175](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/8e47175fe86c2901362afa9d3f75d78bb52bbb1e))
+* **webapp:** add docs page and toolbar link ([b2b68e7](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/b2b68e7a99c5e1016cba554f0445dcd61329be91))
+* **webapp:** add horizontal scrollbar axis with smart orientation toggle ([ac5854b](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/ac5854b0ddc67f3bfde9be01130940ee9085495d))
+* **webapp:** add inventory slot areas, scrollbars, and data-binding tree ([8b578b9](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/8b578b90fb235ed399d9da5cd0f88f2ee068fef5))
+* **webapp:** add pixel-art favicon with Minecraft beveled panel ([77fc454](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/77fc454c5b7a37bcbc1504f5e6eb6e4950dd90e9))
+* **webapp:** add tab widget canvas rendering with vanilla textures ([b3346a6](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/b3346a6bc03a591a5b140c9e951b7c82c1375185))
+* **webapp:** load real MC textures from user-supplied JAR / resource pack ([9e41187](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/9e4118712a6b88299ecc595a7ea8f25d27011bce))
+* **webapp:** multi-container export, multi-select layers, scrollbar target dropdown ([3d64529](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/3d64529690573f9e9ed85bb27ad3e9d65ace2953))
+
+
+### Bug Fixes
+
+* **webapp:** pass onUpdateWidgets prop to Canvas ([fa86d88](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/fa86d883e2ba6e2e1c4f4d97d6cf1b3de6a3a76b))
+* **webapp:** prevent uncontrolled input warning in PropertyPanel ([a921e71](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/a921e713b3111bd6d7a8e4daed0f64e8acad0f25))
+* **webapp:** serve world background image locally via &lt;img&gt; tag ([f1cf211](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/f1cf2113070fd23e66a27487e73549e8dea60587))
+
 ## [0.2.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.1.0...webapp-v0.2.0) (2026-07-29)
 
 

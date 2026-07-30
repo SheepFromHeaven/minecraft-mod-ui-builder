@@ -4,7 +4,6 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
@@ -54,10 +53,7 @@ public class SpecScreen extends Screen {
     private final Map<String, List<String>> toggleGroups = new HashMap<>();
     private final Map<String, List<ActionListener>> listeners = new HashMap<>();
     private final List<ActionListener> globalListeners = new ArrayList<>();
-    // resolved bound text for decoration widgets (label/icon) — cleared each frame
-    private final Map<String, String> boundText = new HashMap<>();
-    // subclass-driven text overrides — NOT cleared each frame; take priority over boundText
-    private final Map<String, String> pinnedText = new HashMap<>();
+    private final SpecWidgetRenderer renderer;
     // centering offset — recalculated in init() each time the screen is (re)sized
     private int originX;
     private int originY;
@@ -65,6 +61,7 @@ public class SpecScreen extends Screen {
     protected SpecScreen(Component title, ScreenSpec spec) {
         super(title);
         this.spec = spec;
+        this.renderer = new SpecWidgetRenderer(spec);
     }
 
     public ScreenSpec spec() {
@@ -114,7 +111,7 @@ public class SpecScreen extends Screen {
      * field from the spec. Safe to call from {@link #render} each frame for live data.
      */
     protected void bindText(String widgetId, String text) {
-        pinnedText.put(widgetId, text);
+        renderer.bindText(widgetId, text);
     }
 
     /** Called for any {@code WidgetSpec.type} with no registered {@link WidgetFactory} and that isn't panel/label/icon. */
@@ -128,10 +125,7 @@ public class SpecScreen extends Screen {
      * spec has no {@code modId} are returned unchanged.
      */
     private String qualify(String id) {
-        if (id == null || id.isEmpty() || id.contains(".") || spec.modId == null || spec.modId.isEmpty()) {
-            return id;
-        }
-        return spec.modId + "." + id;
+        return SpecWidgetRenderer.qualify(spec.modId, id);
     }
 
     /**
@@ -243,49 +237,37 @@ public class SpecScreen extends Screen {
     }
 
     private void applyBindings() {
-        boundText.clear();
+        renderer.refreshBoundText();
+        // enabled/visible bindings apply to a live AbstractWidget, which only this screen builds —
+        // SpecWidgetRenderer only handles the text-binding case shared with SpecContainerScreen.
         for (WidgetSpec w : spec.widgets) {
             if (w.bindings.isEmpty()) continue;
-            for (Map.Entry<String, String> entry : w.bindings.entrySet()) {
-                String target = entry.getKey();
-                String value = DataRegistry.resolve(qualify(entry.getValue()));
-                if (value == null) continue;
-                switch (target) {
-                    case "text" -> {
-                        AbstractWidget widget = widgetsById.get(w.id);
-                        if (widget != null) {
-                            widget.setMessage(Component.literal(value));
-                        } else {
-                            boundText.put(w.id, value);
-                        }
-                    }
-                    case "enabled" -> {
-                        AbstractWidget widget = widgetsById.get(w.id);
-                        if (widget != null) widget.active = Boolean.parseBoolean(value);
-                    }
-                    case "visible" -> {
-                        AbstractWidget widget = widgetsById.get(w.id);
-                        if (widget != null) widget.visible = Boolean.parseBoolean(value);
-                    }
-                }
+            AbstractWidget widget = widgetsById.get(w.id);
+            if (widget == null) continue;
+            String enabled = w.bindings.get("enabled");
+            if (enabled != null) {
+                String value = DataRegistry.resolve(qualify(enabled));
+                if (value != null) widget.active = Boolean.parseBoolean(value);
+            }
+            String visible = w.bindings.get("visible");
+            if (visible != null) {
+                String value = DataRegistry.resolve(qualify(visible));
+                if (value != null) widget.visible = Boolean.parseBoolean(value);
+            }
+            String text = w.bindings.get("text");
+            if (text != null) {
+                String value = DataRegistry.resolve(qualify(text));
+                if (value != null) widget.setMessage(Component.literal(value));
             }
         }
     }
-
-    private static final Identifier PANEL_DEFAULT = Identifier.fromNamespaceAndPath("screenspec", "panel/default");
 
     /**
      * Draws a {@code panel} widget using the MC nine-slice sprite so it matches
      * the webapp's WYSIWYG preview. Override for custom textures per {@code style}.
      */
     protected void renderPanel(GuiGraphics guiGraphics, WidgetSpec w) {
-        String style = w.prop("style", "default");
-        if (style.equals("transparent")) {
-            return;
-        }
-        int x = w.x + originX, y = w.y + originY;
-        int tint = style.equals("dark") ? 0x80000000 : 0xFFFFFFFF;
-        guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, PANEL_DEFAULT, x, y, w.w, w.h, tint);
+        renderer.renderPanel(guiGraphics, w, w.x + originX, w.y + originY);
     }
 
     /**
@@ -293,18 +275,7 @@ public class SpecScreen extends Screen {
      * {@code shadow} and {@code align} props from the designer.
      */
     protected void renderLabel(GuiGraphics guiGraphics, WidgetSpec w) {
-        int color = w.propInt("color", 0x404040);
-        boolean shadow = w.propBoolean("shadow", false);
-        String align = w.prop("align", "left");
-        String text = pinnedText.getOrDefault(w.id, boundText.getOrDefault(w.id, w.text));
-        int textWidth = this.font.width(text);
-        int baseX = w.x + originX;
-        int x = switch (align) {
-            case "center" -> baseX + (w.w - textWidth) / 2;
-            case "right"  -> baseX + w.w - textWidth;
-            default       -> baseX;
-        };
-        guiGraphics.drawString(this.font, text, x, w.y + originY, color, shadow);
+        renderer.renderLabel(guiGraphics, this.font, w, w.x + originX, w.y + originY);
     }
 
     /**
@@ -312,12 +283,7 @@ public class SpecScreen extends Screen {
      * {@link #resolveIcon} to map an icon id to your mod's texture.
      */
     protected void renderIcon(GuiGraphics guiGraphics, WidgetSpec w) {
-        Identifier location = resolveIcon(w);
-        if (location == null) {
-            return;
-        }
-        int scale = w.propInt("scale", 1);
-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, location, w.x + originX, w.y + originY, 0f, 0f, w.w * scale, w.h * scale, w.w * scale, w.h * scale);
+        renderer.renderIcon(guiGraphics, w, w.x + originX, w.y + originY, this::resolveIcon);
     }
 
     /** Resolves an {@code icon} widget's {@code icon} id to a texture location. Returns {@code null} (no-op) by default. */

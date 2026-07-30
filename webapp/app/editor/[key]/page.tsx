@@ -489,7 +489,7 @@ export default function EditorPage() {
     }
   }, [screen]);
 
-  if (!projectLoaded || !ready) {
+  if (!projectLoaded || !initialized) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-200">
         <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-400 border-t-transparent" />

@@ -5,12 +5,12 @@ import net.minecraft.world.Container;
 import net.minecraft.world.inventory.Slot;
 
 /**
- * Vertical scroll state for one {@link SlotAreaSpec} bound to a runtime-sized {@link Container} -
- * built via {@link SpecSlots#forScrollableViewport}, whose row count is derived from
- * {@code container.getContainerSize()} rather than anything the designer authored, since the real
+ * Scroll state for one {@link SlotAreaSpec} bound to a runtime-sized {@link Container} - built via
+ * {@link SpecSlots#forScrollableViewport}, whose row/column count is derived from {@code
+ * container.getContainerSize()} rather than anything the designer authored, since the real
  * inventory (a custom block's container, sized however that mod likes) is only known once the mod
- * actually hooks it up. It scrolls whenever that turns out to be more rows than
- * {@code area.viewport_rows} can show at once.
+ * actually hooks it up. It scrolls whenever that turns out to be more lines - rows, or columns
+ * when {@link SlotAreaSpec#axis} is {@code "x"} - than the viewport can show at once.
  *
  * <p>{@link Slot#x} and {@link Slot#y} are {@code final} in vanilla, so a scroll can't reposition
  * existing {@link Slot}s - instead this replaces the area's entries in the owning
@@ -19,7 +19,7 @@ import net.minecraft.world.inventory.Slot;
  * changes, only which item it displays, so this stays transparent to menu synchronization.
  *
  * <p>The mod's {@code AbstractContainerMenu} subclass owns one of these per scrollable area,
- * built right after adding that area's initial (scroll row 0) slots:
+ * built right after adding that area's initial (scroll line 0) slots:
  *
  * <pre>{@code
  * public class MyMenu extends AbstractContainerMenu implements ScrollableAreaHost {
@@ -53,40 +53,58 @@ public final class ScrollableSlotArea {
     private final Container container;
     private final NonNullList<Slot> menuSlots;
     private final int firstIndex;
-    private final int totalRows;
-    private final int visibleRows;
-    private int scrollRow = 0;
+    private final boolean horizontal;
+    private final int totalLines;
+    private final int visibleLines;
+    private int scrollLine = 0;
 
     public ScrollableSlotArea(SlotAreaSpec area, Container container, NonNullList<Slot> menuSlots, int firstIndex) {
         this.area = area;
         this.container = container;
         this.menuSlots = menuSlots;
         this.firstIndex = firstIndex;
-        this.totalRows = area.totalRows(container.getContainerSize());
-        this.visibleRows = Math.min(area.viewport_rows, totalRows);
+        this.horizontal = "x".equals(area.axis);
+        int size = container.getContainerSize();
+        if (horizontal) {
+            this.totalLines = area.totalCols(size);
+            this.visibleLines = Math.min(area.cols, totalLines);
+        } else {
+            this.totalLines = area.totalRows(size);
+            this.visibleLines = Math.min(area.viewport_rows, totalLines);
+        }
     }
 
     public SlotAreaSpec area() {
         return area;
     }
 
-    /** The topmost data row currently visible. */
+    /** Whether this area scrolls its columns (a wide grid) rather than its rows (the default). */
+    public boolean horizontal() {
+        return horizontal;
+    }
+
+    /** The topmost (or, if {@link #horizontal()}, leftmost) data line currently visible. */
     public int scrollRow() {
-        return scrollRow;
+        return scrollLine;
     }
 
-    /** The real container's row count, derived from its actual size - not anything authored. */
+    /** The real container's line count along the scrolling axis, derived from its actual size - not anything authored. */
     public int totalRows() {
-        return totalRows;
+        return totalLines;
     }
 
-    /** Rows actually shown at once - {@code min(area.viewport_rows, totalRows())}. */
+    /** Rows actually shown at once. */
     public int visibleRows() {
-        return visibleRows;
+        return horizontal ? area.viewport_rows : visibleLines;
+    }
+
+    /** Columns actually shown at once. */
+    public int visibleCols() {
+        return horizontal ? visibleLines : area.cols;
     }
 
     public int maxScrollRow() {
-        return Math.max(0, totalRows - area.viewport_rows);
+        return Math.max(0, totalLines - visibleLines);
     }
 
     /** Whether the real container turned out bigger than the viewport - i.e. whether this needs a scrollbar at all. */
@@ -97,44 +115,54 @@ public final class ScrollableSlotArea {
     /** Current scroll position as a 0..1 fraction of {@link #maxScrollRow()} (0 if there's no travel). */
     public double scrollPct() {
         int max = maxScrollRow();
-        return max == 0 ? 0 : (double) scrollRow / max;
+        return max == 0 ? 0 : (double) scrollLine / max;
     }
 
-    /** Scrolls to an absolute data row, clamped to {@code [0, maxScrollRow()]}. */
-    public void setScrollRow(int row) {
-        int clamped = Math.max(0, Math.min(maxScrollRow(), row));
-        if (clamped == scrollRow) {
+    /** Scrolls to an absolute data line, clamped to {@code [0, maxScrollRow()]}. */
+    public void setScrollRow(int line) {
+        int clamped = Math.max(0, Math.min(maxScrollRow(), line));
+        if (clamped == scrollLine) {
             return;
         }
-        scrollRow = clamped;
+        scrollLine = clamped;
         reposition();
     }
 
-    /** Scrolls to the row nearest {@code pct * maxScrollRow()}, matching the designer's row-snapping. */
+    /** Scrolls to the line nearest {@code pct * maxScrollRow()}, matching the designer's snapping. */
     public void setScrollPct(double pct) {
         setScrollRow((int) Math.round(clamp(pct, 0, 1) * maxScrollRow()));
     }
 
-    public void scrollBy(int deltaRows) {
-        setScrollRow(scrollRow + deltaRows);
+    public void scrollBy(int deltaLines) {
+        setScrollRow(scrollLine + deltaLines);
     }
 
     private void reposition() {
-        int cols = area.cols;
         int size = container.getContainerSize();
-        for (int viewRow = 0; viewRow < visibleRows; viewRow++) {
-            for (int col = 0; col < cols; col++) {
-                int dataIndex = (scrollRow + viewRow) * cols + col;
-                int slotListIndex = firstIndex + viewRow * cols + col;
-                menuSlots.set(slotListIndex, slotFor(dataIndex, col, viewRow, size));
+        int fixedLines = horizontal ? area.viewport_rows : area.cols;
+        for (int viewLine = 0; viewLine < visibleLines; viewLine++) {
+            for (int fixed = 0; fixed < fixedLines; fixed++) {
+                int col, row, dataIndex, slotListIndex;
+                if (horizontal) {
+                    col = viewLine;
+                    row = fixed;
+                    dataIndex = row * totalLines + (scrollLine + viewLine);
+                    slotListIndex = firstIndex + row * visibleLines + viewLine;
+                } else {
+                    row = viewLine;
+                    col = fixed;
+                    dataIndex = (scrollLine + viewLine) * fixedLines + col;
+                    slotListIndex = firstIndex + viewLine * fixedLines + col;
+                }
+                menuSlots.set(slotListIndex, slotFor(dataIndex, col, row, size));
             }
         }
     }
 
-    /** A slot for {@code dataIndex}, or an inert off-screen one past the container's real size (e.g. a partial last row). */
-    private Slot slotFor(int dataIndex, int col, int viewRow, int size) {
+    /** A slot for {@code dataIndex}, or an inert off-screen one past the container's real size (e.g. a partial last line). */
+    private Slot slotFor(int dataIndex, int col, int row, int size) {
         if (dataIndex < size) {
-            return new Slot(container, dataIndex, area.slotX(col), area.slotY(viewRow));
+            return new Slot(container, dataIndex, area.slotX(col), area.slotY(row));
         }
         return new Slot(container, Math.max(0, size - 1), OFFSCREEN, OFFSCREEN);
     }

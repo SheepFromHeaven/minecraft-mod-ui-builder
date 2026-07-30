@@ -10,6 +10,8 @@ import WIDGET_REGISTRY from "@/lib/widgetRegistry";
 import { useTextures } from "@/lib/TextureContext";
 
 const BindingsCtx = createContext<BindingsSchema>({});
+const UpdateWidgetCtx = React.createContext<(w: WidgetSpec) => void>(() => {});
+const UpdateWidgetsCtx = React.createContext<(ws: WidgetSpec[]) => void>(() => {});
 
 // ── Shared scroll state for try mode ─────────────────────────────────────────
 interface ScrollPos   { x: number; y: number }
@@ -48,6 +50,7 @@ interface Props {
   bindingsSchema: BindingsSchema;
   onSelect: (id: string | null) => void;
   onUpdateWidget: (widget: WidgetSpec) => void;
+  onUpdateWidgets: (widgets: WidgetSpec[]) => void;
 }
 
 function applyBindingPreviews(widget: WidgetSpec, schema: BindingsSchema): { widget: WidgetSpec; hidden: boolean } {
@@ -66,7 +69,7 @@ function applyBindingPreviews(widget: WidgetSpec, schema: BindingsSchema): { wid
 }
 
 export default function Canvas({
-  width, height, scale, widgets, selectedId, gridSize, showGrid, tryMode, bindingsSchema, onSelect, onUpdateWidget,
+  width, height, scale, widgets, selectedId, gridSize, showGrid, tryMode, bindingsSchema, onSelect, onUpdateWidget, onUpdateWidgets,
 }: Props) {
   const cssWidth = width * scale;
   const cssHeight = height * scale;
@@ -218,22 +221,26 @@ export default function Canvas({
         )}
       </ScrollCtx.Provider>}
       <BindingsCtx.Provider value={bindingsSchema}>
-        {rootWidgets.map((widget, idx) =>
-          tryMode ? null
-            : (
-              <EditWidget
-                key={widget.id}
-                widget={widget}
-                scale={scale}
-                selectedId={selectedId}
-                snapPx={snapPx}
-                draggingPos={draggingPos}
-                onResizeCommit={onUpdateWidget}
-                childMap={childMap}
-                zBase={idx + 2}
-              />
-            )
-        )}
+        <UpdateWidgetsCtx.Provider value={onUpdateWidgets}>
+        <UpdateWidgetCtx.Provider value={onUpdateWidget}>
+          {rootWidgets.map((widget, idx) =>
+            tryMode ? null
+              : (
+                <EditWidget
+                  key={widget.id}
+                  widget={widget}
+                  scale={scale}
+                  selectedId={selectedId}
+                  snapPx={snapPx}
+                  draggingPos={draggingPos}
+                  onResizeCommit={onUpdateWidget}
+                  childMap={childMap}
+                  zBase={idx + 2}
+                />
+              )
+          )}
+        </UpdateWidgetCtx.Provider>
+        </UpdateWidgetsCtx.Provider>
       </BindingsCtx.Provider>
     </div>
   );
@@ -264,12 +271,85 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
   zBase: number;
 }) {
   const bindingsSchema = useContext(BindingsCtx);
+  const { textures: editTextures } = useTextures();
+  const tex = (name: string) => (editTextures as Record<string, string>)[name] ?? `/textures/${name}`;
   const { widget: previewWidget, hidden } = applyBindingPreviews(widget, bindingsSchema);
   const isSelected = widget.id === selectedId;
   const isContainer = CONTAINER_TYPES.has(widget.type);
   const children = isContainer ? (childMap.get(widget.id) ?? []) : [];
   const clips = widget.type === "scroll";
   const isGroup = widget.type === "group";
+  const isTabs = widget.type === "tabs";
+
+  // Preview-only: which of this `tabs` widget's `tab` children is shown on the canvas right now.
+  // Not persisted — a designer convenience for previewing content that's otherwise hidden,
+  // mirroring how SpecScreen picks a default active tab at runtime.
+  const tabChildren = isTabs ? children.filter((c) => c.type === "tab") : [];
+  const tabHeaderHeight = isTabs ? parseInt(widget.props.tab_height ?? "20", 10) : 0;
+  const [previewTabId, setPreviewTabId] = useState<string | null>(null);
+  const activeTabId = previewTabId && tabChildren.some((t) => t.id === previewTabId)
+    ? previewTabId
+    : tabChildren[0]?.id ?? null;
+
+  const activeTabChildren = activeTabId ? (childMap.get(activeTabId) ?? []) : [];
+
+  // Tab move/resize (edit mode only)
+  const updateWidget = useContext(UpdateWidgetCtx);
+  const updateWidgets = useContext(UpdateWidgetsCtx);
+
+  // Inline text editing — double-click any widget or tab button to edit its text in-place
+  const [inlineEdit, setInlineEdit] = useState<{ id: string; text: string } | null>(null);
+  const inlineInputRef = React.useRef<HTMLInputElement>(null);
+  React.useEffect(() => { if (inlineEdit) inlineInputRef.current?.select(); }, [inlineEdit?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const commitInlineEdit = React.useCallback((draft: string) => {
+    setInlineEdit(null);
+    if (!inlineEdit) return;
+    if (inlineEdit.id === widget.id) {
+      updateWidget({ ...widget, text: draft });
+    } else {
+      const tab = tabChildren.find(t => t.id === inlineEdit.id);
+      if (tab) updateWidget({ ...tab, text: draft });
+    }
+  }, [inlineEdit, widget, tabChildren, updateWidget]); // eslint-disable-line react-hooks/exhaustive-deps
+  type TabDrag = {
+    type: "move" | "resize-right" | "resize-left";
+    id: string;
+    startMouseX: number;
+    startX: number; startW: number;
+    minX: number; maxX: number;
+    minW: number; maxW: number;
+  };
+  const [tabDrag, setTabDrag] = useState<TabDrag | null>(null);
+  const tabDragRef = useRef(tabDrag);
+  tabDragRef.current = tabDrag;
+  const tabChildrenRef = useRef(tabChildren);
+  tabChildrenRef.current = tabChildren;
+  const scaleRef = useRef(scale);
+  scaleRef.current = scale;
+
+  React.useEffect(() => {
+    if (!tabDrag) return;
+    const onMove = (e: MouseEvent) => {
+      const d = tabDragRef.current;
+      if (!d) return;
+      const delta = Math.round((e.clientX - d.startMouseX) / scaleRef.current);
+      const tab = tabChildrenRef.current.find(t => t.id === d.id);
+      if (!tab) return;
+      if (d.type === "move") {
+        updateWidget({ ...tab, x: Math.max(d.minX, Math.min(d.maxX, d.startX + delta)) });
+      } else if (d.type === "resize-right") {
+        updateWidget({ ...tab, w: Math.max(d.minW, Math.min(d.maxW, d.startW + delta)) });
+      } else {
+        const newW = Math.max(d.minW, Math.min(d.maxW, d.startW - delta));
+        updateWidget({ ...tab, x: d.startX + d.startW - newW, w: newW });
+      }
+    };
+    const onUp = () => setTabDrag(null);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabDrag !== null]);
 
   // Live drag position substitution: this widget itself may be the current
   // drag target (position moves live before the drag commits)...
@@ -315,6 +395,13 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
         if (x === widget.x && y === widget.y && w === widget.w && h === widget.h) return;
         onResizeCommit({ ...widget, x, y, w, h });
       }}
+      onDoubleClick={(e: React.MouseEvent) => {
+        if (isTabs) return; // tabs: double-click handled per tab button below
+        const EDITABLE = new Set(["label", "button", "toggle_button", "slider", "input"]);
+        if (!EDITABLE.has(widget.type)) return;
+        e.stopPropagation();
+        setInlineEdit({ id: widget.id, text: widget.text });
+      }}
       style={{
         outline: isSelected ? `2px solid #ff0` : "none",
         outlineOffset: 1,
@@ -332,7 +419,42 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
       }
     >
       <WidgetVisual widget={previewWidget} scale={scale} interactState="idle" />
-      {isContainer && (
+      {inlineEdit?.id === widget.id && (() => {
+        // Mirror WidgetVisual's text alignment and padding so the edit position matches display.
+        const align = widget.type === "label"
+          ? (widget.props.align === "center" ? "center" : widget.props.align === "right" ? "right" : "left")
+          : "center";
+        const hPad = `${2 * scale}px`;
+        return (
+          <input
+            ref={inlineInputRef}
+            defaultValue={inlineEdit.text}
+            onBlur={(e) => commitInlineEdit(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.currentTarget.blur(); }
+              if (e.key === "Escape") { setInlineEdit(null); }
+              e.stopPropagation();
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: "absolute", inset: 0,
+              background: "rgba(0,0,0,0.75)",
+              color: "#fff",
+              border: "2px solid #ff0",
+              outline: "none",
+              fontSize: Math.max(8, 7 * scale),
+              fontFamily: '"Minecraft", monospace',
+              paddingLeft: hPad, paddingRight: hPad,
+              textAlign: align,
+              width: "100%", height: "100%",
+              boxSizing: "border-box",
+              zIndex: 100,
+            }}
+          />
+        );
+      })()}
+      {isContainer && !isTabs && (
         <div style={{
           position: "absolute",
           inset: 0,
@@ -353,6 +475,190 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
           ))}
         </div>
       )}
+      {isTabs && (() => {
+        const topSlice = 3 * scale;
+        const sideSlice = 3 * scale;
+        const GAP = 2;
+        // Compute layout: equal distribution when tabs haven't been sized yet (both x and w are 0)
+        const allDefault = tabChildren.length > 0 && tabChildren.every(t => t.w === 0);
+        const defaultTabW = tabChildren.length > 0
+          ? Math.max(16, Math.floor((widget.w - GAP * Math.max(0, tabChildren.length - 1)) / tabChildren.length))
+          : 0;
+        const getW = (t: WidgetSpec) => allDefault ? defaultTabW : Math.max(16, t.w || defaultTabW);
+        const getX = (t: WidgetSpec, i: number) => allDefault
+          ? tabChildren.slice(0, i).reduce((acc, prev) => acc + getW(prev) + GAP, 0)
+          : t.x;
+        // per-tab min width = content chars × ~4px + 8px padding per side (16px total)
+        const getMinW = (t: WidgetSpec) => {
+          const text = t.text || t.id || "";
+          return Math.max(16, text.length * 4 + 16);
+        };
+        const computedTabs = tabChildren.map((t, i) => ({ t, w: getW(t), x: getX(t, i) }));
+        const tabCount = computedTabs.length;
+
+        // Commit all tab layout defaults as ONE history entry before a drag starts.
+        const initIfDefault = () => {
+          if (allDefault) updateWidgets(tabChildren.map((tc, i) => ({ ...tc, x: getX(tc, i), w: getW(tc) })));
+        };
+
+        return (
+          <div style={{ position: "absolute", inset: 0 }}>
+            {/* Tab selector row — absolutely positioned tabs, overflow visible */}
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: tabHeaderHeight * scale, overflow: "visible" }}>
+              {computedTabs.map(({ t: tab, x: tabX, w: tabW }, idx) => {
+                const isActive = tab.id === activeTabId;
+                const touchesLeft = tabX <= 0;
+                const touchesRight = tabX + tabW >= widget.w;
+                const selTex = touchesLeft ? "tab_top_selected_1_slice.png" : touchesRight ? "tab_top_selected_7_slice.png" : "tab_top_selected_2_slice.png";
+                const tabTex = tex(isActive ? selTex : "tab_top_unselected_1_slice.png");
+                const minW = getMinW(tab);
+                const prev = computedTabs[idx - 1];
+                const next = computedTabs[idx + 1];
+                // clamp bounds — captured at drag-start so neighbors don't need re-lookup in mousemove
+                const moveMinX = prev ? prev.x + prev.w + GAP : 0;
+                const moveMaxX = next ? next.x - tabW - GAP : widget.w - tabW;
+                const resizeRightMaxW = next ? next.x - tabX - GAP : widget.w - tabX;
+                const resizeLeftMaxW = prev ? tabX + tabW - (prev.x + prev.w + GAP) : tabX + tabW;
+                const isMoving = tabDrag?.type === "move" && tabDrag.id === tab.id;
+                return (
+                  <div
+                    key={tab.id}
+                    style={{
+                      position: "absolute",
+                      left: tabX * scale,
+                      width: tabW * scale,
+                      top: isActive ? 0 : 2 * scale,
+                      height: isActive ? tabHeaderHeight * scale + topSlice : (tabHeaderHeight - 2) * scale,
+                      zIndex: isActive ? 2 : 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      overflow: "visible",
+                      whiteSpace: "nowrap",
+                      fontSize: Math.max(7, 6 * scale),
+                      fontFamily: '"Minecraft", monospace',
+                      color: isActive ? "#404040" : "#909090",
+                      borderTopWidth: topSlice,
+                      borderRightWidth: sideSlice,
+                      borderBottomWidth: 0,
+                      borderLeftWidth: sideSlice,
+                      borderStyle: "solid",
+                      borderColor: "transparent",
+                      borderImage: `url("${tabTex}") 3 3 0 3 fill / ${topSlice}px ${sideSlice}px 0 ${sideSlice}px round`,
+                      imageRendering: "pixelated",
+                      userSelect: "none",
+                      boxSizing: "border-box",
+                      cursor: isMoving ? "grabbing" : "grab",
+                    }}
+                    onMouseDown={(e) => {
+                      if ((e.target as HTMLElement).dataset.resizeHandle) return;
+                      if (inlineEdit?.id === tab.id) return;
+                      e.stopPropagation();
+                      e.nativeEvent.stopImmediatePropagation();
+                      initIfDefault();
+                      setTabDrag({ type: "move", id: tab.id, startMouseX: e.clientX,
+                        startX: tabX, startW: tabW,
+                        minX: moveMinX, maxX: moveMaxX,
+                        minW: 0, maxW: 0 });
+                    }}
+                    onClick={(e) => { if (!(e.target as HTMLElement).dataset.resizeHandle) setPreviewTabId(tab.id); }}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      e.nativeEvent.stopImmediatePropagation();
+                      setInlineEdit({ id: tab.id, text: tab.text });
+                    }}
+                  >
+                    {inlineEdit?.id === tab.id ? (
+                      <input
+                        ref={inlineInputRef}
+                        defaultValue={inlineEdit.text}
+                        onBlur={(e) => commitInlineEdit(e.currentTarget.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") { e.currentTarget.blur(); }
+                          if (e.key === "Escape") { setInlineEdit(null); }
+                          e.stopPropagation();
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          position: "absolute", inset: `0 ${sideSlice}px`,
+                          background: "rgba(0,0,0,0.75)",
+                          color: "#fff", border: "none", outline: "2px solid #ff0",
+                          fontSize: Math.max(7, 6 * scale),
+                          fontFamily: '"Minecraft", monospace',
+                          textAlign: "center", width: `calc(100% - ${sideSlice * 2}px)`,
+                          zIndex: 10, padding: 0,
+                        }}
+                      />
+                    ) : tab.icon ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={tab.icon} alt="" style={{ width: tabHeaderHeight * scale * 0.6, height: tabHeaderHeight * scale * 0.6, imageRendering: "pixelated", pointerEvents: "none" }} />
+                    ) : (
+                      <span style={{ pointerEvents: "none", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>{tab.text || tab.id}</span>
+                    )}
+                    {/* Left-edge resize handle — negative left to stay at texture border, not inside padding */}
+                    <div data-resize-handle="left"
+                      onMouseDown={(e) => {
+                        e.stopPropagation(); e.preventDefault();
+                        e.nativeEvent.stopImmediatePropagation();
+                        initIfDefault();
+                        setTabDrag({ type: "resize-left", id: tab.id, startMouseX: e.clientX,
+                          startX: tabX, startW: tabW,
+                          minX: 0, maxX: 0,
+                          minW, maxW: resizeLeftMaxW });
+                      }}
+                      style={{ position: "absolute", left: -sideSlice, top: 0, bottom: 0, width: sideSlice + 4 * scale, cursor: "ew-resize", zIndex: 3 }}
+                    />
+                    {/* Right-edge resize handle */}
+                    <div data-resize-handle="right"
+                      onMouseDown={(e) => {
+                        e.stopPropagation(); e.preventDefault();
+                        e.nativeEvent.stopImmediatePropagation();
+                        initIfDefault();
+                        setTabDrag({ type: "resize-right", id: tab.id, startMouseX: e.clientX,
+                          startX: tabX, startW: tabW,
+                          minX: 0, maxX: 0,
+                          minW, maxW: resizeRightMaxW });
+                      }}
+                      style={{ position: "absolute", right: -sideSlice, top: 0, bottom: 0, width: sideSlice + 4 * scale, cursor: "ew-resize", zIndex: 3 }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            {/* Content panel — MC panel nine-slice, z-index 1 so active tab overlaps its top border */}
+            <div style={{
+              position: "absolute",
+              left: 0,
+              top: tabHeaderHeight * scale,
+              right: 0,
+              bottom: 0,
+              overflow: "hidden",
+              zIndex: 1,
+              borderWidth: 3 * scale,
+              borderStyle: "solid",
+              borderColor: "transparent",
+              borderImage: `url("${tex("mc_panel_slice.png")}") 3 fill`,
+              imageRendering: "pixelated",
+              boxSizing: "border-box",
+            }}>
+              {activeTabChildren.map((child, idx) => (
+                <EditWidget
+                  key={child.id}
+                  widget={child}
+                  scale={scale}
+                  selectedId={selectedId}
+                  snapPx={snapPx}
+                  draggingPos={draggingPos}
+                  onResizeCommit={onResizeCommit}
+                  childMap={childMap}
+                  zBase={idx + 1}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })()}
     </Rnd>
   );
 }
@@ -647,15 +953,26 @@ function TryWidget({ widget, scale, childMap, zBase, allWidgets }: {
   const [focused, setFocused] = useState(false);
   const trackRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const { textures: tryTextures } = React.useContext(TextureCtx);
+  const tex = (name: string) => (tryTextures as Record<string, string>)[name] ?? `/textures/${name}`;
 
   const isContainer = CONTAINER_TYPES.has(widget.type);
   const children = isContainer ? (childMap.get(widget.id) ?? []) : [];
   const clips = widget.type === "scroll";
+  const isTabs = widget.type === "tabs";
+  const tabChildren = isTabs ? children.filter((c) => c.type === "tab") : [];
+  const tabHeaderHeight = isTabs ? parseInt(widget.props.tab_height ?? "20", 10) : 0;
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const resolvedTabId = activeTabId && tabChildren.some((t) => t.id === activeTabId)
+    ? activeTabId
+    : tabChildren[0]?.id ?? null;
+  const activeTabChildren = resolvedTabId ? (childMap.get(resolvedTabId) ?? []) : [];
 
   const isToggle = widget.type === "toggle_button";
   const isSlider = widget.type === "slider";
   const isInput = widget.type === "input";
-  const isPassive = widget.type === "panel" || widget.type === "scroll" || widget.type === "group" || widget.type === "label" || widget.type === "icon";
+  const isPassive = widget.type === "panel" || widget.type === "scroll" || widget.type === "group"
+    || widget.type === "label" || widget.type === "icon" || widget.type === "tabs";
   const interactState = pressed ? "pressed" : (isInput ? focused : hovered) ? "hovered" : "idle";
 
   const handleSliderPointer = (e: React.PointerEvent) => {
@@ -709,13 +1026,88 @@ function TryWidget({ widget, scale, childMap, zBase, allWidgets }: {
       onPointerDown={isSlider ? handleSliderPointer : undefined}
     >
       <WidgetVisual widget={liveWidget} scale={scale} interactState={interactState} toggled={toggled} />
-      {isContainer && (
+      {isContainer && !isTabs && (
         <div style={{ position: "absolute", inset: 0, overflow: clips ? "hidden" : "visible" }}>
           {children.map((child, idx) => (
             <TryWidgetRoot key={child.id} widget={child} scale={scale} childMap={childMap} zBase={idx + 1} allWidgets={allWidgets} scrollListeners={new Map()} />
           ))}
         </div>
       )}
+      {isTabs && (() => {
+        const topSlice = 3 * scale;
+        const sideSlice = 3 * scale;
+        const GAP = 2;
+        // Mirror edit-mode layout: equal distribution when tabs haven't been sized yet
+        const allDefault = tabChildren.length > 0 && tabChildren.every(t => t.w === 0);
+        const defaultTabW = tabChildren.length > 0
+          ? Math.max(16, Math.floor((widget.w - GAP * Math.max(0, tabChildren.length - 1)) / tabChildren.length))
+          : 0;
+        const getW = (t: WidgetSpec) => allDefault ? defaultTabW : Math.max(16, t.w || defaultTabW);
+        const getX = (t: WidgetSpec, i: number) => allDefault
+          ? tabChildren.slice(0, i).reduce((acc, prev) => acc + getW(prev) + GAP, 0)
+          : t.x;
+        const tabCount = tabChildren.length;
+        return (
+          <div style={{ position: "absolute", inset: 0 }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: tabHeaderHeight * scale, overflow: "visible" }}>
+              {tabChildren.map((tab, idx) => {
+                const isActive = tab.id === resolvedTabId;
+                const tabX = getX(tab, idx);
+                const tabW = getW(tab);
+                const touchesLeft = tabX <= 0;
+                const touchesRight = tabX + tabW >= widget.w;
+                const selTex = touchesLeft ? "tab_top_selected_1_slice.png" : touchesRight ? "tab_top_selected_7_slice.png" : "tab_top_selected_2_slice.png";
+                const tabTex = tex(isActive ? selTex : "tab_top_unselected_1_slice.png");
+                return (
+                  <div
+                    key={tab.id}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={() => setActiveTabId(tab.id)}
+                    style={{
+                      position: "absolute",
+                      left: tabX * scale,
+                      width: tabW * scale,
+                      top: isActive ? 0 : 2 * scale,
+                      height: isActive ? tabHeaderHeight * scale + topSlice : (tabHeaderHeight - 2) * scale,
+                      zIndex: isActive ? 2 : 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      overflow: "hidden",
+                      whiteSpace: "nowrap",
+                      fontSize: Math.max(7, 6 * scale),
+                      fontFamily: '"Minecraft", monospace',
+                      color: isActive ? "#404040" : "#909090",
+                      borderTopWidth: topSlice,
+                      borderRightWidth: sideSlice,
+                      borderBottomWidth: 0,
+                      borderLeftWidth: sideSlice,
+                      borderStyle: "solid",
+                      borderColor: "transparent",
+                      borderImage: `url("${tabTex}") 3 3 0 3 fill / ${topSlice}px ${sideSlice}px 0 ${sideSlice}px round`,
+                      imageRendering: "pixelated",
+                      cursor: "pointer",
+                      userSelect: "none",
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    {tab.icon
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <img src={tab.icon} alt="" style={{ width: tabHeaderHeight * scale * 0.6, height: tabHeaderHeight * scale * 0.6, imageRendering: "pixelated" }} />
+                      : tab.text || tab.id
+                    }
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ position: "absolute", left: 0, top: tabHeaderHeight * scale, right: 0, bottom: 0, overflow: "hidden", zIndex: 1, borderWidth: 3 * scale, borderStyle: "solid", borderColor: "transparent", borderImage: `url("${tex("mc_panel_slice.png")}") 3 fill`, imageRendering: "pixelated", boxSizing: "border-box" }}>
+              {activeTabChildren.map((child, idx) => (
+                <TryWidgetRoot key={child.id} widget={child} scale={scale} childMap={childMap} zBase={idx + 1} allWidgets={allWidgets} scrollListeners={new Map()} />
+              ))}
+            </div>
+          </div>
+        );
+      })()}
       {isInput && (
         <input
           ref={inputRef}

@@ -20,12 +20,26 @@ function newId(type: string) {
 }
 
 /**
+ * Resolves the absolute screen-spec position of a widget by walking its parentId chain.
+ * Mirrors SpecScreen#originOf: a `tab` widget's content starts at its parent `tabs` widget's
+ * origin plus the tab_height, so children of a `tab` are offset by that header height.
+ */
+function resolveAbsolutePos(w: WidgetSpec, byId: Map<string, WidgetSpec>): { x: number; y: number } {
+  if (!w.parentId) return { x: w.x, y: w.y };
+  const parent = byId.get(w.parentId);
+  if (!parent) return { x: w.x, y: w.y };
+  const parentOrigin = resolveAbsolutePos(parent, byId);
+  if (w.type === "tab" && parent.type === "tabs") {
+    const tabHeight = parseInt(parent.props?.tab_height ?? "20", 10);
+    return { x: parentOrigin.x, y: parentOrigin.y + tabHeight };
+  }
+  return { x: parentOrigin.x + w.x, y: parentOrigin.y + w.y };
+}
+
+/**
  * Builds the exported `container` block from a screen's `inventory_area` widgets, or `undefined`
- * if there are none. Multiple areas (an input grid, the player's own inventory, a mod's own
- * runtime-sized container, ...) are expected to coexist — the runtime resolves them by id (see
- * neoforge-runtime's ContainerSpec#validate), so a duplicate id here would silently misroute
- * scroll clicks and slot lookups to the wrong area once exported. Throws rather than exporting
- * that.
+ * if there are none. Resolves each widget's absolute screen-spec position so areas nested inside
+ * tabs (or other containers) export at the right coordinates. Throws on duplicate ids.
  */
 function buildContainerSpec(widgets: WidgetSpec[]): ContainerSpec | undefined {
   const inventoryWidgets = widgets.filter((w) => w.type === "inventory_area");
@@ -39,13 +53,15 @@ function buildContainerSpec(widgets: WidgetSpec[]): ContainerSpec | undefined {
     seen.add(w.id);
   }
 
+  const byId = new Map(widgets.map((w) => [w.id, w]));
   return {
     slots: inventoryWidgets.map((w) => {
       const slotSize = parseInt(w.props.slot_size ?? "18", 10);
+      const abs = resolveAbsolutePos(w, byId);
       return {
         id:            w.id,
-        x:             w.x,
-        y:             w.y,
+        x:             abs.x,
+        y:             abs.y,
         cols:          parseInt(w.props.cols ?? "1", 10),
         slot_size:     slotSize,
         viewport_rows: Math.max(1, Math.floor(w.h / slotSize)),
@@ -182,8 +198,12 @@ function Editor() {
   // undo/redo history — present is history[cursor]
   const [history, setHistory] = useState<HistoryEntry[]>(EMPTY_SESSION.history);
   const [cursor, setCursor] = useState(EMPTY_SESSION.cursor);
+  const cursorRef = useRef(cursor);
+  cursorRef.current = cursor;
 
-  const entry = history[cursor];
+  // Guard against cursor/history desync (e.g. corrupted localStorage).
+  const safeCursor = Math.max(0, Math.min(cursor, history.length - 1));
+  const entry = history[safeCursor] ?? history[0] ?? EMPTY_SESSION.history[0];
   const screens = entry.screens;
   const activeIdx = entry.activeIdx;
   const screen = screens[activeIdx];
@@ -235,9 +255,10 @@ function Editor() {
 
   const handleSaveToTestMod = useCallback(async () => {
     try {
-      const regularWidgets = screen.widgets.filter((w) => w.type !== "inventory_area");
+      // Keep inventory_area widgets in the saved file so the webapp can reload them.
+      // The container block (resolved to absolute screen-spec coords) is what the Java runtime reads.
       const container = buildContainerSpec(screen.widgets);
-      const exported = { ...screen, widgets: regularWidgets, ...(container ? { container } : {}) };
+      const exported = { ...screen, ...(container ? { container } : {}) };
       const res = await fetch("/api/dev/test-screen", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -255,7 +276,7 @@ function Editor() {
     const s = project.session;
     syncIdCounter(s.history.flatMap(e => e.screens));
     setHistory(s.history);
-    setCursor(s.cursor);
+    setCursor(Math.min(s.cursor, s.history.length - 1));
     setGridSize(s.gridSize);
     setShowGrid(s.showGrid);
     setSelectedId(null);
@@ -358,7 +379,7 @@ function Editor() {
     if (lastProject) {
       syncIdCounter(lastProject.session.history.flatMap(e => e.screens));
       setHistory(lastProject.session.history);
-      setCursor(lastProject.session.cursor);
+      setCursor(Math.min(lastProject.session.cursor, lastProject.session.history.length - 1));
       setGridSize(lastProject.session.gridSize);
       setShowGrid(lastProject.session.showGrid);
       setCurrentProjectKey(lastProject.key);
@@ -415,17 +436,24 @@ function Editor() {
   // push a new HistoryEntry, discarding any redo tail
   const commit = useCallback((next: HistoryEntry) => {
     setHistory((h) => {
-      const trimmed = h.slice(0, cursor + 1);
+      // Use cursorRef (not the closed-over `cursor`) so rapid calls in the same
+      // render batch see the latest value rather than a stale snapshot.
+      const trimmed = h.slice(0, cursorRef.current + 1);
       const capped = trimmed.length >= MAX_HISTORY ? trimmed.slice(1) : trimmed;
       return [...capped, next];
     });
     setCursor((c) => Math.min(c + 1, MAX_HISTORY - 1));
-  }, [cursor]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Wraps an active screen change into a HistoryEntry
   const commitScreen = useCallback((next: ScreenSpec) => {
     commit({ screens: screens.map((s, i) => i === activeIdx ? next : s), activeIdx });
   }, [screens, activeIdx, commit]);
+
+  const commitWidgets = useCallback((next: WidgetSpec[]) => {
+    commitScreen({ ...screen, widgets: next });
+  }, [screen, commitScreen]);
 
   const undo = useCallback(() => {
     setCursor((c) => Math.max(0, c - 1));
@@ -438,24 +466,31 @@ function Editor() {
   }, [history.length]);
 
   const updateWidget = useCallback((updated: WidgetSpec) => {
-    commitScreen({ ...screen, widgets: screen.widgets.map((w) => (w.id === updated.id ? updated : w)) });
+    commitWidgets(screen.widgets.map((w) => (w.id === updated.id ? updated : w)));
     if (updated.id !== selectedId) setSelectedId(updated.id);
-  }, [screen, commitScreen, selectedId]);
+  }, [screen.widgets, commitWidgets, selectedId]);
+
+  // Bulk update — commits all changes as ONE history entry (avoids cursor/history desync
+  // when multiple widgets need to be updated atomically, e.g. initialising tab layouts).
+  const updateWidgets = useCallback((updates: WidgetSpec[]) => {
+    const map = new Map(updates.map((u) => [u.id, u]));
+    commitWidgets(screen.widgets.map((w) => map.get(w.id) ?? w));
+  }, [screen.widgets, commitWidgets]);
 
   const deleteWidget = useCallback((id = selectedId) => {
     if (!id) return;
-    commitScreen({ ...screen, widgets: screen.widgets.filter((w) => w.id !== id) });
+    commitWidgets(screen.widgets.filter((w) => w.id !== id));
     setSelectedId(null);
-  }, [screen, commitScreen, selectedId]);
+  }, [screen.widgets, commitWidgets, selectedId]);
 
   const addWidget = useCallback((type: string, parentId?: string) => {
     const def = getWidgetDef(type);
     if (!def) return;
     const id = newId(type);
     const widget: WidgetSpec = { ...def.defaultWidget, id, ...(parentId ? { parentId } : {}) };
-    commitScreen({ ...screen, widgets: [...screen.widgets, widget] });
+    commitWidgets([...screen.widgets, widget]);
     setSelectedId(id);
-  }, [screen, commitScreen]);
+  }, [screen.widgets, commitWidgets]);
 
   const reorderWidget = useCallback((draggedIds: string[], overId: string, placement: "before" | "after" | "inside") => {
     if (draggedIds.length === 0 || draggedIds.includes(overId)) return;
@@ -500,8 +535,8 @@ function Editor() {
     });
     const next = [...without.slice(0, insertIdx), ...updatedDragged, ...without.slice(insertIdx)];
 
-    commitScreen({ ...screen, widgets: next });
-  }, [screen, commitScreen]);
+    commitWidgets(next);
+  }, [screen.widgets, commitWidgets]);
 
   const updateBindingsSchema = useCallback((schema: import("@/lib/types").BindingsSchema) => {
     commitScreen({ ...screen, bindingsSchema: Object.keys(schema).length ? schema : undefined });
@@ -529,15 +564,14 @@ function Editor() {
     const newX = current.x - newParentAbs.x;
     const newY = current.y - newParentAbs.y;
 
-    commitScreen({
-      ...screen,
-      widgets: screen.widgets.map(w =>
+    commitWidgets(
+      screen.widgets.map(w =>
         w.id === id
           ? { ...w, x: newX, y: newY, parentId: newParentId ?? undefined }
           : w,
       ),
-    });
-  }, [screen, commitScreen]);
+    );
+  }, [screen.widgets, commitWidgets]);
 
   const copyWidget = useCallback(() => {
     if (selectedWidget) clipboardRef.current = selectedWidget;
@@ -548,17 +582,17 @@ function Editor() {
     if (!src) return;
     const id = newId(src.type);
     const pasted: WidgetSpec = { ...src, id, x: src.x + 8, y: src.y + 8 };
-    commitScreen({ ...screen, widgets: [...screen.widgets, pasted] });
+    commitWidgets([...screen.widgets, pasted]);
     setSelectedId(id);
-  }, [screen, commitScreen]);
+  }, [screen.widgets, commitWidgets]);
 
   const duplicateWidget = useCallback(() => {
     if (!selectedWidget) return;
     const id = newId(selectedWidget.type);
     const dup: WidgetSpec = { ...selectedWidget, id, x: selectedWidget.x + 8, y: selectedWidget.y + 8 };
-    commitScreen({ ...screen, widgets: [...screen.widgets, dup] });
+    commitWidgets([...screen.widgets, dup]);
     setSelectedId(id);
-  }, [screen, commitScreen, selectedWidget]);
+  }, [screen.widgets, commitWidgets, selectedWidget]);
 
   const nudgeWidget = useCallback((dx: number, dy: number) => {
     if (!selectedWidget) return;
@@ -756,6 +790,7 @@ function Editor() {
               tryMode={tryMode}
               onSelect={setSelectedId}
               onUpdateWidget={updateWidget}
+              onUpdateWidgets={updateWidgets}
               bindingsSchema={screen.bindingsSchema ?? {}}
             />
           </div>

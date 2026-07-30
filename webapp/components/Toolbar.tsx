@@ -129,7 +129,7 @@ export default function Toolbar({
       <div className="ml-auto flex items-center gap-1">
         {process.env.NODE_ENV === "development" && onSaveToTestMod && (
           <>
-            <Button variant="outline" size="sm" className="h-8" onClick={onSaveToTestMod} title="Save to neoforge-runtime test_screen.json">
+            <Button variant="outline" size="sm" className="h-8" onClick={onSaveToTestMod} title="Save to neoforge-runtime test_container_screen.json">
               Save to test mod
             </Button>
             <Separator orientation="vertical" className="h-5" />

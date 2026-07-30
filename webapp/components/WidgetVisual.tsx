@@ -166,6 +166,11 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
     );
   }
 
+  if (widget.type === "tabs") {
+    // Canvas renders the selector row and content panel on top of this — keep transparent.
+    return <div style={{ width: "100%", height: "100%", background: "transparent" }} />;
+  }
+
   if (widget.type === "input") {
     const hint = widget.props.hint_text || "";
     const hasText = !!widget.text;

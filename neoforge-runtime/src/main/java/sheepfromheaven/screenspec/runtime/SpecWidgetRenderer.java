@@ -87,21 +87,70 @@ final class SpecWidgetRenderer {
             graphics.fill(x, y, x + w.w, y + w.h, 0x80000000);
             return;
         }
-        // vanilla MC inventory-style raised panel: fill, then 1px bevel border
-        graphics.fill(x, y, x + w.w, y + w.h, 0xFFC6C6C6);
-        graphics.fill(x,          y,          x + w.w, y + 1,     0xFFFFFFFF); // top light
-        graphics.fill(x,          y,          x + 1,   y + w.h,   0xFFFFFFFF); // left light
-        graphics.fill(x,          y + w.h - 1, x + w.w, y + w.h,  0xFF555555); // bottom dark
-        graphics.fill(x + w.w - 1, y,          x + w.w, y + w.h,  0xFF555555); // right dark
+        renderVanillaPanel(graphics, x, y, w.w, w.h);
+    }
+
+    // Vanilla's own survival-inventory background - the raised-panel bevel look shared by every
+    // vanilla container screen. Only its top-left 176x166 is real content (the rest of the 256x256
+    // texture is unused atlas padding); its border is a uniform 3px bevel on all four sides (checked
+    // pixel-by-pixel along each edge), so it nine-slices cleanly. (88, 10) is a flat-grey point deep
+    // enough in the fill to dodge the player-model/crafting-grid/armor-slot art drawn over the middle
+    // of this same texture - same reference point `scripts/extractMCTextures.py` uses on the webapp
+    // side. Referencing vanilla's own texture (rather than shipping a copy) means a resource pack
+    // that reskins the inventory background reskins our panels too, for free.
+    private static final Identifier PANEL_TEX = Identifier.withDefaultNamespace("textures/gui/container/inventory.png");
+    private static final int PANEL_TEX_W = 256;
+    private static final int PANEL_TEX_H = 256;
+    private static final int PANEL_CONTENT_W = 176;
+    private static final int PANEL_CONTENT_H = 166;
+    private static final int PANEL_BORDER = 3;
+    private static final int PANEL_SAFE_U = 88;
+    private static final int PANEL_SAFE_V = 10;
+
+    /**
+     * Draws a raised MC panel at an arbitrary rect by nine-slicing vanilla's own inventory
+     * background texture (see above) - shared by {@link #renderPanel} and a {@code tabs} widget's
+     * body area, which needs the same "framed panel" look without being an actual {@code panel}
+     * widget itself.
+     */
+    void renderVanillaPanel(GuiGraphics graphics, int x, int y, int w, int h) {
+        int rightU  = PANEL_CONTENT_W - PANEL_BORDER;
+        int bottomV = PANEL_CONTENT_H - PANEL_BORDER;
+        int destFillW = Math.max(0, w - PANEL_BORDER * 2);
+        int destFillH = Math.max(0, h - PANEL_BORDER * 2);
+
+        // top row: corners plus a horizontally-stretched top edge sampled from a safe column
+        ninePatch(graphics, PANEL_TEX, x,                y, 0,               0, PANEL_BORDER,   PANEL_BORDER, PANEL_BORDER, PANEL_BORDER, PANEL_TEX_W, PANEL_TEX_H);
+        ninePatch(graphics, PANEL_TEX, x + PANEL_BORDER,  y, PANEL_SAFE_U,    0, 1,               PANEL_BORDER, destFillW,    PANEL_BORDER, PANEL_TEX_W, PANEL_TEX_H);
+        ninePatch(graphics, PANEL_TEX, x + w - PANEL_BORDER, y, rightU,      0, PANEL_BORDER,   PANEL_BORDER, PANEL_BORDER, PANEL_BORDER, PANEL_TEX_W, PANEL_TEX_H);
+
+        if (destFillH > 0) {
+            // middle rows: left/right edges stretched vertically, center fill stretched both ways
+            int midY = y + PANEL_BORDER;
+            ninePatch(graphics, PANEL_TEX, x,                    midY, 0,            PANEL_SAFE_V, PANEL_BORDER, 1, PANEL_BORDER, destFillH, PANEL_TEX_W, PANEL_TEX_H);
+            ninePatch(graphics, PANEL_TEX, x + PANEL_BORDER,      midY, PANEL_SAFE_U, PANEL_SAFE_V, 1,            1, destFillW,    destFillH, PANEL_TEX_W, PANEL_TEX_H);
+            ninePatch(graphics, PANEL_TEX, x + w - PANEL_BORDER,  midY, rightU,       PANEL_SAFE_V, PANEL_BORDER, 1, PANEL_BORDER, destFillH, PANEL_TEX_W, PANEL_TEX_H);
+        }
+
+        // bottom row: corners plus a horizontally-stretched bottom edge, only if taller than the top border alone
+        int bottomDestY = y + h - PANEL_BORDER;
+        if (bottomDestY > y + PANEL_BORDER) {
+            ninePatch(graphics, PANEL_TEX, x,                    bottomDestY, 0,            bottomV, PANEL_BORDER, PANEL_BORDER, PANEL_BORDER, PANEL_BORDER, PANEL_TEX_W, PANEL_TEX_H);
+            ninePatch(graphics, PANEL_TEX, x + PANEL_BORDER,      bottomDestY, PANEL_SAFE_U, bottomV, 1,            PANEL_BORDER, destFillW,    PANEL_BORDER, PANEL_TEX_W, PANEL_TEX_H);
+            ninePatch(graphics, PANEL_TEX, x + w - PANEL_BORDER,  bottomDestY, rightU,       bottomV, PANEL_BORDER, PANEL_BORDER, PANEL_BORDER, PANEL_BORDER, PANEL_TEX_W, PANEL_TEX_H);
+        }
     }
 
     /**
      * Draws a {@code label} widget's text at {@code (x, y)} in screen space, honoring the
      * {@code color}, {@code shadow} and {@code align} props from the designer and this widget's
      * resolved bound/pinned text (see {@link #resolveText}).
+     *
+     * <p>The default color 0xFF404040 matches vanilla's own container title color (-12566464), which
+     * includes full alpha — without the 0xFF alpha byte, drawString treats the text as transparent.
      */
     void renderLabel(GuiGraphics graphics, Font font, WidgetSpec w, int x, int y) {
-        int color = w.propInt("color", 0x404040);
+        int color = w.propInt("color", 0xFF404040);
         boolean shadow = w.propBoolean("shadow", false);
         String align = w.prop("align", "left");
         String text = resolveText(w);
@@ -128,5 +177,79 @@ final class SpecWidgetRenderer {
     @FunctionalInterface
     interface IconResolver {
         Identifier resolve(WidgetSpec w);
+    }
+
+    // Vanilla's own creative-inventory tab sprites - the recognizable "folder tab" look the webapp's
+    // canvas mimics. The selected tab uses one of three column variants that differ at their left/right
+    // edges (_1 = leftmost, _2 = middle, _7 = rightmost); the unselected state always uses _1 since
+    // the subtle edge difference is invisible at reduced size. Referencing vanilla's own sprites means
+    // a resource pack that reskins these also reskins ours. Unlike `widget/tab`, these have no
+    // nine-slice .mcmeta (vanilla only ever blits them at a fixed 26×32), so the slicing below is
+    // done by hand: 4px border on all four sides. 4 (not the outline+bevel's 3) because the corner
+    // transition art extends one pixel past it: the white inner bevel's diagonal pixel sits at
+    // (3,3), and the bottom corners' art that fades the side border into the panel bevel spans the
+    // last rows. The unselected variant is the same art shifted down 2px (it sits 2px shorter).
+    private static final Identifier TAB_SEL_LEFT   = Identifier.withDefaultNamespace("textures/gui/sprites/container/creative_inventory/tab_top_selected_1.png");
+    private static final Identifier TAB_SEL_MIDDLE = Identifier.withDefaultNamespace("textures/gui/sprites/container/creative_inventory/tab_top_selected_2.png");
+    private static final Identifier TAB_SEL_RIGHT  = Identifier.withDefaultNamespace("textures/gui/sprites/container/creative_inventory/tab_top_selected_7.png");
+    private static final Identifier TAB_UNSELECTED = Identifier.withDefaultNamespace("textures/gui/sprites/container/creative_inventory/tab_top_unselected_1.png");
+    private static final int TAB_TEX_W = 26;
+    private static final int TAB_TEX_H = 32;
+    private static final int TAB_BORDER = 4;
+    private static final int TAB_UNSELECTED_TOP_V = 2;
+    // Safe sampling coordinates for the stretched regions, mirroring the webapp's *_slice.png files
+    // (which are only 7px wide - 3px edges + a single mid column): the corner diagonal in these
+    // sprites extends past the 3px corner into the interior, so stretching the whole interior drags
+    // the diagonal out. Sampling a single flat column/row deep in the sprite avoids that.
+    private static final int TAB_SAFE_U = 13;
+    private static final int TAB_SAFE_V = 16;
+
+    /** Draws a {@code tabs} selector button by nine-slicing vanilla's creative-inventory tab sprite (see above). */
+    void renderTab(GuiGraphics graphics, boolean active, TabButtonWidget.Position position, int x, int y, int w, int h) {
+        Identifier tex;
+        if (!active) {
+            tex = TAB_UNSELECTED;
+        } else {
+            tex = switch (position) {
+                case LEFT  -> TAB_SEL_LEFT;
+                case RIGHT -> TAB_SEL_RIGHT;
+                default    -> TAB_SEL_MIDDLE;
+            };
+        }
+        int topV = active ? 0 : TAB_UNSELECTED_TOP_V;
+        int rightU    = TAB_TEX_W - TAB_BORDER;
+        int bottomV   = TAB_TEX_H - TAB_BORDER;
+        int destFillW = Math.max(0, w - TAB_BORDER * 2);
+        int destFillH = Math.max(0, h - TAB_BORDER * 2);
+
+        // top row: fixed corners, top edge stretched from a 1px-wide safe column
+        ninePatch(graphics, tex, x,                y, 0,          topV, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
+        ninePatch(graphics, tex, x + TAB_BORDER,    y, TAB_SAFE_U, topV, 1,          TAB_BORDER, destFillW,  TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
+        ninePatch(graphics, tex, x + w - TAB_BORDER, y, rightU,    topV, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
+
+        if (destFillH > 0) {
+            // middle rows: left/right edges stretched from a 1px-tall safe row, flat center fill
+            int fillY = y + TAB_BORDER;
+            ninePatch(graphics, tex, x,                 fillY, 0,          TAB_SAFE_V, TAB_BORDER, 1, TAB_BORDER, destFillH, TAB_TEX_W, TAB_TEX_H);
+            ninePatch(graphics, tex, x + TAB_BORDER,     fillY, TAB_SAFE_U, TAB_SAFE_V, 1,          1, destFillW,  destFillH, TAB_TEX_W, TAB_TEX_H);
+            ninePatch(graphics, tex, x + w - TAB_BORDER, fillY, rightU,     TAB_SAFE_V, TAB_BORDER, 1, TAB_BORDER, destFillH, TAB_TEX_W, TAB_TEX_H);
+        }
+
+        // bottom row: fixed corners from the texture's last 3 rows — these hold the connection art
+        // where the tab's side border fades into the panel's top bevel (e.g. the selected sprite's
+        // right shadow turns white then grey over rows 29-31). The bottom edge between them is
+        // plain fill, stretched from the safe column.
+        int bottomDestY = y + h - TAB_BORDER;
+        if (bottomDestY > y + TAB_BORDER) {
+            ninePatch(graphics, tex, x,                 bottomDestY, 0,          bottomV, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
+            ninePatch(graphics, tex, x + TAB_BORDER,     bottomDestY, TAB_SAFE_U, bottomV, 1,          TAB_BORDER, destFillW,  TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
+            ninePatch(graphics, tex, x + w - TAB_BORDER, bottomDestY, rightU,     bottomV, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
+        }
+    }
+
+    /** Blits one nine-slice piece: a {@code srcW x srcH} source region (from a {@code texW x texH} texture) stretched to {@code destW x destH}. */
+    private void ninePatch(GuiGraphics graphics, Identifier tex, int x, int y, int u, int v, int srcW, int srcH, int destW, int destH, int texW, int texH) {
+        if (destW <= 0 || destH <= 0) return;
+        graphics.blit(RenderPipelines.GUI_TEXTURED, tex, x, y, u, v, destW, destH, srcW, srcH, texW, texH, -1);
     }
 }

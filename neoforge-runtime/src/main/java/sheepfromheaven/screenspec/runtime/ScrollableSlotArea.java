@@ -47,7 +47,7 @@ import net.minecraft.world.inventory.Slot;
  */
 public final class ScrollableSlotArea {
     /** Off-screen so it's neither visible nor reachable by the mouse - see reposition(). */
-    static final int OFFSCREEN = -100_000;
+    public static final int OFFSCREEN = -100_000;
 
     private final SlotAreaSpec area;
     private final Container container;

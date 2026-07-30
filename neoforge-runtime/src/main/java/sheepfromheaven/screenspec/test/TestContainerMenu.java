@@ -14,8 +14,10 @@ import sheepfromheaven.screenspec.runtime.ScreenSpecLoader;
 import sheepfromheaven.screenspec.runtime.ScrollableAreaHost;
 import sheepfromheaven.screenspec.runtime.ScrollableSlotArea;
 import sheepfromheaven.screenspec.runtime.SlotAreaSpec;
+import sheepfromheaven.screenspec.runtime.SlotAreaVisibility;
 import sheepfromheaven.screenspec.runtime.SpecScroll;
 import sheepfromheaven.screenspec.runtime.SpecSlots;
+import sheepfromheaven.screenspec.runtime.TabAwareAreaHost;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,7 +29,7 @@ import java.util.Map;
  * inventory, all in one menu. Proves {@link SpecScroll}'s ordinal-based button-id encoding and
  * {@link ScrollableAreaHost}'s id-keyed map correctly disambiguate more than one scrollable area.
  */
-public final class TestContainerMenu extends AbstractContainerMenu implements ScrollableAreaHost {
+public final class TestContainerMenu extends AbstractContainerMenu implements ScrollableAreaHost, TabAwareAreaHost {
     static final ScreenSpec SPEC = ScreenSpecLoader.fromClasspath("screenspec", "test_container_screen");
 
     /** Sizes for the two demo containers - shared by the server's real backing containers and the client's placeholder ones, so both sides derive the same row counts (see {@link ScrollableSlotArea}). */
@@ -35,6 +37,7 @@ public final class TestContainerMenu extends AbstractContainerMenu implements Sc
     private static final int SIZE_B = 33;
 
     private final Map<String, ScrollableSlotArea> scrollableAreas = new HashMap<>();
+    private final Map<String, SlotAreaVisibility> areaVisibility = new HashMap<>();
 
     /**
      * Client-side reconstruction from the network-assigned container id (see
@@ -52,14 +55,27 @@ public final class TestContainerMenu extends AbstractContainerMenu implements Sc
         SlotAreaSpec areaA = SPEC.container.area("inv_10row");
         int firstIndexA = this.slots.size();
         SpecSlots.forScrollableViewport(areaA, storageA).forEach(this::addSlot);
-        scrollableAreas.put(areaA.id, new ScrollableSlotArea(areaA, storageA, this.slots, firstIndexA));
+        ScrollableSlotArea scrollA = new ScrollableSlotArea(areaA, storageA, this.slots, firstIndexA);
+        scrollableAreas.put(areaA.id, scrollA);
+        areaVisibility.put(areaA.id, new SlotAreaVisibility(areaA, this.slots, firstIndexA, scrollA.visibleRows()));
 
         SlotAreaSpec areaB = SPEC.container.area("inv_second");
         int firstIndexB = this.slots.size();
         SpecSlots.forScrollableViewport(areaB, storageB).forEach(this::addSlot);
-        scrollableAreas.put(areaB.id, new ScrollableSlotArea(areaB, storageB, this.slots, firstIndexB));
+        ScrollableSlotArea scrollB = new ScrollableSlotArea(areaB, storageB, this.slots, firstIndexB);
+        scrollableAreas.put(areaB.id, scrollB);
+        areaVisibility.put(areaB.id, new SlotAreaVisibility(areaB, this.slots, firstIndexB, scrollB.visibleRows()));
 
-        SpecSlots.forPlayerInventory(SPEC.container.area("player_inv"), playerInventory).forEach(this::addSlot);
+        SlotAreaSpec areaPlayer = SPEC.container.area("player_inv");
+        int firstIndexPlayer = this.slots.size();
+        SpecSlots.forPlayerInventory(areaPlayer, playerInventory).forEach(this::addSlot);
+        areaVisibility.put(areaPlayer.id, new SlotAreaVisibility(areaPlayer, this.slots, firstIndexPlayer, areaPlayer.totalRows(27)));
+    }
+
+    @Override
+    public void setAreaVisible(String areaId, boolean visible) {
+        SlotAreaVisibility v = areaVisibility.get(areaId);
+        if (v != null) v.setVisible(visible);
     }
 
     /** Container A: a 90-slot container filled with a repeating item pattern, so scrolling is visually obvious. */

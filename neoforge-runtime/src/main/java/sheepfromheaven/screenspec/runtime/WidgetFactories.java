@@ -40,52 +40,52 @@ public final class WidgetFactories {
         return FACTORIES.get(type);
     }
 
-    private static AbstractWidget button(WidgetSpec w, SpecScreen screen) {
-        return Button.builder(Component.literal(w.text), b -> screen.dispatchAction(w.id, w, null))
+    private static AbstractWidget button(WidgetSpec w, ActionHost host) {
+        return Button.builder(Component.literal(w.text), b -> host.dispatchAction(w.id, w, null))
             .bounds(w.x, w.y, w.w, w.h)
             .build();
     }
 
-    private static AbstractWidget toggleButton(WidgetSpec w, SpecScreen screen) {
+    private static AbstractWidget toggleButton(WidgetSpec w, ActionHost host) {
         String group = w.prop("group", "");
         return Button.builder(Component.literal(w.text), b -> {
             ToggleButtonWidget self = (ToggleButtonWidget) b;
             boolean newState;
             if (!group.isEmpty()) {
-                screen.selectToggleGroup(group, w.id);
+                host.selectToggleGroup(group, w.id);
                 newState = true;
             } else {
                 newState = !self.isSelected();
                 self.setSelected(newState);
             }
-            screen.dispatchAction(w.id, w, newState);
+            host.dispatchAction(w.id, w, newState);
         }).bounds(w.x, w.y, w.w, w.h).build(ToggleButtonWidget::new);
     }
 
-    private static AbstractWidget input(WidgetSpec w, SpecScreen screen) {
-        EditBox box = new EditBox(screen.getFont(), w.x, w.y, w.w, w.h, Component.empty());
+    private static AbstractWidget input(WidgetSpec w, ActionHost host) {
+        EditBox box = new EditBox(host.getFont(), w.x, w.y, w.w, w.h, Component.empty());
         box.setValue(w.text);
         box.setMaxLength(w.propInt("max_length", 32));
         String hint = w.prop("hint_text", "");
         if (!hint.isEmpty()) {
             box.setHint(Component.literal(hint));
         }
-        box.setResponder(value -> screen.dispatchAction(w.id, w, value));
+        box.setResponder(value -> host.dispatchAction(w.id, w, value));
         return box;
     }
 
-    private static AbstractWidget slider(WidgetSpec w, SpecScreen screen) {
+    private static AbstractWidget slider(WidgetSpec w, ActionHost host) {
         double min = w.propDouble("min", 0);
         double max = w.propDouble("max", 100);
         double step = w.propDouble("step", 1);
         double initial = w.propDouble("value", min);
         String template = w.text.isEmpty() ? "%s" : w.text;
         return new SpecSlider(w.x, w.y, w.w, w.h, min, max, step, initial, template,
-            v -> screen.dispatchAction(w.id, w, v));
+            v -> host.dispatchAction(w.id, w, v));
     }
 
-    private static AbstractWidget list(WidgetSpec w, SpecScreen screen) {
-        return new SpecListWidget(w, screen,
-            (index, data) -> screen.dispatchAction(w.id, w, index));
+    private static AbstractWidget list(WidgetSpec w, ActionHost host) {
+        return new SpecListWidget(w, host,
+            (index, data) -> host.dispatchAction(w.id, w, index));
     }
 }

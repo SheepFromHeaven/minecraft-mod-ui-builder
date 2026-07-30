@@ -32,10 +32,10 @@ import java.util.function.BiConsumer;
 public class SpecListWidget extends ObjectSelectionList<SpecListWidget.Row> {
 
     private final WidgetSpec spec;
-    private final SpecScreen screen;
+    private final ActionHost screen;
     private final BiConsumer<Integer, Map<String, String>> selectionListener;
 
-    public SpecListWidget(WidgetSpec spec, SpecScreen screen, BiConsumer<Integer, Map<String, String>> selectionListener) {
+    public SpecListWidget(WidgetSpec spec, ActionHost screen, BiConsumer<Integer, Map<String, String>> selectionListener) {
         super(
             Minecraft.getInstance(),
             spec.w, spec.h,

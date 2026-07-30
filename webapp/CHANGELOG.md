@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.3.1...webapp-v0.3.2) (2026-07-30)
+
+
+### Bug Fixes
+
+* **webapp:** prevent infinite loading when IndexedDB is blocked or fails ([ee1d343](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/ee1d343a1fab23e7f163d5faed734647a16f197a))
+
 ## [0.3.1](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.3.0...webapp-v0.3.1) (2026-07-30)
 
 

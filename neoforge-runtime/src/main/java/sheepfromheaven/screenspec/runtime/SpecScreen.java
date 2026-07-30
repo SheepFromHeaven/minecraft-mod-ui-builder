@@ -28,11 +28,12 @@ import java.util.Objects;
  * Minecraft.getInstance().setScreen(screen);
  * }</pre>
  *
- * <p>{@code on(key)} matches both widget ids and declared {@code action} ids, so
- * a button with {@code "action": "my_mod:save"} in the JSON is caught by
- * {@code screen.on("my_mod:save", ...)} as well as by
- * {@code screen.on("save_btn", ...)}. The built-in action {@code "close"} closes
- * the screen automatically — no listener needed.
+ * <p>{@code on(key)} matches both widget ids and declared {@code action} ids.
+ * Action ids are qualified at runtime: a widget with {@code "action": "save"}
+ * and a spec with {@code modId = "my_mod"} fires as {@code "my_mod.save"}.
+ * Prefer {@link #onDeclaredAction} for validated, schema-checked registration.
+ * The built-in action {@code "close"} closes the screen automatically — no
+ * listener needed.
  *
  * <p>Subclassing is also supported; override {@link #onAction} instead:
  * <pre>{@code
@@ -121,14 +122,41 @@ public class SpecScreen extends Screen {
     }
 
     /**
-     * Qualifies a short id with the screen's {@code modId} namespace.
-     * Ids that already contain {@code ':'} are returned unchanged.
+     * Qualifies a short id with the screen's {@code modId} namespace using
+     * a {@code "."} separator (e.g. {@code "save"} → {@code "my_mod.save"}).
+     * Ids that are {@code null}, empty, already contain {@code "."}, or whose
+     * spec has no {@code modId} are returned unchanged.
      */
     private String qualify(String id) {
-        if (id == null || id.contains(":") || spec.modId == null || spec.modId.isEmpty()) {
+        if (id == null || id.isEmpty() || id.contains(".") || spec.modId == null || spec.modId.isEmpty()) {
             return id;
         }
-        return spec.modId + ":" + id;
+        return spec.modId + "." + id;
+    }
+
+    /**
+     * Registers a validated listener for a declared action id. Throws
+     * {@link IllegalArgumentException} at startup time if {@code localAction}
+     * is not listed in {@link ScreenSpec#actions}, catching misconfiguration
+     * before the game runs.
+     *
+     * <pre>{@code
+     * // spec has modId="my_mod", actions contains "save"
+     * screen.onDeclaredAction("save", (id, s, v) -> save());
+     * // listens for "my_mod.save"; throws if "save" not in spec.actions
+     * }</pre>
+     *
+     * @param localAction unscoped action name as declared in the designer
+     */
+    public SpecScreen onDeclaredAction(String localAction, ActionListener listener) {
+        java.util.Set<String> known = spec.knownActions();
+        if (!known.isEmpty() && !known.contains(localAction)) {
+            throw new IllegalArgumentException(
+                "Action \"" + localAction + "\" is not declared in screen \""
+                + spec.id + "\". Known actions: " + known
+            );
+        }
+        return on(qualify(localAction), listener);
     }
 
     void dispatchAction(String widgetId, WidgetSpec widgetSpec, Object value) {

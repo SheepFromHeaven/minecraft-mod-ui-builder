@@ -339,6 +339,72 @@ nameBox.setValue("default name");
 
 ---
 
+## Inventory slot areas (containers)
+
+Screens that need player-placeable item slots — a crafting table, a chest, a
+custom storage UI — opt in with a `container` key alongside `widgets`:
+
+```json
+{
+  "id": "storage_ui",
+  "width": 176, "height": 166,
+  "container": {
+    "slots": [
+      { "id": "input",         "x": 20, "y": 20, "cols": 3, "rows": 3, "slot_size": 18 },
+      { "id": "output",        "x": 116, "y": 35, "cols": 1, "rows": 1, "slot_size": 18 },
+      { "id": "player_inv",    "x": 8,  "y": 84,  "cols": 9, "rows": 3, "slot_size": 18, "source": "player" },
+      { "id": "player_hotbar", "x": 8,  "y": 142, "cols": 9, "rows": 1, "slot_size": 18, "source": "player_hotbar" }
+    ]
+  },
+  "widgets": [...]
+}
+```
+
+`cols` and `rows` size each slot area independently, so a single spec can mix
+a 3x3 crafting grid with a 1x1 output slot and the standard 9x3 player
+inventory. `source: "player"` / `"player_hotbar"` are reserved ids resolved
+against the player's own inventory; every other id is a mod-provided
+`Container` you supply when building the menu.
+
+This library only handles *rendering* and slot layout — the server-side
+`AbstractContainerMenu` (slot syncing, shift-click behavior, recipe/game
+logic) is still yours to write, exactly like vanilla. Use `SpecSlots` so the
+same `SlotAreaSpec` layout drives both:
+
+```java
+public class MyMenu extends AbstractContainerMenu {
+    public MyMenu(MenuType<?> type, int containerId, ScreenSpec spec,
+                  Inventory playerInventory, Container input, Container output) {
+        super(type, containerId);
+        SpecSlots.forArea(spec.container.area("input"), input).forEach(this::addSlot);
+        SpecSlots.forArea(spec.container.area("output"), output).forEach(this::addSlot);
+        SpecSlots.forPlayerInventory(spec.container.area("player_inv"), playerInventory).forEach(this::addSlot);
+        SpecSlots.forPlayerHotbar(spec.container.area("player_hotbar"), playerInventory).forEach(this::addSlot);
+    }
+    // quickMoveStack, stillValid, etc. — same as any vanilla AbstractContainerMenu
+}
+```
+
+Then render it with `SpecContainerScreen`, the slotted counterpart to
+`SpecScreen`:
+
+```java
+public class MyScreen extends SpecContainerScreen<MyMenu> {
+    public MyScreen(MyMenu menu, Inventory playerInventory, Component title, ScreenSpec spec) {
+        super(menu, playerInventory, title, spec);
+    }
+}
+```
+
+`SpecContainerScreen` draws each slot area's background by cropping the
+vanilla chest texture's own slot grid, so borders between adjacent cells line
+up exactly like a real container screen's — no custom art required. `panel`
+and `label` widgets from the spec are drawn the same way `SpecScreen` draws
+them; interactive widgets (buttons, sliders, etc.) alongside slots aren't
+supported yet — see Known limitations.
+
+---
+
 ## Known limitations
 
 - **Z-order** is fixed: panels are drawn behind all interactive widgets;
@@ -346,6 +412,10 @@ nameBox.setValue("default name");
   canvas is not yet supported.
 - **`panel` and `icon` rendering** are intentional placeholders — real artwork
   is mod-specific; override `renderPanel` / `resolveIcon` for your textures.
+- **`SpecContainerScreen`** doesn't yet support interactive widgets (button,
+  toggle_button, input, slider) alongside slots — only `panel`/`label` are
+  drawn. It also doesn't yet support a designer canvas widget for laying out
+  slot areas visually; author the `container` JSON by hand for now.
 - **Porting to other MC versions** means updating `neo_version` and
   `minecraft_version` in `gradle.properties` and auditing API drift (e.g.
   `GuiGraphics.blit` changed signature between 1.21.1 and 1.21.5 — always

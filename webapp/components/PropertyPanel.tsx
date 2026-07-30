@@ -92,7 +92,7 @@ export default function PropertyPanel({ widget, onUpdate, onDelete, bindingsSche
         <Field label="Text">
           <input
             className={`${INPUT} ${bindings.text ? "text-blue-500 italic" : ""}`}
-            value={bindings.text ? bindings.text : widget.text}
+            value={bindings.text ? bindings.text : (widget.text ?? "")}
             disabled={!!bindings.text}
             onChange={(e) => set({ text: e.target.value })}
             placeholder={bindings.text ? undefined : ""}

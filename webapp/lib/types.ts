@@ -28,6 +28,13 @@ export interface SlotAreaSpec {
    */
   viewport_rows: number;
   source?: "player" | "player_hotbar" | null;
+  /**
+   * Which dimension scrolls: "y" (default, vertical — rows overflow past viewport_rows) or "x"
+   * (horizontal — columns overflow past `cols` instead, with viewport_rows as the fixed row
+   * count). See neoforge-runtime's ScrollableSlotArea. Not yet exposed in the designer UI — set by
+   * hand-editing exported JSON, or by mod code building a ScreenSpec programmatically.
+   */
+  axis?: "x" | "y";
 }
 
 export interface ContainerSpec {

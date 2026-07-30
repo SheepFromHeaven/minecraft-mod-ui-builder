@@ -56,7 +56,8 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
   if (widget.type === "scrollbar") {
     const axis = widget.props.axis ?? "y";
     const isVertical = axis === "y";
-    // Handle is fixed 12×15 — no scaling, just position it within the track
+    // Handle's native sprite is fixed 12×15 (no scaling beyond `scale`); rotated 90° in place when
+    // horizontal, so its on-screen footprint becomes 15×12 while the sprite itself stays unstretched.
     const handleW = 12 * scale;
     const handleH = 15 * scale;
     return (
@@ -68,12 +69,15 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
       }}>
         <div style={{
           position: "absolute",
-          ...(isVertical ? { top: 0, left: 0 } : { left: 0, top: 0 }),
+          top: isVertical ? 0 : (handleW - handleH) / 2,
+          left: isVertical ? 0 : (handleH - handleW) / 2,
           width: handleW, height: handleH,
           backgroundImage: `url("${tex("mc_scrollbar_handle.png")}")`,
           backgroundSize: `${handleW}px ${handleH}px`,
           backgroundRepeat: "no-repeat",
           imageRendering: "pixelated",
+          transform: isVertical ? undefined : "rotate(90deg)",
+          transformOrigin: "center",
         }} />
       </div>
     );

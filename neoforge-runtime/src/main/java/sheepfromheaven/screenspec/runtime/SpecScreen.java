@@ -9,7 +9,6 @@ import net.minecraft.resources.Identifier;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -46,14 +45,22 @@ import java.util.Objects;
  *     }
  * }
  * }</pre>
+ *
+ * <h3>Nesting and tabs</h3>
+ * <p>A widget's {@code x}/{@code y} are relative to its {@code parentId} (or to the screen
+ * origin, if it has none) - see {@link SpecWidgetBuilder#originOf}. The designer's {@code tabs} widget type is
+ * built on this: a {@code tabs} widget's {@code tab} children are drawn as a selector row along
+ * its top edge, and only the active tab's own children are built/rendered/bound, swapped out on
+ * click (see {@link #switchTab} / {@link #onTabSwitch}). A {@code tab} widget's own {@code x}/
+ * {@code y}/{@code w}/{@code h} are ignored - its content area is always the space directly below
+ * the selector row, filling the rest of its parent {@code tabs} widget.
  */
-public class SpecScreen extends Screen {
+public class SpecScreen extends Screen implements ActionHost {
     private final ScreenSpec spec;
-    private final Map<String, AbstractWidget> widgetsById = new LinkedHashMap<>();
-    private final Map<String, List<String>> toggleGroups = new HashMap<>();
     private final Map<String, List<ActionListener>> listeners = new HashMap<>();
     private final List<ActionListener> globalListeners = new ArrayList<>();
     private final SpecWidgetRenderer renderer;
+    private SpecWidgetBuilder builder;
     // centering offset — recalculated in init() each time the screen is (re)sized
     private int originX;
     private int originY;
@@ -64,17 +71,28 @@ public class SpecScreen extends Screen {
         this.renderer = new SpecWidgetRenderer(spec);
     }
 
+    private SpecWidgetBuilder builder() {
+        if (builder == null) {
+            builder = new SpecWidgetBuilder(spec, this, renderer,
+                () -> originX, () -> originY,
+                this::addRenderableWidget,
+                this::switchTab);
+        }
+        return builder;
+    }
+
     public ScreenSpec spec() {
         return spec;
     }
 
+    @Override
     public Font getFont() {
         return this.font;
     }
 
     @SuppressWarnings("unchecked")
     public <T extends AbstractWidget> T getWidget(String id) {
-        return (T) widgetsById.get(id);
+        return builder().getWidget(id);
     }
 
     /**
@@ -114,16 +132,10 @@ public class SpecScreen extends Screen {
         renderer.bindText(widgetId, text);
     }
 
-    /** Called for any {@code WidgetSpec.type} with no registered {@link WidgetFactory} and that isn't panel/label/icon. */
+    /** Called for any {@code WidgetSpec.type} with no registered {@link WidgetFactory} and that isn't panel/label/icon/tabs/tab. */
     protected void onUnknownWidgetType(WidgetSpec spec) {
     }
 
-    /**
-     * Qualifies a short id with the screen's {@code modId} namespace using
-     * a {@code "."} separator (e.g. {@code "save"} → {@code "my_mod.save"}).
-     * Ids that are {@code null}, empty, already contain {@code "."}, or whose
-     * spec has no {@code modId} are returned unchanged.
-     */
     private String qualify(String id) {
         return SpecWidgetRenderer.qualify(spec.modId, id);
     }
@@ -153,7 +165,8 @@ public class SpecScreen extends Screen {
         return on(qualify(localAction), listener);
     }
 
-    void dispatchAction(String widgetId, WidgetSpec widgetSpec, Object value) {
+    @Override
+    public void dispatchAction(String widgetId, WidgetSpec widgetSpec, Object value) {
         // built-in actions
         String action = qualify(widgetSpec.action);
         if ("close".equals(action)) {
@@ -182,67 +195,79 @@ public class SpecScreen extends Screen {
         onAction(widgetId, widgetSpec, value);
     }
 
-    void selectToggleGroup(String group, String selectedId) {
-        for (String memberId : toggleGroups.getOrDefault(group, List.of())) {
-            if (widgetsById.get(memberId) instanceof ToggleButtonWidget toggle) {
-                toggle.setSelected(memberId.equals(selectedId));
-            }
-        }
+    @Override
+    public void selectToggleGroup(String group, String selectedId) {
+        builder().selectToggleGroup(group, selectedId);
+    }
+
+    /**
+     * Switches a {@code tabs} widget to a different child tab: rebuilds this screen's widgets
+     * (swapping in the new tab's content) and fires {@link #onTabSwitch}. No-op if {@code tabId}
+     * is already active.
+     */
+    public void switchTab(String tabsWidgetId, String tabId) {
+        if (tabId.equals(builder().activeTab(tabsWidgetId))) return;
+        builder().setActiveTab(tabsWidgetId, tabId);
+        this.clearWidgets();
+        init();
+        onTabSwitch(tabsWidgetId, tabId);
+    }
+
+    /** The id of the currently active child of a {@code tabs} widget, or {@code null} if unknown. */
+    public String activeTab(String tabsWidgetId) {
+        return builder().activeTab(tabsWidgetId);
+    }
+
+    /** Called after this screen switches a {@code tabs} widget to a different tab via {@link #switchTab}. */
+    protected void onTabSwitch(String tabsWidgetId, String tabId) {
     }
 
     @Override
     protected void init() {
         originX = (this.width  - spec.width)  / 2;
         originY = (this.height - spec.height) / 2;
-        widgetsById.clear();
-        toggleGroups.clear();
-        for (WidgetSpec w : spec.widgets) {
-            if (w.type.equals("panel") || w.type.equals("label") || w.type.equals("icon")) {
-                continue;
-            }
-            WidgetFactory factory = WidgetFactories.get(w.type);
-            if (factory == null) {
-                onUnknownWidgetType(w);
-                continue;
-            }
-            AbstractWidget widget = addRenderableWidget(factory.create(w, this));
-            widget.setX(w.x + originX);
-            widget.setY(w.y + originY);
-            widgetsById.put(w.id, widget);
-            if (w.type.equals("toggle_button")) {
-                String group = w.prop("group", "");
-                if (!group.isEmpty()) {
-                    toggleGroups.computeIfAbsent(group, g -> new ArrayList<>()).add(w.id);
-                }
-            }
-        }
+        builder().build();
     }
 
     @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         applyBindings();
+        renderer.refreshBoundText();
+        renderBackground(graphics, mouseX, mouseY, partialTick);
         for (WidgetSpec w : spec.widgets) {
-            if (w.type.equals("panel")) {
-                renderPanel(guiGraphics, w);
-            }
+            if (!w.type.equals("tabs")) continue;
+            // Inactive tabs render beneath the body panel (see SpecContainerScreen.renderBg).
+            builder().forEachTab(w, (tab, pos, active, x, y, tw, th) -> {
+                if (!active) renderer.renderTab(graphics, false, pos, x, y, tw, th + SpecWidgetBuilder.TAB_OVERLAP);
+            });
+            renderTabBody(graphics, w);
         }
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
-        for (WidgetSpec w : spec.widgets) {
-            if (w.type.equals("label")) {
-                renderLabel(guiGraphics, w);
-            } else if (w.type.equals("icon")) {
-                renderIcon(guiGraphics, w);
-            }
+        for (WidgetSpec w : builder().visibleWidgets()) {
+            if (w.type.equals("panel")) renderPanel(graphics, w);
         }
+        super.render(graphics, mouseX, mouseY, partialTick);
+        for (WidgetSpec w : builder().visibleWidgets()) {
+            if (w.type.equals("label"))     renderLabel(graphics, w);
+            else if (w.type.equals("icon")) renderIcon(graphics, w);
+        }
+    }
+
+    /**
+     * Draws the raised-panel bevel for the body area below a {@code tabs} widget's header row.
+     * Active tab buttons extend 3px into this body (see {@link SpecWidgetBuilder}) to cover the
+     * panel's top bevel edge, visually connecting them — same as the webapp canvas.
+     */
+    protected void renderTabBody(GuiGraphics graphics, WidgetSpec tabsWidget) {
+        int[] origin = builder().originOf(tabsWidget);
+        int tabHeight = tabsWidget.propInt("tab_height", 20);
+        renderer.renderVanillaPanel(graphics, origin[0], origin[1] + tabHeight, tabsWidget.w, tabsWidget.h - tabHeight);
     }
 
     private void applyBindings() {
         renderer.refreshBoundText();
-        // enabled/visible bindings apply to a live AbstractWidget, which only this screen builds —
-        // SpecWidgetRenderer only handles the text-binding case shared with SpecContainerScreen.
-        for (WidgetSpec w : spec.widgets) {
+        for (WidgetSpec w : builder().visibleWidgets()) {
             if (w.bindings.isEmpty()) continue;
-            AbstractWidget widget = widgetsById.get(w.id);
+            AbstractWidget widget = builder().getWidget(w.id);
             if (widget == null) continue;
             String enabled = w.bindings.get("enabled");
             if (enabled != null) {
@@ -266,24 +291,27 @@ public class SpecScreen extends Screen {
      * Draws a {@code panel} widget using the MC nine-slice sprite so it matches
      * the webapp's WYSIWYG preview. Override for custom textures per {@code style}.
      */
-    protected void renderPanel(GuiGraphics guiGraphics, WidgetSpec w) {
-        renderer.renderPanel(guiGraphics, w, w.x + originX, w.y + originY);
+    protected void renderPanel(GuiGraphics graphics, WidgetSpec w) {
+        int[] origin = builder().originOf(w);
+        renderer.renderPanel(graphics, w, origin[0], origin[1]);
     }
 
     /**
      * Draws a {@code label} widget's text, honoring the {@code color},
      * {@code shadow} and {@code align} props from the designer.
      */
-    protected void renderLabel(GuiGraphics guiGraphics, WidgetSpec w) {
-        renderer.renderLabel(guiGraphics, this.font, w, w.x + originX, w.y + originY);
+    protected void renderLabel(GuiGraphics graphics, WidgetSpec w) {
+        int[] origin = builder().originOf(w);
+        renderer.renderLabel(graphics, this.font, w, origin[0], origin[1]);
     }
 
     /**
      * Draws an {@code icon} widget. No-op by default; override
      * {@link #resolveIcon} to map an icon id to your mod's texture.
      */
-    protected void renderIcon(GuiGraphics guiGraphics, WidgetSpec w) {
-        renderer.renderIcon(guiGraphics, w, w.x + originX, w.y + originY, this::resolveIcon);
+    protected void renderIcon(GuiGraphics graphics, WidgetSpec w) {
+        int[] origin = builder().originOf(w);
+        renderer.renderIcon(graphics, w, origin[0], origin[1], this::resolveIcon);
     }
 
     /** Resolves an {@code icon} widget's {@code icon} id to a texture location. Returns {@code null} (no-op) by default. */

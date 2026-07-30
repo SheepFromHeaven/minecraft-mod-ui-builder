@@ -12,6 +12,7 @@ import {
   ChevronDown, ChevronRight, Plus, Trash2,
   Square, MousePointerClick, ToggleLeft, TextCursorInput,
   SlidersHorizontal, Type, Image, List, ScrollText, Folder, HelpCircle,
+  PanelTop, RectangleHorizontal,
 } from "lucide-react";
 import {
   SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarGroupAction,
@@ -35,6 +36,8 @@ const WIDGET_ICONS: Record<string, React.ElementType> = {
   label:         Type,
   icon:          Image,
   list:          List,
+  tabs:          PanelTop,
+  tab:           RectangleHorizontal,
 };
 
 const CONTAINER_TYPES = new Set(

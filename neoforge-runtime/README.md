@@ -20,8 +20,9 @@ into a real, working `Screen` — no codegen, no hand-laid-out widgets.
 5. [Widget reference](#widget-reference)
 6. [Widget props reference](#widget-props-reference)
 7. [Extending and customising](#extending-and-customising)
-8. [Known limitations](#known-limitations)
-9. [Building locally](#building-locally)
+8. [Tabs (creative-menu-style)](#tabs-creative-menu-style)
+9. [Known limitations](#known-limitations)
+10. [Building locally](#building-locally)
 
 ---
 
@@ -227,9 +228,12 @@ JSON under `bindings`:
 | `panel` | Drawn directly | — |
 | `label` | Drawn directly | — |
 | `icon` | Drawn directly | — |
+| `tabs` | `Button` per `tab` child (selector row) | — |
+| `tab` | Not rendered itself — a content grouping | — |
 
 `panel`, `label`, and `icon` are not interactive widgets — they are drawn
-directly by `SpecScreen` and never fire events.
+directly by `SpecScreen` and never fire events. `tabs`/`tab` are described in
+[Tabs (creative-menu-style)](#tabs-creative-menu-style).
 
 ---
 
@@ -481,6 +485,58 @@ scroll and stay in sync for item interactions. `SpecContainerScreen` drives
 the scrollbar from mouse drag and mouse wheel (both over the widget and over
 the slot area itself), and clips the rendered slot grid to the viewport
 automatically — no rendering code needed in `MyScreen`.
+
+---
+
+## Tabs (creative-menu-style)
+
+Tabs are a widget, like `group` or `scroll` — a `tabs` widget in the designer
+holds one or more `tab` children (drop widgets into a `tab` the same way you'd
+drop them into a `group`). `SpecScreen` renders the `tab` children as a
+selector row along the top of the `tabs` widget's box, and only builds/renders
+the active tab's own content, swapped on click. A `tab` widget's `x`/`w` control its selector button's left position and width
+within the selector row. When both are `0` (the default before the designer
+lays them out), `SpecScreen` falls back to equal distribution. A `tab`'s
+`y`/`h` are ignored — its content always fills the space directly below the
+selector row.
+
+```json
+{
+  "id": "tabs_1",
+  "type": "tabs",
+  "x": 8, "y": 8, "w": 176, "h": 150,
+  "props": { "tab_height": "20" }
+},
+{
+  "id": "general_tab",
+  "type": "tab",
+  "text": "General",
+  "icon": null,
+  "parentId": "tabs_1"
+},
+{
+  "id": "some_button",
+  "type": "button",
+  "x": 8, "y": 4, "w": 60, "h": 20,
+  "parentId": "general_tab"
+}
+```
+
+The `tab_height` prop (default `20`) sets the selector row's thickness. A
+`tab`'s `text`/`icon` fields are its selector label/icon. No new API is needed
+for the common case — `onAction`/`on(...)` fire normally for widgets nested
+inside any tab. Override `onTabSwitch` to react to a tab change:
+
+```java
+public class SettingsScreen extends SpecScreen {
+    @Override
+    protected void onTabSwitch(String tabsWidgetId, String tabId) {
+        // e.g. refresh bindings specific to the newly active tab
+    }
+}
+```
+
+`SpecContainerScreen` does not support tabs.
 
 ---
 

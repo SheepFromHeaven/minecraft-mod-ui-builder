@@ -75,7 +75,7 @@ export default function PropertyPanel({ widget, onUpdate, onDelete, bindingsSche
         <input className={INPUT} value={widget.id} onChange={(e) => set({ id: e.target.value })} />
       </Field>
 
-      {widget.type !== "group" && (
+      {widget.type !== "group" && widget.type !== "tab" && (
         <div className="grid grid-cols-2 gap-1">
           <Field label="X"><NumInput value={widget.x} onChange={(v) => set({ x: v })} /></Field>
           <Field label="Y"><NumInput value={widget.y} onChange={(v) => set({ y: v })} /></Field>

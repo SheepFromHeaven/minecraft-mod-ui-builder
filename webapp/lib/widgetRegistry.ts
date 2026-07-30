@@ -44,6 +44,27 @@ const WIDGET_REGISTRY: WidgetDef[] = [
     propSchema: [],
   },
   {
+    type: "tabs",
+    label: "Tabs",
+    isContainer: true,
+    defaultWidget: {
+      type: "tabs",
+      x: 8, y: 8, w: 176, h: 150,
+      text: "", icon: null,
+      props: { tab_height: "20" },
+    },
+    propSchema: [
+      { key: "tab_height", label: "Tab Height", type: "number", defaultValue: "20" },
+    ],
+  },
+  {
+    type: "tab",
+    label: "Tab",
+    isContainer: true,
+    defaultWidget: { type: "tab", x: 0, y: 0, w: 0, h: 0, text: "Tab", icon: null, props: {} },
+    propSchema: [],
+  },
+  {
     type: "button",
     label: "Button",
     defaultWidget: { type: "button", x: 8, y: 8, w: 72, h: 20, text: "Button", icon: null, props: {} },

@@ -17,6 +17,18 @@ function newId(type: string) {
   return `${type}_${++idCounter}`;
 }
 
+function resolveAbsolutePos(w: WidgetSpec, byId: Map<string, WidgetSpec>): { x: number; y: number } {
+  if (!w.parentId) return { x: w.x, y: w.y };
+  const parent = byId.get(w.parentId);
+  if (!parent) return { x: w.x, y: w.y };
+  const parentOrigin = resolveAbsolutePos(parent, byId);
+  if (w.type === "tab" && parent.type === "tabs") {
+    const tabHeight = parseInt(parent.props?.tab_height ?? "20", 10);
+    return { x: parentOrigin.x, y: parentOrigin.y + tabHeight };
+  }
+  return { x: parentOrigin.x + w.x, y: parentOrigin.y + w.y };
+}
+
 function buildContainerSpec(widgets: WidgetSpec[]): ContainerSpec | undefined {
   const inventoryWidgets = widgets.filter((w) => w.type === "inventory_area");
   if (inventoryWidgets.length === 0) return undefined;
@@ -29,13 +41,15 @@ function buildContainerSpec(widgets: WidgetSpec[]): ContainerSpec | undefined {
     seen.add(w.id);
   }
 
+  const byId = new Map(widgets.map((w) => [w.id, w]));
   return {
     slots: inventoryWidgets.map((w) => {
       const slotSize = parseInt(w.props.slot_size ?? "18", 10);
+      const abs = resolveAbsolutePos(w, byId);
       return {
         id:            w.id,
-        x:             w.x,
-        y:             w.y,
+        x:             abs.x,
+        y:             abs.y,
         cols:          parseInt(w.props.cols ?? "1", 10),
         slot_size:     slotSize,
         viewport_rows: Math.max(1, Math.floor(w.h / slotSize)),

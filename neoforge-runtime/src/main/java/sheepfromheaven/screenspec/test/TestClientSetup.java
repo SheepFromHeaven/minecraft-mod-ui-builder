@@ -29,14 +29,6 @@ public class TestClientSetup {
         CATEGORY
     );
 
-    static final KeyMapping OPEN_TEST_CONTAINER_SCREEN = new KeyMapping(
-        "key.screenspec.open_test_container",
-        KeyConflictContext.IN_GAME,
-        InputConstants.Type.KEYSYM,
-        InputConstants.KEY_J, // not L - that's vanilla's default Advancements key
-        CATEGORY
-    );
-
     public static void register(IEventBus modBus) {
         modBus.addListener(TestClientSetup::onRegisterKeys);
         modBus.addListener(TestClientSetup::onRegisterMenuScreens);
@@ -46,7 +38,6 @@ public class TestClientSetup {
     private static void onRegisterKeys(RegisterKeyMappingsEvent event) {
         event.registerCategory(CATEGORY);
         event.register(OPEN_TEST_SCREEN);
-        event.register(OPEN_TEST_CONTAINER_SCREEN);
     }
 
     private static void onRegisterMenuScreens(RegisterMenuScreensEvent event) {
@@ -55,25 +46,11 @@ public class TestClientSetup {
 
     private static void onClientTick(ClientTickEvent.Post event) {
         while (OPEN_TEST_SCREEN.consumeClick()) {
-            openTestScreen("test_screen");
+            Minecraft mc = Minecraft.getInstance();
+            ScreenSpec spec = ScreenSpecLoader.fromResource(mc.getResourceManager(), "screenspec", "test_container_screen");
+            ScreenSpecs.open(spec,
+                () -> { throw new IllegalStateException("test_container_screen always has a container block"); },
+                () -> ClientPacketDistributor.sendToServer(new OpenTestContainerPayload()));
         }
-        while (OPEN_TEST_CONTAINER_SCREEN.consumeClick()) {
-            openTestScreen("test_container_screen");
-        }
-    }
-
-    /**
-     * Loads {@code screenName} and opens it - one call site for both demo screens, even though one
-     * is a plain client-side {@link TestScreen} and the other needs a server-round-tripped menu (see
-     * {@link ModMenuTypes}, {@link OpenTestContainerPayload}). {@link ScreenSpecs#open} is what
-     * decides which of those two happens, from {@code spec.container} alone - this method never
-     * branches on it itself.
-     */
-    private static void openTestScreen(String screenName) {
-        Minecraft mc = Minecraft.getInstance();
-        ScreenSpec spec = ScreenSpecLoader.fromResource(mc.getResourceManager(), "screenspec", screenName);
-        ScreenSpecs.open(spec,
-            () -> new TestScreen(spec),
-            () -> ClientPacketDistributor.sendToServer(new OpenTestContainerPayload()));
     }
 }

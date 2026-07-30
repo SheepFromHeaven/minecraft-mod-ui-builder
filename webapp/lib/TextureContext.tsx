@@ -12,6 +12,17 @@ export const REQUIRED_TEXTURES = [
   "mc_button_hover.png",
   "mc_slot_tile.png",
   "mc_scrollbar_handle.png",
+  "tab.png",
+  "tab_selected.png",
+  "tab_top_selected_1.png",
+  "tab_top_selected_2.png",
+  "tab_top_selected_7.png",
+  "tab_top_unselected_1.png",
+  "tab_top_unselected_2.png",
+  "tab_top_selected_1_slice.png",
+  "tab_top_selected_2_slice.png",
+  "tab_top_selected_7_slice.png",
+  "tab_top_unselected_1_slice.png",
 ] as const;
 
 export type TextureName = (typeof REQUIRED_TEXTURES)[number];

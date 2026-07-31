@@ -179,21 +179,27 @@ export default function PropertyPanel({ widget, onUpdate, onDelete, bindingsSche
                     <p className="text-xs text-gray-400 italic">Extract a resource pack first</p>
                   ) : (
                     <div className="flex flex-col gap-1">
-                      {currentValue && packTextures[currentValue] && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={packTextures[currentValue]}
-                          alt=""
-                          style={{ imageRendering: "pixelated", maxWidth: "100%", maxHeight: 48, background: "#555", borderRadius: 4 }}
-                        />
-                      )}
-                      <p className="text-[10px] text-muted-foreground truncate">{currentValue || "None"}</p>
                       <button
-                        className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 hover:bg-gray-50 text-left"
+                        title="Click to pick texture"
                         onClick={() => setTexPickerOpen(true)}
+                        className="w-full rounded border border-gray-300 hover:border-blue-400 overflow-hidden transition-colors"
+                        style={{ background: "#555", aspectRatio: currentValue && packTextures[currentValue] ? undefined : "16/9" }}
                       >
-                        {currentValue ? "Change texture…" : "Pick texture…"}
+                        {currentValue && packTextures[currentValue] ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={packTextures[currentValue]}
+                            alt=""
+                            draggable={false}
+                            style={{ width: "100%", height: "100%", objectFit: "contain", imageRendering: "pixelated", display: "block" }}
+                          />
+                        ) : (
+                          <span className="flex items-center justify-center py-4 text-xs text-gray-400">Pick texture…</span>
+                        )}
                       </button>
+                      {currentValue && (
+                        <p className="text-[10px] text-muted-foreground truncate">{currentValue}</p>
+                      )}
                       <TexturePickerModal
                         open={texPickerOpen}
                         packTextures={packTextures}

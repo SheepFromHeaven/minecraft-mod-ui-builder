@@ -30,8 +30,6 @@ import java.util.Objects;
  * Action ids are qualified at runtime: a widget with {@code "action": "save"}
  * and a spec with {@code modId = "my_mod"} fires as {@code "my_mod.save"}.
  * Prefer {@link #onDeclaredAction} for validated, schema-checked registration.
- * The built-in action {@code "close"} closes the screen automatically — no
- * listener needed.
  *
  * <p>Subclassing is also supported; override {@link #onAction} instead:
  * <pre>{@code
@@ -120,8 +118,11 @@ public class SpecScreen extends Screen implements ActionHost {
      * value} is {@code null}), a toggle button's new selected state ({@code
      * Boolean}), a slider's new value ({@code Double}), or an input box's new
      * text ({@code String}). Override in subclasses to wire up behavior.
+     *
+     * <p>{@code actionId} is the widget's qualified action id (e.g. {@code "my_mod.save"})
+     * when the widget has an {@code action} field set, or the widget id otherwise.
      */
-    protected void onAction(String widgetId, WidgetSpec spec, Object value) {
+    protected void onAction(String actionId, WidgetSpec spec, Object value) {
     }
 
     /**
@@ -167,12 +168,7 @@ public class SpecScreen extends Screen implements ActionHost {
 
     @Override
     public void dispatchAction(String widgetId, WidgetSpec widgetSpec, Object value) {
-        // built-in actions
         String action = qualify(widgetSpec.action);
-        if ("close".equals(action)) {
-            onClose();
-            return;
-        }
 
         // listeners keyed on the declared action id
         if (action != null && !action.isEmpty()) {
@@ -191,8 +187,9 @@ public class SpecScreen extends Screen implements ActionHost {
         // global listeners
         for (ActionListener l : globalListeners) l.on(widgetId, widgetSpec, value);
 
-        // subclass hook
-        onAction(widgetId, widgetSpec, value);
+        // subclass hook — receives the action id when set, widget id otherwise
+        String actionId = (action != null && !action.isEmpty()) ? action : widgetId;
+        onAction(actionId, widgetSpec, value);
     }
 
     @Override

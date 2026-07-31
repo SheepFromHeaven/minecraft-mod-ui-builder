@@ -6,6 +6,7 @@ import { getWidgetDef } from "@/lib/widgetRegistry";
 import { getBindingNode, getPathsByType } from "@/components/BindingsTree";
 import type { BindingType } from "@/lib/types";
 import { useTextures } from "@/lib/TextureContext";
+import TexturePickerModal from "@/components/TexturePickerModal";
 
 const INPUT = "w-full rounded border border-gray-300 bg-white px-1.5 py-0.5 text-xs text-gray-900 focus:border-blue-400 focus:outline-none";
 
@@ -45,7 +46,7 @@ export default function PropertyPanel({ widget, onUpdate, onDelete, bindingsSche
   }
 
   const { packTextures } = useTextures();
-  const [texFilter, setTexFilter] = useState("");
+  const [texPickerOpen, setTexPickerOpen] = useState(false);
   const def = getWidgetDef(widget.type);
 
   const set = (patch: Partial<WidgetSpec>) => onUpdate({ ...widget, ...patch });
@@ -171,43 +172,36 @@ export default function PropertyPanel({ widget, onUpdate, onDelete, bindingsSche
               );
             }
             if (widget.type === "sprite" && field.key === "src") {
-              const allKeys = Object.keys(packTextures).sort();
-              const filtered = texFilter
-                ? allKeys.filter((k) => k.toLowerCase().includes(texFilter.toLowerCase()))
-                : allKeys;
-              const hasPackTextures = allKeys.length > 0;
+              const hasPackTextures = Object.keys(packTextures).length > 0;
               return (
                 <Field key={field.key} label={field.label}>
                   {!hasPackTextures ? (
                     <p className="text-xs text-gray-400 italic">Extract a resource pack first</p>
                   ) : (
-                    <>
-                      <input
-                        className={INPUT}
-                        placeholder="Search textures…"
-                        value={texFilter}
-                        onChange={(e) => setTexFilter(e.target.value)}
-                      />
-                      <select
-                        className={`${INPUT} mt-1`}
-                        size={6}
-                        value={currentValue}
-                        onChange={(e) => setProp(field.key, e.target.value)}
-                      >
-                        <option value="">(none)</option>
-                        {filtered.map((k) => (
-                          <option key={k} value={k}>{k}</option>
-                        ))}
-                      </select>
+                    <div className="flex flex-col gap-1">
                       {currentValue && packTextures[currentValue] && (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={packTextures[currentValue]}
                           alt=""
-                          style={{ imageRendering: "pixelated", maxWidth: "100%", maxHeight: 64, marginTop: 4, background: "#555" }}
+                          style={{ imageRendering: "pixelated", maxWidth: "100%", maxHeight: 48, background: "#555", borderRadius: 4 }}
                         />
                       )}
-                    </>
+                      <p className="text-[10px] text-muted-foreground truncate">{currentValue || "None"}</p>
+                      <button
+                        className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 hover:bg-gray-50 text-left"
+                        onClick={() => setTexPickerOpen(true)}
+                      >
+                        {currentValue ? "Change texture…" : "Pick texture…"}
+                      </button>
+                      <TexturePickerModal
+                        open={texPickerOpen}
+                        packTextures={packTextures}
+                        current={currentValue}
+                        onSelect={(k) => setProp(field.key, k)}
+                        onClose={() => setTexPickerOpen(false)}
+                      />
+                    </div>
                   )}
                 </Field>
               );

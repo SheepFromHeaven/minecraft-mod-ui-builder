@@ -198,7 +198,21 @@ export default function PropertyPanel({ widget, onUpdate, onDelete, bindingsSche
                         open={texPickerOpen}
                         packTextures={packTextures}
                         current={currentValue}
-                        onSelect={(k) => setProp(field.key, k)}
+                        onSelect={(k) => {
+                          const url = packTextures[k];
+                          if (url) {
+                            const img = new Image();
+                            img.onload = () => onUpdate({
+                              ...widget,
+                              props: { ...widget.props, [field.key]: k },
+                              w: img.naturalWidth,
+                              h: img.naturalHeight,
+                            });
+                            img.src = url;
+                          } else {
+                            setProp(field.key, k);
+                          }
+                        }}
                         onClose={() => setTexPickerOpen(false)}
                       />
                     </div>

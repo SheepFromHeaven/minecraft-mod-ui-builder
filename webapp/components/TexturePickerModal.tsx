@@ -270,8 +270,7 @@ export default function TexturePickerModal({ open, packTextures, current, onSele
                 <img
                   src={packTextures[preview]}
                   alt=""
-                  className="max-w-full max-h-full"
-                  style={{ imageRendering: "pixelated" }}
+                  style={{ width: "90%", height: "90%", objectFit: "contain", imageRendering: "pixelated" }}
                 />
               ) : (
                 <span className="text-xs text-gray-400 text-center px-2">select a texture to preview</span>

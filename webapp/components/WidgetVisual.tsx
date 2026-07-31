@@ -33,7 +33,7 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
   const s = TYPE_STYLES[widget.type] ?? fallbackStyle;
 
   // Use uploaded texture from IndexedDB if present, otherwise fall back to bundled placeholder.
-  const tex = (name: string) => textures[name as keyof typeof textures];
+  const tex = (name: string) => textures[name as keyof typeof textures] ?? `/textures/${name}`;
   const fontSize = Math.max(8, 7 * scale);
 
   const commonStyle: React.CSSProperties = {
@@ -374,6 +374,38 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
           <img draggable={false} src={widget.icon} alt="" style={{ width: "100%", height: "100%", imageRendering: "pixelated" }} />
         ) : (
           <span style={{ fontSize: fontSize * 0.7 }}>icon</span>
+        )}
+      </div>
+    );
+  }
+
+  if (widget.type === "checkbox") {
+    const checked = widget.props.checked === "true" || toggled;
+    const highlighted = interactState === "hovered" || interactState === "pressed";
+    const boxTex =
+      checked && highlighted ? tex("mc_checkbox_selected_highlighted.png") :
+      checked               ? tex("mc_checkbox_selected.png") :
+      highlighted           ? tex("mc_checkbox_highlighted.png") :
+                              tex("mc_checkbox.png");
+    const boxSize = 20 * scale;
+    return (
+      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", gap: Math.max(2, 2 * scale), userSelect: "none" }}>
+        <div style={{
+          width: boxSize, height: boxSize, flexShrink: 0,
+          backgroundImage: `url("${boxTex}")`,
+          backgroundSize: `${boxSize}px ${boxSize}px`,
+          backgroundRepeat: "no-repeat",
+          imageRendering: "pixelated",
+        }} />
+        {widget.text && (
+          <span style={{
+            fontSize, fontFamily: '"Minecraft", monospace',
+            color: "#fff",
+            textShadow: `${scale}px ${scale}px 0 #333`,
+            whiteSpace: "nowrap", overflow: "hidden",
+          }}>
+            {widget.text}
+          </span>
         )}
       </div>
     );

@@ -534,7 +534,7 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
       }}
       onDoubleClick={(e: React.MouseEvent) => {
         if (isTabs) return; // tabs: double-click handled per tab button below
-        const EDITABLE = new Set(["label", "button", "toggle_button", "slider", "input"]);
+        const EDITABLE = new Set(["label", "button", "toggle_button", "checkbox", "slider", "input"]);
         if (!EDITABLE.has(widget.type)) return;
         e.stopPropagation();
         setInlineEdit({ id: widget.id, text: widget.text });
@@ -1111,7 +1111,7 @@ function TryWidget({ widget, scale, childMap, zBase, allWidgets }: {
     : tabChildren[0]?.id ?? null;
   const activeTabChildren = resolvedTabId ? (childMap.get(resolvedTabId) ?? []) : [];
 
-  const isToggle = widget.type === "toggle_button";
+  const isToggle = widget.type === "toggle_button" || widget.type === "checkbox";
   const isSlider = widget.type === "slider";
   const isInput = widget.type === "input";
   const isPassive = widget.type === "panel" || widget.type === "scroll" || widget.type === "group"

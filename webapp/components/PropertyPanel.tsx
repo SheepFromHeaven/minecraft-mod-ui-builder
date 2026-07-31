@@ -20,6 +20,7 @@ import { AlignLeft, AlignCenter, AlignRight } from "lucide-react";
 const BINDING_TARGETS: Record<string, string[]> = {
   button:        ["text", "enabled", "visible"],
   toggle_button: ["text", "enabled", "visible"],
+  checkbox:      ["text", "enabled", "visible"],
   input:         ["text", "enabled", "visible"],
   slider:        ["enabled", "visible"],
   label:         ["text", "visible"],

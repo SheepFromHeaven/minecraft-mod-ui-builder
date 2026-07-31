@@ -49,8 +49,6 @@ modrinth {
     uploadFile = jar
     gameVersions = [minecraft_version]
     loaders = ["neoforge"]
-    clientSide = "required"
-    serverSide = "unsupported"
     changelog = System.getenv("RELEASE_NOTES") ?: ""
     syncBodyFrom = project.file("README.md").text
 }

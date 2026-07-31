@@ -196,7 +196,9 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
             renderTabBody(graphics, w);
         }
         for (WidgetSpec w : this.spec.widgets) {
-            if (w.type.equals("panel") && builder().isVisible(w)) renderPanel(graphics, w);
+            if (!builder().isVisible(w)) continue;
+            if (w.type.equals("panel"))        renderPanel(graphics, w);
+            else if (w.type.equals("sprite"))  renderSprite(graphics, w);
         }
         for (SlotAreaSpec area : this.containerSpec.slots) {
             if (isAreaVisible(area.id)) drawSlotGrid(graphics, area);
@@ -281,6 +283,12 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
     protected void renderPanel(GuiGraphics graphics, WidgetSpec w) {
         int[] o = builder().originOf(w);
         renderer.renderPanel(graphics, w, o[0], o[1]);
+    }
+
+    /** Draws a {@code sprite} widget as a flat textured quad. Override for custom texture resolution. */
+    protected void renderSprite(GuiGraphics graphics, WidgetSpec w) {
+        int[] o = builder().originOf(w);
+        renderer.renderSprite(graphics, w, o[0], o[1]);
     }
 
     protected void renderLabel(GuiGraphics graphics, WidgetSpec w) {

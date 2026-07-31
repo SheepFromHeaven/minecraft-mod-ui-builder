@@ -243,7 +243,8 @@ public class SpecScreen extends Screen implements ActionHost {
             renderTabBody(graphics, w);
         }
         for (WidgetSpec w : builder().visibleWidgets()) {
-            if (w.type.equals("panel")) renderPanel(graphics, w);
+            if (w.type.equals("panel"))       renderPanel(graphics, w);
+            else if (w.type.equals("sprite")) renderSprite(graphics, w);
         }
         super.render(graphics, mouseX, mouseY, partialTick);
         for (WidgetSpec w : builder().visibleWidgets()) {
@@ -303,6 +304,14 @@ public class SpecScreen extends Screen implements ActionHost {
     protected void renderLabel(GuiGraphics graphics, WidgetSpec w) {
         int[] origin = builder().originOf(w);
         renderer.renderLabel(graphics, this.font, w, origin[0], origin[1]);
+    }
+
+    /**
+     * Draws a {@code sprite} widget as a flat textured quad. Override for custom texture resolution.
+     */
+    protected void renderSprite(GuiGraphics graphics, WidgetSpec w) {
+        int[] origin = builder().originOf(w);
+        renderer.renderSprite(graphics, w, origin[0], origin[1]);
     }
 
     /**

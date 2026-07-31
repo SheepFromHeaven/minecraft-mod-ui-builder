@@ -30,6 +30,8 @@ final class SpecWidgetRenderer {
     private final Map<String, String> boundText = new HashMap<>();
     // subclass-driven text overrides - NOT cleared each frame; take priority over boundText
     private final Map<String, String> pinnedText = new HashMap<>();
+    // src path → Identifier cache for sprite widgets - avoids allocation on every render frame
+    private final Map<String, Identifier> spriteTexCache = new HashMap<>();
 
     SpecWidgetRenderer(ScreenSpec spec) {
         this.spec = spec;
@@ -244,6 +246,42 @@ final class SpecWidgetRenderer {
             ninePatch(graphics, tex, x,                 bottomDestY, 0,          bottomV, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
             ninePatch(graphics, tex, x + TAB_BORDER,     bottomDestY, TAB_SAFE_U, bottomV, 1,          TAB_BORDER, destFillW,  TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
             ninePatch(graphics, tex, x + w - TAB_BORDER, bottomDestY, rightU,     bottomV, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
+        }
+    }
+
+    /**
+     * Draws a {@code sprite} widget: a flat textured quad sampled from a mod or vanilla texture.
+     *
+     * <p>{@code src} is the path under a resource pack's {@code assets/<namespace>/textures/}
+     * directory (e.g. {@code "gui/sprites/widget/button.png"}). The namespace defaults to
+     * {@code minecraft}; mod-specific textures must be placed in the vanilla namespace or the
+     * src format extended in a future revision.
+     *
+     * <p>{@code fit} is {@code "fill"} (default) or {@code "tile"}. Fill stretches the full
+     * texture to the widget bounds. Tile repeats it at {@code tile_w}/{@code tile_h} pixel
+     * intervals (default 16×16), clipping the last partial tile at each edge.
+     * {@code contain}/{@code cover}/{@code none} require the natural texture size, which is
+     * not available at render time without querying the texture manager; they fall back to fill.
+     */
+    void renderSprite(GuiGraphics graphics, WidgetSpec w, int x, int y) {
+        String src = w.prop("src", "");
+        if (src.isEmpty()) return;
+        Identifier tex = spriteTexCache.computeIfAbsent(src, s -> Identifier.withDefaultNamespace("textures/" + s));
+        String fit = w.prop("fit", "fill");
+        if ("tile".equals(fit)) {
+            int tileW = w.propInt("tile_w", 16);
+            int tileH = w.propInt("tile_h", 16);
+            for (int ty = 0; ty < w.h; ty += tileH) {
+                for (int tx = 0; tx < w.w; tx += tileW) {
+                    int dw = Math.min(tileW, w.w - tx);
+                    int dh = Math.min(tileH, w.h - ty);
+                    // srcW/texW = dw/tileW samples the correct fractional UV for the partial last tile
+                    ninePatch(graphics, tex, x + tx, y + ty, 0, 0, dw, dh, dw, dh, tileW, tileH);
+                }
+            }
+        } else {
+            // Treat the texture as a 1×1 atlas so UV spans 0..1 = full texture, stretched to widget bounds.
+            ninePatch(graphics, tex, x, y, 0, 0, 1, 1, w.w, w.h, 1, 1);
         }
     }
 

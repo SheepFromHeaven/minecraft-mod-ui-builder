@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.7.0...neoforge-runtime-v0.8.0) (2026-07-31)
+
+
+### Features
+
+* **runtime:** add sprite widget rendering to neoforge runtime ([cf8fd92](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/cf8fd920148149266e69e8595cbd0d34dbac1d7a))
+
+
+### Bug Fixes
+
+* **runtime:** add Modrinth client/server-side environment metadata ([aebc34d](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/aebc34d1a1d63b3e64fa64923ee5a20b87f0e9e0))
+
 ## [0.7.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.6.0...neoforge-runtime-v0.7.0) (2026-07-30)
 
 

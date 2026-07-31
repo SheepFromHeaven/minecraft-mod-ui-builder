@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -142,6 +142,29 @@ export default function TexturePickerModal({ open, packTextures, current, onSele
 
   const preview = selected;
 
+  // ── Resizable columns ──
+  const [treeW, setTreeW] = useState(256);
+  const [previewW, setPreviewW] = useState(256);
+
+  const makeDividerHandler = useCallback((
+    setter: (w: number) => void,
+    side: "left" | "right",
+  ) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = side === "left" ? treeW : previewW;
+    const onMove = (mv: MouseEvent) => {
+      const delta = side === "left" ? mv.clientX - startX : startX - mv.clientX;
+      setter(Math.max(160, Math.min(520, startW + delta)));
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [treeW, previewW]);
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="w-[90vw] max-w-7xl h-[85vh] flex flex-col gap-0 p-0 overflow-hidden">
@@ -149,10 +172,10 @@ export default function TexturePickerModal({ open, packTextures, current, onSele
           <DialogTitle>Pick texture</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-1 min-h-0">
+        <div className="flex flex-1 min-h-0 select-none">
 
           {/* ── Left: folder tree ── */}
-          <div className="w-64 shrink-0 flex flex-col border-r overflow-hidden">
+          <div className="shrink-0 flex flex-col overflow-hidden" style={{ width: treeW }}>
             <div className="p-2 border-b shrink-0">
               <Input
                 ref={searchRef}
@@ -180,6 +203,12 @@ export default function TexturePickerModal({ open, packTextures, current, onSele
               <div className="p-2 text-xs text-muted-foreground">{visibleKeys.length} results</div>
             )}
           </div>
+
+          {/* ── Divider 1 ── */}
+          <div
+            className="w-1 shrink-0 cursor-col-resize bg-border hover:bg-blue-400 transition-colors"
+            onMouseDown={makeDividerHandler(setTreeW, "left")}
+          />
 
           {/* ── Middle: texture grid ── */}
           <div className="flex-1 min-w-0 overflow-y-auto p-3">
@@ -224,8 +253,14 @@ export default function TexturePickerModal({ open, packTextures, current, onSele
             </div>
           </div>
 
+          {/* ── Divider 2 ── */}
+          <div
+            className="w-1 shrink-0 cursor-col-resize bg-border hover:bg-blue-400 transition-colors"
+            onMouseDown={makeDividerHandler(setPreviewW, "right")}
+          />
+
           {/* ── Right: preview + confirm ── */}
-          <div className="w-64 shrink-0 flex flex-col gap-3 p-4 border-l">
+          <div className="shrink-0 flex flex-col gap-3 p-4" style={{ width: previewW }}>
             <div
               className="flex-1 flex items-center justify-center bg-[#555] rounded min-h-0"
               style={{ minHeight: 120 }}

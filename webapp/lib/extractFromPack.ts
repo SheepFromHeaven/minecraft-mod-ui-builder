@@ -61,12 +61,14 @@ const CHECKBOX_SPRITES: { name: string; path: string }[] = [
   { name: "mc_checkbox_selected_highlighted.png",path: "assets/minecraft/textures/gui/sprites/widget/checkbox_selected_highlighted.png" },
 ];
 
-// Tab sprites from the creative-inventory sprite sheet (26×32, used as-is)
+// Tab sprites from the advancements sprite sheet (28×32) — proper left/middle/right for both states
 const TAB_SPRITES: { name: string; path: string }[] = [
-  { name: "tab_top_selected_1.png",   path: "assets/minecraft/textures/gui/sprites/container/creative_inventory/tab_top_selected_1.png" },
-  { name: "tab_top_selected_2.png",   path: "assets/minecraft/textures/gui/sprites/container/creative_inventory/tab_top_selected_2.png" },
-  { name: "tab_top_selected_7.png",   path: "assets/minecraft/textures/gui/sprites/container/creative_inventory/tab_top_selected_7.png" },
-  { name: "tab_top_unselected_1.png", path: "assets/minecraft/textures/gui/sprites/container/creative_inventory/tab_top_unselected_1.png" },
+  { name: "tab_selected_left.png",   path: "assets/minecraft/textures/gui/sprites/advancements/tab_above_left_selected.png" },
+  { name: "tab_selected_middle.png", path: "assets/minecraft/textures/gui/sprites/advancements/tab_above_middle_selected.png" },
+  { name: "tab_selected_right.png",  path: "assets/minecraft/textures/gui/sprites/advancements/tab_above_right_selected.png" },
+  { name: "tab_unselected_left.png",   path: "assets/minecraft/textures/gui/sprites/advancements/tab_above_left.png" },
+  { name: "tab_unselected_middle.png", path: "assets/minecraft/textures/gui/sprites/advancements/tab_above_middle.png" },
+  { name: "tab_unselected_right.png",  path: "assets/minecraft/textures/gui/sprites/advancements/tab_above_right.png" },
 ];
 
 // Slot tile: try dedicated sprite first (1.20.2+ individual sprites), then crop

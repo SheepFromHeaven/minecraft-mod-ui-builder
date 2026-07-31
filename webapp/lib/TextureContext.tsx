@@ -16,10 +16,12 @@ export const REQUIRED_TEXTURES = [
   "mc_checkbox_selected.png",
   "mc_checkbox_highlighted.png",
   "mc_checkbox_selected_highlighted.png",
-  "tab_top_selected_1.png",
-  "tab_top_selected_2.png",
-  "tab_top_selected_7.png",
-  "tab_top_unselected_1.png",
+  "tab_selected_left.png",
+  "tab_selected_middle.png",
+  "tab_selected_right.png",
+  "tab_unselected_left.png",
+  "tab_unselected_middle.png",
+  "tab_unselected_right.png",
 ] as const;
 
 export type TextureName = (typeof REQUIRED_TEXTURES)[number];

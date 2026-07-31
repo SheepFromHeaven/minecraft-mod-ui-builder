@@ -3,6 +3,7 @@
 import type { WidgetSpec } from "@/lib/types";
 import { useTextures } from "@/lib/TextureContext";
 
+
 const TYPE_STYLES: Record<string, { bg: string; border: string; text: string }> = {
   inventory_area:  { bg: "#8b8b8b", border: "#555555", text: "#ffffff" },
   scrollbar:       { bg: "#000000", border: "#000000", text: "#8b8b8b" },
@@ -34,14 +35,15 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
 
   // Use uploaded texture from IndexedDB if present, otherwise fall back to bundled placeholder.
   const tex = (name: string) => textures[name as keyof typeof textures];
-  const fontSize = Math.max(8, 7 * scale);
+  // Renders at 1:1 MC pixels — parent transform handles zoom
+  const fontSize = 7;
 
   const commonStyle: React.CSSProperties = {
     width: "100%",
     height: "100%",
     boxSizing: "border-box",
     background: s.bg,
-    border: s.border !== "transparent" ? `${Math.max(1, scale)}px solid ${s.border}` : "none",
+    border: s.border !== "transparent" ? `1px solid ${s.border}` : "none",
     color: s.text,
     fontSize,
     fontFamily: '"Minecraft", monospace',
@@ -50,23 +52,22 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
     justifyContent: "center",
     overflow: "hidden",
     userSelect: "none",
-    padding: `0 ${2 * scale}px`,
+    padding: `0 2px`,
   };
 
   if (widget.type === "scrollbar") {
     const axis = widget.props.axis ?? "y";
     const isVertical = axis === "y";
-    // Handle's native sprite is fixed 12×15 (no scaling beyond `scale`); rotated 90° in place when
-    // horizontal, so its on-screen footprint becomes 15×12 while the sprite itself stays unstretched.
-    const handleW = 12 * scale;
-    const handleH = 15 * scale;
+    const handleW = 12;
+    const handleH = 15;
+    const W = widget.w;
+    const H = widget.h;
     return (
-      <div style={{
-        width: "100%", height: "100%", boxSizing: "border-box", position: "relative",
-        borderWidth: scale, borderStyle: "solid", borderColor: "transparent",
-        borderImage: `url("${tex("mc_slot_tile.png")}") 1 fill / ${scale}px stretch`,
-        imageRendering: "pixelated",
-      }}>
+      <div style={{ width: "100%", height: "100%", position: "relative" }}>
+        {tex("mc_slot_tile.png") && (
+          <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, boxSizing: "border-box",
+            borderImage: `url("${tex("mc_slot_tile.png")}") 1 fill / 1px stretch` }} />
+        )}
         <div style={{
           position: "absolute",
           top: isVertical ? 0 : (handleW - handleH) / 2,
@@ -78,6 +79,7 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
           imageRendering: "pixelated",
           transform: isVertical ? undefined : "rotate(90deg)",
           transformOrigin: "center",
+          zIndex: 1,
         }} />
       </div>
     );
@@ -86,13 +88,13 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
   if (widget.type === "inventory_area") {
     const cols = parseInt(widget.props.cols ?? "9", 10);
     const rows = parseInt(widget.props.rows ?? "3", 10);
-    const slotSize = parseInt(widget.props.slot_size ?? "18", 10) * scale;
+    const slotSize = parseInt(widget.props.slot_size ?? "18", 10);
     const fullW = cols * slotSize;
     const fullH = rows * slotSize;
     const source = widget.props.source ?? "";
     const label = source === "player" ? "player inv" : source === "player_hotbar" ? "hotbar" : `${cols}×${rows}`;
-    const clippedH = widget.h * scale < fullH - 1;
-    const clippedW = widget.w * scale < fullW - 1;
+    const clippedH = widget.h < fullH - 1;
+    const clippedW = widget.w < fullW - 1;
     return (
       <div style={{
         width: "100%", height: "100%",
@@ -119,13 +121,13 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
           }} />
         )}
         <span style={{
-          position: "absolute", bottom: 2 * scale, right: 3 * scale,
-          fontSize: Math.max(6, 6 * scale),
+          position: "absolute", bottom: 2, right: 3,
+          fontSize: 6,
           fontFamily: '"Minecraft", monospace',
           color: "#ffffff",
           userSelect: "none",
           pointerEvents: "none",
-          textShadow: `0 0 ${scale * 2}px #000, 0 0 ${scale}px #000`,
+          textShadow: `0 0 2px #000, 0 0 1px #000`,
         }}>
           {label}{(clippedW || clippedH) ? " ↕" : ""}
         </span>
@@ -137,7 +139,7 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
     return (
       <div style={{
         width: "100%", height: "100%",
-        border: `${Math.max(1, scale)}px dashed rgba(120,120,255,0.4)`,
+        border: `1px dashed rgba(120,120,255,0.4)`,
         borderRadius: 2,
         boxSizing: "border-box",
       }} />
@@ -155,18 +157,16 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
     // mc_panel_slice.png is a 7×7 nine-slice sprite (3px border | 1px center | 3px border).
     // Corners are transparent (authentic MC cut-corner look). `fill` stretches the 1×1
     // grey center pixel across the content area, so no backgroundColor bleeds under corners.
-    const borderPx = 3 * scale;
+    const borderPx = 3;
+    const W = widget.w;
+    const H = widget.h;
     return (
-      <div style={{
-        width: "100%",
-        height: "100%",
-        boxSizing: "border-box",
-        background: fillColor,
-        backgroundClip: "padding-box",
-        borderWidth: borderPx, borderStyle: "solid", borderColor: "transparent",
-        borderImage: `url("${tex("mc_panel_slice.png")}") 3 fill`,
-        imageRendering: "pixelated",
-      }} />
+      <div style={{ width: "100%", height: "100%", position: "relative", background: fillColor }}>
+        {tex("mc_panel_slice.png") && (
+          <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, boxSizing: "border-box",
+            borderImage: `url("${tex("mc_panel_slice.png")}") 3 fill / ${borderPx}px stretch` }} />
+        )}
+      </div>
     );
   }
 
@@ -184,9 +184,9 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
       <div style={{
         ...commonStyle,
         background: "#000",
-        border: `${scale}px solid ${borderColor}`,
+        border: `1px solid ${borderColor}`,
         justifyContent: "flex-start",
-        padding: `0 ${2 * scale}px`,
+        padding: `0 2px`,
         color: hasText ? "#fff" : "#707070",
         gap: 0,
       }}>
@@ -207,34 +207,27 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
     const pct = max > min ? (val - min) / (max - min) : 0.5;
 
     // Handle is 8 MC pixels wide (same as vanilla). Track fills the full widget.
-    const handleWidthPx = 8 * scale;
-    // Handle travels from left edge (pct=0) to right edge minus its own width (pct=1)
+    const handleWidthPx = 8;
     const handleLeft = `calc(${pct} * (100% - ${handleWidthPx}px))`;
-    const borderPx = 2 * scale;
+    const borderPx = 2;
+    const W = widget.w;
+    const H = widget.h;
 
     return (
       <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
-        {/* Track — recessed slider texture */}
-        <div style={{
-          position: "absolute", inset: 0,
-          borderWidth: borderPx, borderStyle: "solid", borderColor: "transparent",
-          borderImage: `url("${tex("mc_slider_track_slice.png")}") 2 fill / ${borderPx}px`,
-          imageRendering: "pixelated",
-          boxSizing: "border-box",
-        }} />
+        {/* Track */}
+        {tex("mc_slider_track_slice.png") && (
+          <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, boxSizing: "border-box",
+            borderImage: `url("${tex("mc_slider_track_slice.png")}") 2 fill / ${borderPx}px stretch` }} />
+        )}
 
         {/* Handle */}
-        <div style={{
-          position: "absolute",
-          top: 0,
-          left: handleLeft,
-          width: handleWidthPx,
-          height: "100%",
-          borderWidth: borderPx, borderStyle: "solid", borderColor: "transparent",
-          borderImage: `url("${tex("mc_slider_handle_slice.png")}") 2 fill / ${borderPx}px`,
-          imageRendering: "pixelated",
-          boxSizing: "border-box",
-        }} />
+        <div style={{ position: "absolute", top: 0, left: handleLeft, width: handleWidthPx, height: H, zIndex: 1 }}>
+          {tex("mc_slider_handle_slice.png") && (
+            <div style={{ position: "absolute", left: 0, top: 0, width: handleWidthPx, height: H, boxSizing: "border-box",
+              borderImage: `url("${tex("mc_slider_handle_slice.png")}") 2 fill / ${borderPx}px stretch` }} />
+          )}
+        </div>
 
         {/* Label centred over the track */}
         <div style={{
@@ -242,7 +235,7 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize, fontFamily: '"Minecraft", monospace',
           color: "#fff",
-          textShadow: `${scale}px ${scale}px 0 #333`,
+          textShadow: `1px 1px 0 #333`,
           userSelect: "none",
           pointerEvents: "none",
         }}>
@@ -253,7 +246,7 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
   }
 
   if (widget.type === "scroll") {
-    const scrollbarW = 3 * scale;
+    const scrollbarW = 3;
     return (
       <div style={{ ...commonStyle, padding: 0, position: "relative" }}>
         {/* Scrollbar track */}
@@ -271,8 +264,8 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
   }
 
   if (widget.type === "list") {
-    const itemHeight = parseInt(widget.props.item_height ?? "20", 10) * scale;
-    const visibleRows = Math.max(1, Math.floor((widget.h * scale) / itemHeight));
+    const itemHeight = parseInt(widget.props.item_height ?? "20", 10);
+    const visibleRows = Math.max(1, Math.floor(widget.h / itemHeight));
     const template = widget.item_template ?? [];
     return (
       <div style={{ ...commonStyle, flexDirection: "column", justifyContent: "flex-start", alignItems: "stretch", padding: 0, overflow: "hidden" }}>
@@ -290,13 +283,13 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
             {template.map((t) => (
               <div key={t.id} style={{
                 position: "absolute",
-                left: t.x * scale,
-                top: t.y * scale,
-                width: t.w * scale,
-                height: t.h * scale,
+                left: t.x,
+                top: t.y,
+                width: t.w,
+                height: t.h,
                 display: "flex",
                 alignItems: "center",
-                fontSize: Math.max(6, 7 * scale),
+                fontSize: 7,
                 fontFamily: '"Minecraft", monospace',
                 color: "#aaa",
                 overflow: "hidden",
@@ -322,9 +315,9 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
       return (
         <div style={{
           width: "100%", height: "100%", boxSizing: "border-box",
-          border: `${Math.max(1, scale)}px dashed rgba(180,120,60,0.6)`,
+          border: `1px dashed rgba(180,120,60,0.6)`,
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: Math.max(7, 6 * scale), color: "rgba(180,120,60,0.8)",
+          fontSize: 6, color: "rgba(180,120,60,0.8)",
           fontFamily: '"Minecraft", monospace',
         }}>
           {src ? "texture not found" : "sprite"}
@@ -387,9 +380,9 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
       checked               ? tex("mc_checkbox_selected.png") :
       highlighted           ? tex("mc_checkbox_highlighted.png") :
                               tex("mc_checkbox.png");
-    const boxSize = 20 * scale;
+    const boxSize = 20;
     return (
-      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", gap: Math.max(2, 2 * scale), userSelect: "none" }}>
+      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", gap: 2, userSelect: "none" }}>
         <div style={{
           width: boxSize, height: boxSize, flexShrink: 0,
           backgroundImage: `url("${boxTex}")`,
@@ -397,56 +390,46 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
           backgroundRepeat: "no-repeat",
           imageRendering: "pixelated",
         }} />
-        {widget.text && (
-          <span style={{
-            fontSize, fontFamily: '"Minecraft", monospace',
-            color: "#fff",
-            textShadow: `${scale}px ${scale}px 0 #333`,
-            whiteSpace: "nowrap", overflow: "hidden",
-          }}>
-            {widget.text}
-          </span>
-        )}
       </div>
     );
   }
 
   // button, toggle_button, tab_button
   if (widget.type === "button" || widget.type === "toggle_button") {
-    const borderPx = 2 * scale;
+    const borderPx = 2;
     const isToggle = widget.type === "toggle_button";
 
     // Toggle "on" acts like permanently pressed: dark texture + dim overlay
     const effectivelyPressed = interactState === "pressed" || (isToggle && toggled);
     const btnTex = (interactState === "idle" && !effectivelyPressed) ? "mc_button_normal.png" : "mc_button_hover.png";
 
+    const W = widget.w;
+    const H = widget.h;
     return (
       <div style={{
-        width: "100%",
-        height: "100%",
-        boxSizing: "border-box",
-        border: `${borderPx}px solid transparent`,
-        borderImage: `url("${tex(btnTex)}") 2 fill / ${borderPx}px`,
-        imageRendering: "pixelated",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize,
-        fontFamily: '"Minecraft", monospace',
-        // toggled-on text goes green like Minecraft's "ON" state
-        color: isToggle && toggled ? "#55ff55" : "#fff",
-        textShadow: `${scale}px ${scale}px 0 #333`,
-        overflow: "hidden",
-        userSelect: "none",
-        gap: scale,
+        width: "100%", height: "100%", position: "relative",
         filter: effectivelyPressed ? "brightness(0.75)" : undefined,
-        transform: effectivelyPressed ? `translateY(${scale}px)` : undefined,
+        transform: effectivelyPressed ? `translateY(1px)` : undefined,
+        overflow: "hidden",
       }}>
-        {widget.icon && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img draggable={false} src={widget.icon} alt="" style={{ width: fontSize, height: fontSize, imageRendering: "pixelated" }} />
+        {tex(btnTex) && (
+          <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, boxSizing: "border-box",
+            borderImage: `url("${tex(btnTex)}") 2 fill / ${borderPx}px stretch` }} />
         )}
-        {widget.text}
+        <div style={{
+          position: "absolute", inset: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize, fontFamily: '"Minecraft", monospace',
+          color: isToggle && toggled ? "#55ff55" : "#fff",
+          textShadow: `1px 1px 0 #333`,
+          userSelect: "none", gap: 1,
+        }}>
+          {widget.icon && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img draggable={false} src={widget.icon} alt="" style={{ width: fontSize, height: fontSize, imageRendering: "pixelated" }} />
+          )}
+          {widget.text}
+        </div>
       </div>
     );
   }
@@ -454,7 +437,7 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
   return (
     <div style={{
       ...commonStyle,
-      boxShadow: `inset -${scale}px -${scale}px 0 #555, inset ${scale}px ${scale}px 0 #fff`,
+      boxShadow: `inset -1px -1px 0 #555, inset 1px 1px 0 #fff`,
     }}>
       {widget.text}
     </div>

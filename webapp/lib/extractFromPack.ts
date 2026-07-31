@@ -250,5 +250,17 @@ export async function extractFromPack(buffer: ArrayBuffer): Promise<ExtractResul
   }
   if (!scrollbarSaved) missing.push("mc_scrollbar_handle.png");
 
+  // --- Store raw pack textures (gui + item) for use as widget sources ---
+  const packRe = /^assets\/[^/]+\/textures\/(gui|item)\/.+\.png$/;
+  const packFiles = Object.keys(zip.files).filter(p => packRe.test(p) && !zip.files[p].dir);
+  for (const path of packFiles) {
+    const entry = zip.files[path];
+    const buf = await entry.async("arraybuffer");
+    const blob = new Blob([buf], { type: "image/png" });
+    // Key: strip "assets/<namespace>/textures/" prefix → e.g. "gui/sprites/widget/button.png"
+    const key = path.replace(/^assets\/[^/]+\/textures\//, "pack:");
+    await saveTexture(key, blob);
+  }
+
   return { extracted, missing };
 }

@@ -29,6 +29,7 @@ export type TextureName = (typeof REQUIRED_TEXTURES)[number];
 
 interface TextureCtx {
   textures: Partial<Record<TextureName, string>>;
+  packTextures: Record<string, string>;
   ready: boolean;
   initialized: boolean;
   setupRequired: boolean;
@@ -40,6 +41,7 @@ interface TextureCtx {
 
 const Ctx = createContext<TextureCtx>({
   textures: {},
+  packTextures: {},
   ready: false,
   initialized: false,
   setupRequired: false,
@@ -55,6 +57,7 @@ export function useTextures() {
 
 export function TextureProvider({ children }: { children: React.ReactNode }) {
   const [textures, setTextures] = useState<Partial<Record<TextureName, string>>>({});
+  const [packTextures, setPackTextures] = useState<Record<string, string>>({});
   const [initialized, setInitialized] = useState(false);
   const [setupRequired, setSetupRequired] = useState(false);
   const urlsRef = useRef<string[]>([]);
@@ -71,6 +74,15 @@ export function TextureProvider({ children }: { children: React.ReactNode }) {
       }
     }
     setTextures(next);
+    const pack: Record<string, string> = {};
+    for (const [key, blob] of Object.entries(blobs)) {
+      if (key.startsWith("pack:")) {
+        const url = URL.createObjectURL(blob);
+        urlsRef.current.push(url);
+        pack[key.slice(5)] = url;
+      }
+    }
+    setPackTextures(pack);
   };
 
   useEffect(() => {
@@ -127,7 +139,7 @@ export function TextureProvider({ children }: { children: React.ReactNode }) {
   const ready = REQUIRED_TEXTURES.every((n) => !!textures[n]);
 
   return (
-    <Ctx.Provider value={{ textures, ready, initialized, setupRequired, uploadFiles, extractPack: extractPackFn, reload, reset }}>
+    <Ctx.Provider value={{ textures, packTextures, ready, initialized, setupRequired, uploadFiles, extractPack: extractPackFn, reload, reset }}>
       {children}
     </Ctx.Provider>
   );

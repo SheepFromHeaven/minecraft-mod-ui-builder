@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.4.0...webapp-v0.5.0) (2026-07-31)
+
+
+### Features
+
+* **canvas:** right-click opens add-widget context menu at click position ([88b2838](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/88b28381e29879b078ba0d08998c3a1a253c58fa))
+* **canvas:** shift locks aspect ratio, alt resizes from center during widget resize ([033a5f1](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/033a5f1bce17c9b4512c7deb52e03b6a0d048a09))
+
 ## [0.4.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.3.3...webapp-v0.4.0) (2026-07-31)
 
 

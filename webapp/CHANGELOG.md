@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.3](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.3.2...webapp-v0.3.3) (2026-07-30)
+
+
+### Bug Fixes
+
+* **webapp:** don't block editor on full texture set ([b37e389](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/b37e389efc6ea3743b42a9cdc280870e7bea5aa1))
+* **webapp:** save new project to localStorage before navigating to editor ([7a6e5a2](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/7a6e5a20852576c7c929806ebf6249be273a457a))
+
 ## [0.3.2](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.3.1...webapp-v0.3.2) (2026-07-30)
 
 

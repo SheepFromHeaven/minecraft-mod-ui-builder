@@ -116,7 +116,6 @@ function FolderItem({
 export default function TexturePickerModal({ open, packTextures, current, onSelect, onClose }: Props) {
   const [filter, setFilter] = useState("");
   const [folder, setFolder] = useState("");
-  const [hovered, setHovered] = useState<string | null>(null);
   const [selected, setSelected] = useState(current);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -141,7 +140,7 @@ export default function TexturePickerModal({ open, packTextures, current, onSele
       ? filesUnder(folder, allKeys)
       : allKeys;
 
-  const preview = hovered ?? selected;
+  const preview = selected;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -195,8 +194,6 @@ export default function TexturePickerModal({ open, packTextures, current, onSele
                     key={key}
                     title={key}
                     onClick={() => setSelected(key)}
-                    onMouseEnter={() => setHovered(key)}
-                    onMouseLeave={() => setHovered(null)}
                     className={[
                       "flex flex-col items-center gap-1 rounded-lg p-1.5 border-2 transition-colors",
                       isSelected
@@ -242,7 +239,7 @@ export default function TexturePickerModal({ open, packTextures, current, onSele
                   style={{ imageRendering: "pixelated" }}
                 />
               ) : (
-                <span className="text-xs text-gray-400 text-center px-2">hover a texture to preview</span>
+                <span className="text-xs text-gray-400 text-center px-2">select a texture to preview</span>
               )}
             </div>
 

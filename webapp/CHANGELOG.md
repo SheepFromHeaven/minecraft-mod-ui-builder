@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.4.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.3.3...webapp-v0.4.0) (2026-07-31)
+
+
+### Features
+
+* **webapp:** add Sprite widget with pack texture picker ([f00a0ca](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/f00a0ca023dd3e893a14ca78527b041fe8a78217))
+* **webapp:** extract all textures from pack, not just gui and item ([5e81ae5](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/5e81ae56ffbcbf6c75eae0e0f377d70f32c9a65a))
+* **webapp:** preview fills container at 90%; sprite auto-sizes to texture dimensions on select ([abd163f](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/abd163f6008442f9b01a5b8c4f925c6c6d544570))
+* **webapp:** replace texture select list with modal grid picker ([b19366f](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/b19366fe14533ec1b1d3fb0bff5d6d4e12101000))
+* **webapp:** replace texture select list with modal grid picker ([f028d6f](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/f028d6fbb2f2e05975f66323f81aa72617326eed))
+* **webapp:** resizable columns in texture picker modal ([0f4a748](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/0f4a7489dc6298dd53299e7dfb00392c28c19955))
+* **webapp:** store and expose raw gui/item textures from extracted pack ([3f6af06](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/3f6af06082acca483b425919177611d09fbd3977))
+
+
+### Bug Fixes
+
+* **webapp:** pointer cursor and 'Change texture' title on texture preview ([428ad6a](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/428ad6aa5366088ed710a0bdf4ed4e9076910825))
+* **webapp:** prevent native browser image drag from hijacking canvas mouse tracking ([2ef3c81](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/2ef3c813513004200f55944ff8675f03d0e69665))
+* **webapp:** preview only updates on select, not on hover ([f941a67](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/f941a671c7d54e98cec7cd6774e8e412e1f7e6e8))
+* **webapp:** remove sm:max-w-sm default from DialogContent so callers can set their own width ([025fc5e](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/025fc5e344761a8dd21f304c919f6b077f8a8a9c))
+* **webapp:** snap-to-grid drag and toolbar stepper cleanup ([c2cddb2](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/c2cddb2ea55ef1b9ad6826247e474b15bbe3d5fb))
+* **webapp:** texture preview fills panel with correct aspect ratio; click to open picker ([d691214](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/d691214c9612c084bcd6a478dc5928be51c22a53))
+* **webapp:** widen texture picker modal to 90vw with larger tiles ([5d4b28c](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/5d4b28cff8302dd8d30ba5830693c387c0216d0a))
+
 ## [0.3.3](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.3.2...webapp-v0.3.3) (2026-07-30)
 
 

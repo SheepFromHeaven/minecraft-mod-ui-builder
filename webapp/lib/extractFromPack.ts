@@ -53,6 +53,22 @@ const TASKS_9SLICE: Task9Slice[] = [
   },
 ];
 
+// Checkbox sprites (20×20, used as-is — no processing needed)
+const CHECKBOX_SPRITES: { name: string; path: string }[] = [
+  { name: "mc_checkbox.png",                    path: "assets/minecraft/textures/gui/sprites/widget/checkbox.png" },
+  { name: "mc_checkbox_selected.png",            path: "assets/minecraft/textures/gui/sprites/widget/checkbox_selected.png" },
+  { name: "mc_checkbox_highlighted.png",         path: "assets/minecraft/textures/gui/sprites/widget/checkbox_highlighted.png" },
+  { name: "mc_checkbox_selected_highlighted.png",path: "assets/minecraft/textures/gui/sprites/widget/checkbox_selected_highlighted.png" },
+];
+
+// Tab sprites from the creative-inventory sprite sheet (26×32, used as-is)
+const TAB_SPRITES: { name: string; path: string }[] = [
+  { name: "tab_top_selected_1.png",   path: "assets/minecraft/textures/gui/sprites/container/creative_inventory/tab_top_selected_1.png" },
+  { name: "tab_top_selected_2.png",   path: "assets/minecraft/textures/gui/sprites/container/creative_inventory/tab_top_selected_2.png" },
+  { name: "tab_top_selected_7.png",   path: "assets/minecraft/textures/gui/sprites/container/creative_inventory/tab_top_selected_7.png" },
+  { name: "tab_top_unselected_1.png", path: "assets/minecraft/textures/gui/sprites/container/creative_inventory/tab_top_unselected_1.png" },
+];
+
 // Slot tile: try dedicated sprite first (1.20.2+ individual sprites), then crop
 // from the inventory atlas at the well-known first-slot position.
 const SLOT_SPRITE_PATH = "assets/minecraft/textures/gui/sprites/container/slot.png";
@@ -195,6 +211,19 @@ export async function extractFromPack(buffer: ArrayBuffer): Promise<ExtractResul
     const blob = await imageDataToBlob(sliced);
     await saveTexture(task.name, blob);
     extracted.push(task.name);
+  }
+
+  // --- Checkbox + tab sprites: direct copy ---
+  for (const { name, path } of [...CHECKBOX_SPRITES, ...TAB_SPRITES]) {
+    const bitmap = await readBitmap(zip, path);
+    if (bitmap) {
+      const blob = await imageDataToBlob(bitmapToImageData(bitmap));
+      bitmap.close();
+      await saveTexture(name, blob);
+      extracted.push(name);
+    } else {
+      missing.push(name);
+    }
   }
 
   // --- Slot tile: try individual sprite, then crop from inventory atlas ---

@@ -334,7 +334,7 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
 }) {
   const bindingsSchema = useContext(BindingsCtx);
   const { textures: editTextures } = useTextures();
-  const tex = (name: string) => (editTextures as Record<string, string>)[name] ?? `/textures/${name}`;
+  const tex = (name: string) => (editTextures as Record<string, string>)[name];
   const { widget: previewWidget, hidden } = applyBindingPreviews(widget, bindingsSchema);
   const isSelected = widget.id === selectedId;
   const isContainer = CONTAINER_TYPES.has(widget.type);
@@ -648,8 +648,8 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
                 const isActive = tab.id === activeTabId;
                 const touchesLeft = tabX <= 0;
                 const touchesRight = tabX + tabW >= widget.w;
-                const selTex = touchesLeft ? "tab_top_selected_1_slice.png" : touchesRight ? "tab_top_selected_7_slice.png" : "tab_top_selected_2_slice.png";
-                const tabTex = tex(isActive ? selTex : "tab_top_unselected_1_slice.png");
+                const selTex = touchesLeft ? "tab_top_selected_1.png" : touchesRight ? "tab_top_selected_7.png" : "tab_top_selected_2.png";
+                const tabTex = tex(isActive ? selTex : "tab_top_unselected_1.png");
                 const minW = getMinW(tab);
                 const prev = computedTabs[idx - 1];
                 const next = computedTabs[idx + 1];
@@ -683,7 +683,7 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
                       borderLeftWidth: sideSlice,
                       borderStyle: "solid",
                       borderColor: "transparent",
-                      borderImage: `url("${tabTex}") 3 3 0 3 fill / ${topSlice}px ${sideSlice}px 0 ${sideSlice}px round`,
+                      borderImage: `url("${tabTex}") 3 3 0 3 fill / ${topSlice}px ${sideSlice}px 0 ${sideSlice}px stretch`,
                       imageRendering: "pixelated",
                       userSelect: "none",
                       boxSizing: "border-box",
@@ -1097,7 +1097,7 @@ function TryWidget({ widget, scale, childMap, zBase, allWidgets }: {
   const trackRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const { textures: tryTextures } = React.useContext(TextureCtx);
-  const tex = (name: string) => (tryTextures as Record<string, string>)[name] ?? `/textures/${name}`;
+  const tex = (name: string) => (tryTextures as Record<string, string>)[name];
 
   const isContainer = CONTAINER_TYPES.has(widget.type);
   const children = isContainer ? (childMap.get(widget.id) ?? []) : [];
@@ -1199,8 +1199,8 @@ function TryWidget({ widget, scale, childMap, zBase, allWidgets }: {
                 const tabW = getW(tab);
                 const touchesLeft = tabX <= 0;
                 const touchesRight = tabX + tabW >= widget.w;
-                const selTex = touchesLeft ? "tab_top_selected_1_slice.png" : touchesRight ? "tab_top_selected_7_slice.png" : "tab_top_selected_2_slice.png";
-                const tabTex = tex(isActive ? selTex : "tab_top_unselected_1_slice.png");
+                const selTex = touchesLeft ? "tab_top_selected_1.png" : touchesRight ? "tab_top_selected_7.png" : "tab_top_selected_2.png";
+                const tabTex = tex(isActive ? selTex : "tab_top_unselected_1.png");
                 return (
                   <div
                     key={tab.id}
@@ -1227,7 +1227,7 @@ function TryWidget({ widget, scale, childMap, zBase, allWidgets }: {
                       borderLeftWidth: sideSlice,
                       borderStyle: "solid",
                       borderColor: "transparent",
-                      borderImage: `url("${tabTex}") 3 3 0 3 fill / ${topSlice}px ${sideSlice}px 0 ${sideSlice}px round`,
+                      borderImage: `url("${tabTex}") 3 3 0 3 fill / ${topSlice}px ${sideSlice}px 0 ${sideSlice}px stretch`,
                       imageRendering: "pixelated",
                       cursor: "pointer",
                       userSelect: "none",

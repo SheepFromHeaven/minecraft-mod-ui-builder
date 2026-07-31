@@ -148,6 +148,15 @@ const WIDGET_REGISTRY: WidgetDef[] = [
     ],
   },
   {
+    type: "sprite",
+    label: "Sprite",
+    defaultWidget: { type: "sprite", x: 8, y: 8, w: 32, h: 32, text: "", icon: null, props: { src: "", fit: "fill" } },
+    propSchema: [
+      { key: "src", label: "Texture", type: "text", defaultValue: "" },
+      { key: "fit", label: "Fit", type: "select", options: ["fill", "contain", "cover", "tile", "none"], defaultValue: "fill" },
+    ],
+  },
+  {
     type: "list",
     label: "List",
     defaultWidget: {

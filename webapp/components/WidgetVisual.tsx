@@ -29,7 +29,7 @@ interface Props {
 }
 
 export default function WidgetVisual({ widget, scale, interactState = "idle", toggled = false }: Props) {
-  const { textures } = useTextures();
+  const { textures, packTextures } = useTextures();
   const s = TYPE_STYLES[widget.type] ?? fallbackStyle;
 
   // Use uploaded texture from IndexedDB if present, otherwise fall back to bundled placeholder.
@@ -311,6 +311,49 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
           </div>
         ))}
       </div>
+    );
+  }
+
+  if (widget.type === "sprite") {
+    const src = widget.props.src ?? "";
+    const fit = widget.props.fit ?? "fill";
+    const url = packTextures[src];
+    if (!url) {
+      return (
+        <div style={{
+          width: "100%", height: "100%", boxSizing: "border-box",
+          border: `${Math.max(1, scale)}px dashed rgba(180,120,60,0.6)`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: Math.max(7, 6 * scale), color: "rgba(180,120,60,0.8)",
+          fontFamily: '"Minecraft", monospace',
+        }}>
+          {src ? "texture not found" : "sprite"}
+        </div>
+      );
+    }
+    if (fit === "tile") {
+      return (
+        <div style={{
+          width: "100%", height: "100%",
+          backgroundImage: `url("${url}")`,
+          backgroundRepeat: "repeat",
+          backgroundSize: "auto",
+          imageRendering: "pixelated",
+        }} />
+      );
+    }
+    const objectFit: React.CSSProperties["objectFit"] =
+      fit === "contain" ? "contain" :
+      fit === "cover"   ? "cover"   :
+      fit === "none"    ? "none"    : "fill";
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={url} alt="" style={{
+        width: "100%", height: "100%",
+        objectFit,
+        imageRendering: "pixelated",
+        display: "block",
+      }} />
     );
   }
 

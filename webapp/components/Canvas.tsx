@@ -332,6 +332,27 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
   const scaleRef = useRef(scale);
   scaleRef.current = scale;
 
+  // Modifier keys for resize: shift = lock aspect ratio, alt = center origin
+  const [shiftPressed, setShiftPressed] = useState(false);
+  const [altPressed, setAltPressed] = useState(false);
+  React.useEffect(() => {
+    if (!isSelected) return;
+    const onKey = (e: KeyboardEvent) => { setShiftPressed(e.shiftKey); setAltPressed(e.altKey); };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKey);
+    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("keyup", onKey); };
+  }, [isSelected]);
+  // Capture start dimensions for alt center-origin and shift aspect-ratio calculations
+  const resizeStartRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  // Stash last alt-adjusted commit values so onResizeStop reads them even after re-resizable resets the DOM
+  const altResizeRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  // The wrapper's CSS translate at resize-start, in CSS-transform space (NOT canvas coords).
+  // react-rnd's position param uses canvas coords (draggable-state + offsetFromParent), but the
+  // wrapper transform only uses draggable-state — they differ by offsetFromParent, which equals
+  // the canvas element's offset from the page origin. We work in CSS-transform space throughout
+  // to avoid this mismatch.
+  const resizeInitTransformRef = useRef<{ x: number; y: number } | null>(null);
+
   React.useEffect(() => {
     if (!tabDrag) return;
     const onMove = (e: MouseEvent) => {
@@ -381,22 +402,79 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
       minHeight={widget.type === "scrollbar" && widget.props.axis === "x" ? SCROLLBAR_FIXED_PX * scale : undefined}
       maxHeight={widget.type === "scrollbar" && widget.props.axis === "x" ? SCROLLBAR_FIXED_PX * scale : undefined}
       resizeGrid={[snapPx, snapPx]}
+      lockAspectRatio={shiftPressed && isSelected && !isGroup && widget.type !== "scrollbar"}
       // All dragging is handled centrally by Canvas's own mousedown listener
       // (see handleCanvasMouseDown) — it can redirect movement to an
       // ancestor widget, which react-rnd's own per-node dragging cannot do.
       disableDragging
       data-widget-id={widget.id}
+      onResizeStart={() => {
+        resizeStartRef.current = { x: widget.x, y: widget.y, w: widget.w, h: widget.h };
+        altResizeRef.current = null;
+        resizeInitTransformRef.current = null; // captured on first onResize
+      }}
+      onResize={(e, _dir, ref, delta, _position) => {
+        if (!resizeStartRef.current) return;
+        // react-draggable applies its transform directly on `ref` via React.cloneElement —
+        // there is no separate wrapper div. Capture the transform from ref itself.
+        if (!resizeInitTransformRef.current) {
+          const m = /translate\(([^,]+)px,\s*([^)]+)px\)/.exec(ref.style.transform);
+          resizeInitTransformRef.current = m
+            ? { x: parseFloat(m[1]), y: parseFloat(m[2]) }
+            : { x: 0, y: 0 };
+        }
+        const initT = resizeInitTransformRef.current;
+        if ((e as MouseEvent).altKey) {
+          // Alt: resize symmetrically from the original center.
+          // delta.{width,height} is the one-sided pixel change from react-rnd.
+          // We double it so both sides expand equally; shift the element by one
+          // delta in CSS-transform space so the center stays fixed.
+          const start = resizeStartRef.current;
+          const altWpx = Math.max(scale, start.w * scale + 2 * delta.width);
+          const altHpx = Math.max(scale, start.h * scale + 2 * delta.height);
+          const altTX  = initT.x - delta.width;
+          const altTY  = initT.y - delta.height;
+          ref.style.width     = `${altWpx}px`;
+          ref.style.height    = `${altHpx}px`;
+          ref.style.transform = `translate(${altTX}px, ${altTY}px)`;
+          altResizeRef.current = {
+            x: Math.max(0, Math.round((widget.x * scale - delta.width) / scale)),
+            y: Math.max(0, Math.round((widget.y * scale - delta.height) / scale)),
+            w: Math.max(1, Math.round(altWpx / scale)),
+            h: Math.max(1, Math.round(altHpx / scale)),
+          };
+        } else {
+          // Alt released mid-drag: restore ref to the resize-start transform so the
+          // widget snaps back to its natural position cleanly.
+          ref.style.transform = `translate(${initT.x}px, ${initT.y}px)`;
+          altResizeRef.current = null;
+        }
+      }}
       onResizeStop={(_e, _dir, ref, _delta, position) => {
-        const x = Math.max(0, Math.round(position.x / scale));
-        const y = Math.max(0, Math.round(position.y / scale));
-        let w = Math.max(1, Math.round(parseInt(ref.style.width) / scale));
-        let h = Math.max(1, Math.round(parseInt(ref.style.height) / scale));
+        let x: number;
+        let y: number;
+        let w: number;
+        let h: number;
+        if (altResizeRef.current) {
+          // Use the alt-adjusted values from the last onResize call
+          ({ x, y, w, h } = altResizeRef.current);
+        } else {
+          x = Math.max(0, Math.round(position.x / scale));
+          y = Math.max(0, Math.round(position.y / scale));
+          w = Math.max(1, Math.round(parseInt(ref.style.width) / scale));
+          h = Math.max(1, Math.round(parseInt(ref.style.height) / scale));
+        }
         // Scrollbar: lock the cross-axis to the handle texture width (12px + 2px bevel = 14)
         if (widget.type === "scrollbar") {
           const axis = widget.props.axis ?? "y";
           if (axis === "y") w = SCROLLBAR_FIXED_PX;
           else              h = SCROLLBAR_FIXED_PX;
         }
+        // Clear any direct DOM overrides applied in onResize; react-rnd will
+        // immediately re-apply the correct transform via draggable.setState.
+        ref.style.transform = "";
+        resizeStartRef.current = null;
+        altResizeRef.current = null;
         if (x === widget.x && y === widget.y && w === widget.w && h === widget.h) return;
         onResizeCommit({ ...widget, x, y, w, h });
       }}

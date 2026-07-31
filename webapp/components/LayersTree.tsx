@@ -9,10 +9,7 @@ import {
 import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
-  ChevronDown, ChevronRight, Plus, Trash2,
-  Square, MousePointerClick, ToggleLeft, TextCursorInput,
-  SlidersHorizontal, Type, Image, List, ScrollText, Folder, HelpCircle,
-  PanelTop, RectangleHorizontal,
+  ChevronDown, ChevronRight, Plus, Trash2, HelpCircle,
 } from "lucide-react";
 import {
   SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarGroupAction,
@@ -21,24 +18,10 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import WIDGET_REGISTRY from "@/lib/widgetRegistry";
+import { WIDGET_ICONS, AddWidgetItems } from "@/components/AddWidgetItems";
 import type { WidgetSpec } from "@/lib/types";
 
 // ── constants ──────────────────────────────────────────────────────────────────
-
-const WIDGET_ICONS: Record<string, React.ElementType> = {
-  group:         Folder,
-  panel:         Square,
-  scroll:        ScrollText,
-  button:        MousePointerClick,
-  toggle_button: ToggleLeft,
-  input:         TextCursorInput,
-  slider:        SlidersHorizontal,
-  label:         Type,
-  icon:          Image,
-  list:          List,
-  tabs:          PanelTop,
-  tab:           RectangleHorizontal,
-};
 
 const CONTAINER_TYPES = new Set(
   WIDGET_REGISTRY.filter(d => d.isContainer).map(d => d.type),
@@ -362,15 +345,7 @@ function AddWidgetButton({ onAdd, asGroupAction }: {
     <DropdownMenu onOpenChange={(open) => open ? onOpen() : onClose()}>
       {trigger}
       <DropdownMenuContent side="right" align="start" className="min-w-40">
-        {WIDGET_REGISTRY.map(def => {
-          const Icon = WIDGET_ICONS[def.type] ?? HelpCircle;
-          return (
-            <DropdownMenuItem key={def.type} onClick={() => onAdd(def.type)}>
-              <Icon className="size-3.5 mr-2" />
-              {def.label}
-            </DropdownMenuItem>
-          );
-        })}
+        <AddWidgetItems onAdd={onAdd} />
       </DropdownMenuContent>
     </DropdownMenu>
   );

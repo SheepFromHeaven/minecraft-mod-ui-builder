@@ -8,6 +8,8 @@ import { getBindingNode } from "@/components/BindingsTree";
 import WidgetVisual from "./WidgetVisual";
 import WIDGET_REGISTRY from "@/lib/widgetRegistry";
 import { useTextures } from "@/lib/TextureContext";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AddWidgetItems } from "@/components/AddWidgetItems";
 
 const BindingsCtx = createContext<BindingsSchema>({});
 const UpdateWidgetCtx = React.createContext<(w: WidgetSpec) => void>(() => {});
@@ -36,6 +38,35 @@ const CONTAINER_TYPES = new Set(
 
 // Handle texture is 12px wide + 1px bevel each side
 const SCROLLBAR_FIXED_PX = 14;
+
+// Resize handle visuals — the hit area is provided by re-resizable; we render
+// a centered square inside it so the handle looks like standard design tools.
+const HANDLE_VISUAL = (
+  <div style={{
+    width: 8, height: 8,
+    background: "#fff",
+    border: "1.5px solid #1a6bcc",
+    borderRadius: 1.5,
+    boxShadow: "0 0 0 1px rgba(0,0,0,0.25)",
+    pointerEvents: "none",
+  }} />
+);
+const RESIZE_HANDLE_STYLES: Record<string, React.CSSProperties> = {
+  top:         { display: "flex", alignItems: "center",   justifyContent: "center" },
+  bottom:      { display: "flex", alignItems: "center",   justifyContent: "center" },
+  left:        { display: "flex", alignItems: "center",   justifyContent: "center" },
+  right:       { display: "flex", alignItems: "center",   justifyContent: "center" },
+  topLeft:     { display: "flex", alignItems: "center",   justifyContent: "center" },
+  topRight:    { display: "flex", alignItems: "center",   justifyContent: "center" },
+  bottomLeft:  { display: "flex", alignItems: "center",   justifyContent: "center" },
+  bottomRight: { display: "flex", alignItems: "center",   justifyContent: "center" },
+};
+const RESIZE_HANDLE_COMPONENT: Record<string, React.ReactElement> = {
+  top: HANDLE_VISUAL, bottom: HANDLE_VISUAL,
+  left: HANDLE_VISUAL, right: HANDLE_VISUAL,
+  topLeft: HANDLE_VISUAL, topRight: HANDLE_VISUAL,
+  bottomLeft: HANDLE_VISUAL, bottomRight: HANDLE_VISUAL,
+};
 
 interface Props {
   width: number;
@@ -269,8 +300,6 @@ export default function Canvas({
           x={ctxMenu.x}
           y={ctxMenu.y}
           scale={scale}
-          canvasWidth={width}
-          canvasHeight={height}
           onAdd={(type) => { onAddWidget(type, ctxMenu.x, ctxMenu.y); setCtxMenu(null); }}
           onClose={() => setCtxMenu(null)}
         />
@@ -528,6 +557,8 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
             : { left: true, right: true, topLeft: false, topRight: false, bottomLeft: false, bottomRight: false, top: false, bottom: false }
           : false
       }
+      resizeHandleStyles={isSelected ? RESIZE_HANDLE_STYLES : undefined}
+      resizeHandleComponent={isSelected ? RESIZE_HANDLE_COMPONENT : undefined}
     >
       <WidgetVisual widget={previewWidget} scale={scale} interactState="idle" />
       {inlineEdit?.id === widget.id && (() => {
@@ -1243,62 +1274,25 @@ function TryWidget({ widget, scale, childMap, zBase, allWidgets }: {
   );
 }
 
-function CanvasContextMenu({ x, y, scale, canvasWidth, canvasHeight, onAdd, onClose }: {
+function CanvasContextMenu({ x, y, scale, onAdd, onClose }: {
   x: number; y: number; scale: number;
-  canvasWidth: number; canvasHeight: number;
   onAdd: (type: string) => void;
   onClose: () => void;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  // Close on outside click or Escape
-  React.useEffect(() => {
-    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
-    const onKey  = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
-    return () => { window.removeEventListener("mousedown", onDown); window.removeEventListener("keydown", onKey); };
-  }, [onClose]);
-
-  // Menu dimensions (approximate) — flip if it would overflow the canvas
-  const MENU_W = 160;
-  const MENU_H = WIDGET_REGISTRY.length * 28 + 8;
-  const left = (x * scale + MENU_W > canvasWidth * scale) ? x * scale - MENU_W : x * scale;
-  const top  = (y * scale + MENU_H > canvasHeight * scale) ? y * scale - MENU_H : y * scale;
-
+  // A zero-size trigger div is placed at the right-click position inside the canvas.
+  // DropdownMenu opens immediately (open={true}) and anchors its popup to that trigger,
+  // so the popup appears exactly where the user right-clicked using the same Radix/base-ui
+  // menu component as the LayersTree add-widget button.
   return (
-    <div
-      ref={ref}
-      onMouseDown={(e) => e.stopPropagation()}
-      style={{
-        position: "absolute",
-        left,
-        top,
-        zIndex: 9999,
-        background: "#1e1e1e",
-        border: "1px solid #444",
-        borderRadius: 6,
-        padding: "4px 0",
-        minWidth: MENU_W,
-        boxShadow: "0 4px 16px rgba(0,0,0,0.6)",
-        userSelect: "none",
-      }}
-    >
-      <div style={{ padding: "4px 12px 6px", fontSize: 10, color: "#888", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-        Add widget
-      </div>
-      {WIDGET_REGISTRY.map(def => (
-        <div
-          key={def.type}
-          onClick={() => onAdd(def.type)}
-          style={{ padding: "5px 12px", fontSize: 12, color: "#ddd", cursor: "pointer" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = "#2d5fa6"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = ""; }}
-        >
-          {def.label}
-        </div>
-      ))}
-    </div>
+    <DropdownMenu open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DropdownMenuTrigger
+        onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
+        style={{ position: "absolute", left: x * scale, top: y * scale, width: 0, height: 0, border: "none", background: "none", padding: 0 }}
+      />
+      <DropdownMenuContent side="bottom" align="start" className="min-w-40">
+        <AddWidgetItems onAdd={(type) => { onAdd(type); onClose(); }} />
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

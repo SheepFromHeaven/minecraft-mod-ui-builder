@@ -291,11 +291,12 @@ export default function EditorPage() {
     setSelectedId(null);
   }, [screen, commitScreen, selectedId]);
 
-  const addWidget = useCallback((type: string, parentId?: string) => {
+  const addWidget = useCallback((type: string, parentId?: string, atX?: number, atY?: number) => {
     const def = getWidgetDef(type);
     if (!def) return;
     const id = newId(type);
-    const widget: WidgetSpec = { ...def.defaultWidget, id, ...(parentId ? { parentId } : {}) };
+    const pos = atX !== undefined && atY !== undefined ? { x: atX, y: atY } : {};
+    const widget: WidgetSpec = { ...def.defaultWidget, id, ...pos, ...(parentId ? { parentId } : {}) };
     commitScreen({ ...screen, widgets: [...screen.widgets, widget] });
     setSelectedId(id);
   }, [screen, commitScreen]);
@@ -568,6 +569,7 @@ export default function EditorPage() {
                 onUpdateWidget={updateWidget}
                 onUpdateWidgets={(widgets) => commitScreen({ ...screen, widgets })}
                 bindingsSchema={screen.bindingsSchema ?? {}}
+                onAddWidget={(type, x, y) => addWidget(type, undefined, x, y)}
               />
             </div>
 

@@ -50,6 +50,7 @@ interface Props {
   onSelect: (id: string | null) => void;
   onUpdateWidget: (widget: WidgetSpec) => void;
   onUpdateWidgets: (widgets: WidgetSpec[]) => void;
+  onAddWidget?: (type: string, x: number, y: number) => void;
 }
 
 function applyBindingPreviews(widget: WidgetSpec, schema: BindingsSchema): { widget: WidgetSpec; hidden: boolean } {
@@ -68,7 +69,7 @@ function applyBindingPreviews(widget: WidgetSpec, schema: BindingsSchema): { wid
 }
 
 export default function Canvas({
-  width, height, scale, widgets, selectedId, gridSize, showGrid, tryMode, bindingsSchema, onSelect, onUpdateWidget, onUpdateWidgets,
+  width, height, scale, widgets, selectedId, gridSize, showGrid, tryMode, bindingsSchema, onSelect, onUpdateWidget, onUpdateWidgets, onAddWidget,
 }: Props) {
   const cssWidth = width * scale;
   const cssHeight = height * scale;
@@ -99,6 +100,8 @@ export default function Canvas({
   // Rnd, and any ancestor group auto-sizing to wrap it, update in real time
   // before the drag commits.
   const [draggingPos, setDraggingPos] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null); // canvas-unit coords
+  const canvasRef = useRef<HTMLDivElement>(null);
 
   const getWidget = (id: string) => widgets.find(w => w.id === id);
 
@@ -140,9 +143,20 @@ export default function Canvas({
   // no way to move a *different* (ancestor) widget instead of itself. Rnd's
   // built-in dragging is disabled everywhere (see EditWidget); this handler
   // is the sole source of drag movement, keyed to the resolved target only.
+  const handleCanvasContextMenu = (e: React.MouseEvent) => {
+    if (tryMode || !onAddWidget) return;
+    e.preventDefault();
+    const rect = canvasRef.current!.getBoundingClientRect();
+    const x = Math.max(0, Math.round((e.clientX - rect.left) / scale));
+    const y = Math.max(0, Math.round((e.clientY - rect.top) / scale));
+    setCtxMenu({ x, y });
+  };
+
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     if (tryMode) return;
+    if (e.button !== 0) return; // ignore right/middle click — right-click is handled by contextmenu
     e.preventDefault(); // prevent native browser image/text drag hijacking mouse events
+    setCtxMenu(null);
     const el = (e.target as HTMLElement).closest("[data-widget-id]");
     if (!el) { onSelect(null); return; }
     const clickedId = el.getAttribute("data-widget-id")!;
@@ -192,6 +206,7 @@ export default function Canvas({
 
   return (
     <div
+      ref={canvasRef}
       style={{
         position: "relative",
         width: cssWidth,
@@ -201,6 +216,7 @@ export default function Canvas({
         cursor: tryMode ? "default" : undefined,
       }}
       onMouseDown={handleCanvasMouseDown}
+      onContextMenu={handleCanvasContextMenu}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -247,6 +263,18 @@ export default function Canvas({
         </UpdateWidgetCtx.Provider>
         </UpdateWidgetsCtx.Provider>
       </BindingsCtx.Provider>
+
+      {ctxMenu && onAddWidget && (
+        <CanvasContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          scale={scale}
+          canvasWidth={width}
+          canvasHeight={height}
+          onAdd={(type) => { onAddWidget(type, ctxMenu.x, ctxMenu.y); setCtxMenu(null); }}
+          onClose={() => setCtxMenu(null)}
+        />
+      )}
     </div>
   );
 }
@@ -1211,6 +1239,65 @@ function TryWidget({ widget, scale, childMap, zBase, allWidgets }: {
           }}
         />
       )}
+    </div>
+  );
+}
+
+function CanvasContextMenu({ x, y, scale, canvasWidth, canvasHeight, onAdd, onClose }: {
+  x: number; y: number; scale: number;
+  canvasWidth: number; canvasHeight: number;
+  onAdd: (type: string) => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Close on outside click or Escape
+  React.useEffect(() => {
+    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
+    const onKey  = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => { window.removeEventListener("mousedown", onDown); window.removeEventListener("keydown", onKey); };
+  }, [onClose]);
+
+  // Menu dimensions (approximate) — flip if it would overflow the canvas
+  const MENU_W = 160;
+  const MENU_H = WIDGET_REGISTRY.length * 28 + 8;
+  const left = (x * scale + MENU_W > canvasWidth * scale) ? x * scale - MENU_W : x * scale;
+  const top  = (y * scale + MENU_H > canvasHeight * scale) ? y * scale - MENU_H : y * scale;
+
+  return (
+    <div
+      ref={ref}
+      onMouseDown={(e) => e.stopPropagation()}
+      style={{
+        position: "absolute",
+        left,
+        top,
+        zIndex: 9999,
+        background: "#1e1e1e",
+        border: "1px solid #444",
+        borderRadius: 6,
+        padding: "4px 0",
+        minWidth: MENU_W,
+        boxShadow: "0 4px 16px rgba(0,0,0,0.6)",
+        userSelect: "none",
+      }}
+    >
+      <div style={{ padding: "4px 12px 6px", fontSize: 10, color: "#888", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+        Add widget
+      </div>
+      {WIDGET_REGISTRY.map(def => (
+        <div
+          key={def.type}
+          onClick={() => onAdd(def.type)}
+          style={{ padding: "5px 12px", fontSize: 12, color: "#ddd", cursor: "pointer" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = "#2d5fa6"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = ""; }}
+        >
+          {def.label}
+        </div>
+      ))}
     </div>
   );
 }

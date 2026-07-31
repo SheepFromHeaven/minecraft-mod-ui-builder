@@ -160,9 +160,10 @@ export default function Canvas({
     const origY = target.y;
     let moved = false;
 
+    const snapToGrid = (v: number) => Math.round(v / gridSize) * gridSize;
     const onMove = (ev: MouseEvent) => {
-      const dx = Math.round((ev.clientX - startClientX) / scale);
-      const dy = Math.round((ev.clientY - startClientY) / scale);
+      const dx = snapToGrid(origX + (ev.clientX - startClientX) / scale) - origX;
+      const dy = snapToGrid(origY + (ev.clientY - startClientY) / scale) - origY;
       if (dx === 0 && dy === 0) return;
       if (!moved) {
         moved = true;
@@ -175,8 +176,8 @@ export default function Canvas({
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
       if (moved) {
-        const dx = Math.round((ev.clientX - startClientX) / scale);
-        const dy = Math.round((ev.clientY - startClientY) / scale);
+        const dx = snapToGrid(origX + (ev.clientX - startClientX) / scale) - origX;
+        const dy = snapToGrid(origY + (ev.clientY - startClientY) / scale) - origY;
         onUpdateWidget({ ...target, x: Math.max(0, origX + dx), y: Math.max(0, origY + dy) });
       } else {
         // No movement occurred — this was a plain click, so apply the

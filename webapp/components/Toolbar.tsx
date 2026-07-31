@@ -6,13 +6,6 @@ import type { ScreenSpec, BindingsSchema } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import SettingsDialog from "@/components/SettingsDialog";
 import BindingsModal from "@/components/BindingsModal";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -54,6 +47,8 @@ export default function Toolbar({
   scale, onZoomIn, onZoomOut, onZoomReset, onSaveToTestMod,
   bindingsSchema, onUpdateBindingsSchema, actions, onUpdateActions, modId,
 }: Props) {
+  const SNAP_STEPS = [1, 2, 4, 8];
+  const snapIdx = SNAP_STEPS.indexOf(gridSize);
   return (
     <div className="flex items-center gap-2 border-b bg-background px-3 py-2 flex-wrap shrink-0">
       <SidebarTrigger className="h-8 w-8" />
@@ -88,19 +83,14 @@ export default function Toolbar({
         Grid
       </label>
 
-      <label className="flex items-center gap-1.5 text-muted-foreground">
+      <div className="flex items-center gap-1.5 text-muted-foreground">
         Snap:
-        <Select value={String(gridSize)} onValueChange={(v) => { if (v) onGridSizeChange(parseInt(v)); }}>
-          <SelectTrigger className="h-8 w-20">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {[1, 2, 4, 8].map((v) => (
-              <SelectItem key={v} value={String(v)}>{v}px</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </label>
+        <div className="flex items-center">
+          <Button variant="outline" size="sm" className="h-8 w-8 rounded-r-none border-r-0" onClick={() => onGridSizeChange(SNAP_STEPS[snapIdx - 1])} disabled={snapIdx <= 0}>−</Button>
+          <Button variant="outline" size="sm" className="h-8 min-w-14 rounded-none" onClick={() => onGridSizeChange(1)} title="Reset snap">{gridSize}px</Button>
+          <Button variant="outline" size="sm" className="h-8 w-8 rounded-l-none border-l-0" onClick={() => onGridSizeChange(SNAP_STEPS[snapIdx + 1])} disabled={snapIdx >= SNAP_STEPS.length - 1}>+</Button>
+        </div>
+      </div>
 
       <Separator orientation="vertical" className="h-5" />
 

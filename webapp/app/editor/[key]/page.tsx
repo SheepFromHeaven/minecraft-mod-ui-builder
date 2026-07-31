@@ -9,6 +9,7 @@ import Toolbar from "@/components/Toolbar";
 import { useTextures } from "@/lib/TextureContext";
 import TextureDebug from "@/components/TextureDebug";
 import type { ContainerSpec, ScreenSpec, WidgetSpec } from "@/lib/types";
+import { generateJavaClass } from "@/lib/generateJavaClass";
 import { getWidgetDef } from "@/lib/widgetRegistry";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
@@ -455,6 +456,15 @@ export default function EditorPage() {
     }
   }, [screen]);
 
+  const handleCopyJava = useCallback(async () => {
+    try {
+      const java = generateJavaClass(screen);
+      await navigator.clipboard.writeText(java);
+    } catch (e) {
+      alert(`Could not copy: ${e instanceof Error ? e.message : e}`);
+    }
+  }, [screen]);
+
   const handleImportClick = () => importRef.current?.click();
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -539,6 +549,7 @@ export default function EditorPage() {
             onScreenChange={(patch) => commitScreen({ ...screen, ...patch })}
             onExport={handleExport}
             onImport={handleImportClick}
+            onCopyJava={handleCopyJava}
             onResetTextures={handleResetTextures}
             onViewTextures={() => setShowTextureDebug(true)}
             onExtractPack={extractPack}

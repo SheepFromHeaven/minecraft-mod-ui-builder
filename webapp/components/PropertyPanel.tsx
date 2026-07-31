@@ -331,7 +331,7 @@ export default function PropertyPanel({ widget, onUpdate, bindingsSchema, action
         <Field label="Action">
           <PropSelect
             value={widget.action ?? ""}
-            options={["", "close", ...actions]}
+            options={["", ...actions]}
             labels={{ "": "(none)" }}
             onChange={(v) => set({ action: v || undefined })}
           />

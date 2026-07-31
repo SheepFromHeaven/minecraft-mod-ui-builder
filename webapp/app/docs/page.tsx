@@ -532,11 +532,8 @@ export default function DocsPage() {
                 name (<Code>my_mod.save_settings</Code>) — that&apos;s what the runtime fires.
               </p>
               <p>
-                To assign an action, select a widget and use the <strong className="text-foreground">Action</strong> dropdown in the Property Panel. It lists all declared actions, plus the built-in <Code>close</Code> action.
+                To assign an action, select a widget and use the <strong className="text-foreground">Action</strong> dropdown in the Property Panel. It lists all declared actions.
               </p>
-              <Callout kind="tip">
-                The built-in <Code>close</Code> action is handled automatically by the runtime — no need to declare it.
-              </Callout>
             </div>
             <div className="sm:w-80 shrink-0">
               <Screenshot src="/docs/actions-tab.png" alt="Data Schema — Actions tab" />
@@ -549,9 +546,7 @@ screen.on("save_settings", (id, screen, value) -> {
     // id    = widget ID that fired
     // value = current value (slider, toggle state, etc.)
     saveSettings();
-});
-
-// The "close" action is built-in — no listener needed`}
+});`}
           </CodeBlock>
 
           <h3 className="text-base font-semibold mb-2 mt-6">In the exported JSON</h3>
@@ -858,7 +853,7 @@ screen.on("save_settings", (id, screen, value) -> {
       "id": "close_btn", "type": "button",
       "x": 88, "y": 158, "w": 72, "h": 14,
       "props": { "text": "Close" },
-      "action": "close"                                // built-in
+      "action": "close"
     },
     {
       "id": "item_scroll", "type": "scrollbar",

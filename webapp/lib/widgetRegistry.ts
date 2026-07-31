@@ -104,16 +104,8 @@ const WIDGET_REGISTRY: WidgetDef[] = [
     defaultWidget: { type: "label", x: 8, y: 8, w: 80, h: 10, text: "Label", icon: null, props: { color: "4210752", shadow: "false" } },
     propSchema: [
       { key: "color", label: "Color (ARGB int)", type: "number", defaultValue: "4210752" },
-      { key: "shadow", label: "Shadow", type: "select", options: ["true", "false"], defaultValue: "false" },
+      { key: "shadow", label: "Shadow", type: "boolean", defaultValue: "false" },
       { key: "align", label: "Align", type: "select", options: ["left", "center", "right"], defaultValue: "left" },
-    ],
-  },
-  {
-    type: "icon",
-    label: "Icon",
-    defaultWidget: { type: "icon", x: 8, y: 8, w: 16, h: 16, text: "", icon: null, props: { scale: "1" } },
-    propSchema: [
-      { key: "scale", label: "Scale", type: "number", defaultValue: "1" },
     ],
   },
   {
@@ -165,8 +157,8 @@ const WIDGET_REGISTRY: WidgetDef[] = [
       text: "", icon: null,
       props: { item_height: "20" },
       item_template: [
-        { id: "icon",  type: "icon",  x: 2,  y: 2,  w: 16, h: 16, text: "", icon: null, props: {} },
-        { id: "label", type: "label", x: 22, y: 6,  w: 120, h: 12, text: "", icon: null, props: {} },
+        { id: "icon",  type: "sprite", x: 2,  y: 2,  w: 16, h: 16, text: "", icon: null, props: { src: "", fit: "fill" } },
+        { id: "label", type: "label",  x: 22, y: 6,  w: 120, h: 12, text: "", icon: null, props: {} },
       ],
     },
     propSchema: [

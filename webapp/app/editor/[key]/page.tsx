@@ -578,7 +578,6 @@ export default function EditorPage() {
                 <PropertyPanel
                   widget={selectedWidget}
                   onUpdate={updateWidget}
-                  onDelete={() => deleteWidget()}
                   bindingsSchema={screen.bindingsSchema ?? {}}
                   actions={screen.actions ?? []}
                   inventoryAreaIds={screen.widgets.filter((w) => w.type === "inventory_area").map((w) => w.id)}

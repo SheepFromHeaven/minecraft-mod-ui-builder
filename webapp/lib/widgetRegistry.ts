@@ -81,7 +81,7 @@ const WIDGET_REGISTRY: WidgetDef[] = [
   {
     type: "checkbox",
     label: "Checkbox",
-    defaultWidget: { type: "checkbox", x: 8, y: 8, w: 20, h: 20, text: "Option", icon: null, props: { checked: "false" } },
+    defaultWidget: { type: "checkbox", x: 8, y: 8, w: 20, h: 20, text: "", icon: null, props: { checked: "false" } },
     propSchema: [
       { key: "checked", label: "Checked", type: "boolean", defaultValue: "false" },
     ],

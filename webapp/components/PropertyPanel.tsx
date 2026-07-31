@@ -20,7 +20,7 @@ import { AlignLeft, AlignCenter, AlignRight } from "lucide-react";
 const BINDING_TARGETS: Record<string, string[]> = {
   button:        ["text", "enabled", "visible"],
   toggle_button: ["text", "enabled", "visible"],
-  checkbox:      ["text", "enabled", "visible"],
+  checkbox:      ["enabled", "visible"],
   input:         ["text", "enabled", "visible"],
   slider:        ["enabled", "visible"],
   label:         ["text", "visible"],
@@ -116,7 +116,7 @@ export default function PropertyPanel({ widget, onUpdate, bindingsSchema, action
         </div>
       )}
 
-      {widget.type !== "group" && (
+      {widget.type !== "group" && widget.type !== "checkbox" && (
         <Field label="Text">
           <Input
             className={`h-6 text-xs px-1.5 ${bindings.text ? "text-blue-500 italic" : ""}`}

@@ -7,8 +7,8 @@
     {
       "id": "main_tabs",
       "type": "tabs",
-      "x": 10,
-      "y": 10,
+      "x": 12,
+      "y": 12,
       "w": 300,
       "h": 240,
       "text": "",
@@ -62,18 +62,6 @@
       "h": 12,
       "text": "Health: ...",
       "icon": null,
-      "parentId": "tab_general",
-      "props": {}
-    },
-    {
-      "id": "diamond_icon",
-      "type": "icon",
-      "x": 272,
-      "y": 20,
-      "w": 16,
-      "h": 16,
-      "text": "",
-      "icon": "diamond",
       "parentId": "tab_general",
       "props": {}
     },
@@ -157,18 +145,6 @@
       "props": {}
     },
     {
-      "id": "diamond_icon_inv",
-      "type": "icon",
-      "x": 244,
-      "y": 4,
-      "w": 16,
-      "h": 16,
-      "text": "",
-      "icon": "diamond",
-      "parentId": "tab_inventory",
-      "props": {}
-    },
-    {
       "id": "inv_scrollbar",
       "type": "scrollbar",
       "x": 172,
@@ -233,79 +209,30 @@
       "icon": null,
       "parentId": "tab_inventory",
       "props": {}
-    },
-    {
-      "id": "inv_10row",
-      "type": "inventory_area",
-      "x": 10,
-      "y": 24,
-      "w": 162,
-      "h": 54,
-      "text": "",
-      "icon": null,
-      "parentId": "tab_inventory",
-      "props": {
-        "cols": "9",
-        "slot_size": "18",
-        "viewport_rows": "3"
-      }
-    },
-    {
-      "id": "inv_second",
-      "type": "inventory_area",
-      "x": 10,
-      "y": 100,
-      "w": 90,
-      "h": 36,
-      "text": "",
-      "icon": null,
-      "parentId": "tab_inventory",
-      "props": {
-        "cols": "5",
-        "slot_size": "18",
-        "viewport_rows": "2"
-      }
-    },
-    {
-      "id": "player_inv",
-      "type": "inventory_area",
-      "x": 10,
-      "y": 160,
-      "w": 162,
-      "h": 54,
-      "text": "",
-      "icon": null,
-      "parentId": "tab_inventory",
-      "props": {
-        "cols": "9",
-        "slot_size": "18",
-        "viewport_rows": "3",
-        "source": "player"
-      }
     }
   ],
   "container": {
     "slots": [
       {
         "id": "inv_10row",
-        "x": 20,
-        "y": 54,
+        "x": 22,
+        "y": 56,
         "cols": 9,
         "slot_size": 18,
         "viewport_rows": 3
       },
       {
         "id": "inv_second",
-        "x": 20,
-        "y": 130,
+        "x": 22,
+        "y": 132,
         "cols": 5,
         "slot_size": 18,
         "viewport_rows": 2
       },
       {
         "id": "player_inv",
-        "x": 20,
-        "y": 190,
+        "x": 22,
+        "y": 192,
         "cols": 9,
         "slot_size": 18,
         "viewport_rows": 3,

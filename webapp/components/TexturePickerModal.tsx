@@ -145,7 +145,7 @@ export default function TexturePickerModal({ open, packTextures, current, onSele
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-5xl w-full h-[85vh] flex flex-col gap-0 p-0 overflow-hidden">
+      <DialogContent className="w-[90vw] max-w-7xl h-[85vh] flex flex-col gap-0 p-0 overflow-hidden">
         <DialogHeader className="px-4 pt-4 pb-3 shrink-0 border-b">
           <DialogTitle>Pick texture</DialogTitle>
         </DialogHeader>
@@ -153,7 +153,7 @@ export default function TexturePickerModal({ open, packTextures, current, onSele
         <div className="flex flex-1 min-h-0">
 
           {/* ── Left: folder tree ── */}
-          <div className="w-52 shrink-0 flex flex-col border-r overflow-hidden">
+          <div className="w-64 shrink-0 flex flex-col border-r overflow-hidden">
             <div className="p-2 border-b shrink-0">
               <Input
                 ref={searchRef}
@@ -186,7 +186,7 @@ export default function TexturePickerModal({ open, packTextures, current, onSele
           <div className="flex-1 min-w-0 overflow-y-auto p-3">
             <div
               className="grid gap-2"
-              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))" }}
+              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))" }}
             >
               {visibleKeys.map((key) => {
                 const isSelected = key === selected;
@@ -204,7 +204,7 @@ export default function TexturePickerModal({ open, packTextures, current, onSele
                         : "border-transparent hover:border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800",
                     ].join(" ")}
                   >
-                    <div className="w-16 h-16 flex items-center justify-center bg-[#555] rounded overflow-hidden">
+                    <div className="w-20 h-20 flex items-center justify-center bg-[#555] rounded overflow-hidden">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={packTextures[key]}
@@ -228,7 +228,7 @@ export default function TexturePickerModal({ open, packTextures, current, onSele
           </div>
 
           {/* ── Right: preview + confirm ── */}
-          <div className="w-52 shrink-0 flex flex-col gap-3 p-4 border-l">
+          <div className="w-64 shrink-0 flex flex-col gap-3 p-4 border-l">
             <div
               className="flex-1 flex items-center justify-center bg-[#555] rounded min-h-0"
               style={{ minHeight: 120 }}

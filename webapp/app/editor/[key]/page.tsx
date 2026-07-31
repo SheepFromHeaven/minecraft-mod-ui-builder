@@ -7,7 +7,7 @@ import PropertyPanel from "@/components/PropertyPanel";
 import AppSidebar from "@/components/Sidebar";
 import Toolbar from "@/components/Toolbar";
 import { useTextures } from "@/lib/TextureContext";
-import TextureDebug from "@/components/TextureDebug";
+import TexturePickerModal from "@/components/TexturePickerModal";
 import type { ContainerSpec, ScreenSpec, WidgetSpec } from "@/lib/types";
 import { generateJavaClass } from "@/lib/generateJavaClass";
 import { getWidgetDef } from "@/lib/widgetRegistry";
@@ -140,7 +140,7 @@ export default function EditorPage() {
   const router = useRouter();
   const projectKey = params.key;
 
-  const { reset, extractPack, initialized, ready, setupRequired } = useTextures();
+  const { reset, extractPack, initialized, ready, setupRequired, packTextures } = useTextures();
   const [showTextureDebug, setShowTextureDebug] = useState(false);
   const [projectLoaded, setProjectLoaded] = useState(false);
 
@@ -151,6 +151,8 @@ export default function EditorPage() {
 
   const [history, setHistory] = useState<HistoryEntry[]>(EMPTY_SESSION.history);
   const [cursor, setCursor] = useState(EMPTY_SESSION.cursor);
+  const cursorRef = useRef(EMPTY_SESSION.cursor);
+  cursorRef.current = cursor;
 
   const entry = history[cursor];
   const screens = entry.screens;
@@ -163,6 +165,9 @@ export default function EditorPage() {
   const [showGrid, setShowGrid] = useState(EMPTY_SESSION.showGrid);
   const [scale, setScale] = useState(3);
   const [tryMode, setTryMode] = useState(false);
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
+  const panRef = useRef({ x: 0, y: 0 });
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
   const clipboardRef = useRef<WidgetSpec | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
@@ -230,16 +235,43 @@ export default function EditorPage() {
   }, [projectKey, computeFit]);
 
   useEffect(() => {
-    const el = canvasWrapperRef.current;
-    if (!el) return;
-    const handler = (e: WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return;
+    const onWheel = (e: WheelEvent) => {
+      const el = canvasWrapperRef.current;
+      if (!el || !el.contains(e.target as Node)) return;
       e.preventDefault();
-      if (e.deltaY < 0) setScale((s) => Math.min(s + 1, 8));
-      else               setScale((s) => Math.max(s - 1, 1));
+      e.stopPropagation();
+      setScale((s) => Math.max(1, Math.min(8, s * Math.pow(0.999, e.deltaY))));
     };
-    el.addEventListener("wheel", handler, { passive: false });
-    return () => el.removeEventListener("wheel", handler);
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 1) return;
+      const el = canvasWrapperRef.current;
+      if (!el || !el.contains(e.target as Node)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      el.style.cursor = "grabbing";
+      const startX = e.clientX, startY = e.clientY;
+      const startPanX = panRef.current.x, startPanY = panRef.current.y;
+      const onMove = (ev: MouseEvent) => {
+        const x = startPanX + ev.clientX - startX;
+        const y = startPanY + ev.clientY - startY;
+        panRef.current = { x, y };
+        setPanX(x);
+        setPanY(y);
+      };
+      const onUp = () => {
+        el.style.cursor = "";
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    };
+    window.addEventListener("wheel", onWheel, { passive: false, capture: true });
+    window.addEventListener("mousedown", onMouseDown, { capture: true });
+    return () => {
+      window.removeEventListener("wheel", onWheel, { capture: true });
+      window.removeEventListener("mousedown", onMouseDown, { capture: true });
+    };
   }, []);
 
   const selectedWidget = screen.widgets.find((w) => w.id === selectedId) ?? null;
@@ -266,13 +298,15 @@ export default function EditorPage() {
   }, [screen.widgets, selectedId]);
 
   const commit = useCallback((next: HistoryEntry) => {
+    const c = cursorRef.current;
+    cursorRef.current = Math.min(c + 1, MAX_HISTORY - 1);
     setHistory((h) => {
-      const trimmed = h.slice(0, cursor + 1);
+      const trimmed = h.slice(0, c + 1);
       const capped = trimmed.length >= MAX_HISTORY ? trimmed.slice(1) : trimmed;
       return [...capped, next];
     });
-    setCursor((c) => Math.min(c + 1, MAX_HISTORY - 1));
-  }, [cursor]);
+    setCursor(cursorRef.current);
+  }, []);
 
   const commitScreen = useCallback((next: ScreenSpec) => {
     commit({ screens: screens.map((s, i) => i === activeIdx ? next : s), activeIdx });
@@ -510,7 +544,13 @@ export default function EditorPage() {
 
   return (
     <>
-      {showTextureDebug && <TextureDebug onClose={() => setShowTextureDebug(false)} />}
+      <TexturePickerModal
+        open={showTextureDebug}
+        packTextures={packTextures}
+        current=""
+        onSelect={() => {}}
+        onClose={() => setShowTextureDebug(false)}
+      />
       <SidebarProvider>
         {!tryMode && (
           <AppSidebar
@@ -533,7 +573,7 @@ export default function EditorPage() {
           />
         )}
 
-        <div className="flex flex-1 flex-col overflow-hidden min-h-svh">
+        <div className="flex flex-1 flex-col overflow-hidden h-svh">
           <Toolbar
             screen={screen}
             gridSize={gridSize}
@@ -566,7 +606,8 @@ export default function EditorPage() {
           />
 
           <div className="flex flex-1 overflow-hidden">
-            <div ref={canvasWrapperRef} className="flex flex-1 items-center justify-center overflow-auto p-8">
+            <div ref={canvasWrapperRef} className="flex flex-1 items-center justify-center overflow-hidden p-8">
+              <div style={{ transform: `translate(${panX}px, ${panY}px)`, flexShrink: 0 }}>
               <Canvas
                 width={screen.width}
                 height={screen.height}
@@ -582,6 +623,7 @@ export default function EditorPage() {
                 bindingsSchema={screen.bindingsSchema ?? {}}
                 onAddWidget={(type, x, y) => addWidget(type, undefined, x, y)}
               />
+              </div>
             </div>
 
             {!tryMode && (

@@ -180,9 +180,9 @@ export default function PropertyPanel({ widget, onUpdate, onDelete, bindingsSche
                   ) : (
                     <div className="flex flex-col gap-1">
                       <button
-                        title="Click to pick texture"
+                        title="Change texture"
                         onClick={() => setTexPickerOpen(true)}
-                        className="w-full rounded border border-gray-300 hover:border-blue-400 overflow-hidden transition-colors"
+                        className="w-full rounded border border-gray-300 hover:border-blue-400 overflow-hidden transition-colors cursor-pointer"
                         style={{ background: "#555", aspectRatio: currentValue && packTextures[currentValue] ? undefined : "16/9" }}
                       >
                         {currentValue && packTextures[currentValue] ? (

@@ -2,6 +2,7 @@ package sheepfromheaven.screenspec.runtime;
 
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Checkbox;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 
@@ -25,6 +26,7 @@ public final class WidgetFactories {
     static {
         register("button", WidgetFactories::button);
         register("toggle_button", WidgetFactories::toggleButton);
+        register("checkbox", WidgetFactories::checkbox);
         register("input", WidgetFactories::input);
         register("slider", WidgetFactories::slider);
         register("list", WidgetFactories::list);
@@ -60,6 +62,15 @@ public final class WidgetFactories {
             }
             host.dispatchAction(w.id, w, newState);
         }).bounds(w.x, w.y, w.w, w.h).build(ToggleButtonWidget::new);
+    }
+
+    private static AbstractWidget checkbox(WidgetSpec w, ActionHost host) {
+        boolean initial = w.propBoolean("checked", false);
+        return Checkbox.builder(Component.literal(w.text), host.getFont())
+            .pos(w.x, w.y)
+            .selected(initial)
+            .onValueChange((box, val) -> host.dispatchAction(w.id, w, val))
+            .build();
     }
 
     private static AbstractWidget input(WidgetSpec w, ActionHost host) {

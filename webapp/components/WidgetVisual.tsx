@@ -348,7 +348,7 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
       fit === "none"    ? "none"    : "fill";
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={url} alt="" style={{
+      <img draggable={false} src={url} alt="" style={{
         width: "100%", height: "100%",
         objectFit,
         imageRendering: "pixelated",
@@ -371,7 +371,7 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
       <div style={commonStyle}>
         {widget.icon ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={widget.icon} alt="" style={{ width: "100%", height: "100%", imageRendering: "pixelated" }} />
+          <img draggable={false} src={widget.icon} alt="" style={{ width: "100%", height: "100%", imageRendering: "pixelated" }} />
         ) : (
           <span style={{ fontSize: fontSize * 0.7 }}>icon</span>
         )}
@@ -412,7 +412,7 @@ export default function WidgetVisual({ widget, scale, interactState = "idle", to
       }}>
         {widget.icon && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={widget.icon} alt="" style={{ width: fontSize, height: fontSize, imageRendering: "pixelated" }} />
+          <img draggable={false} src={widget.icon} alt="" style={{ width: fontSize, height: fontSize, imageRendering: "pixelated" }} />
         )}
         {widget.text}
       </div>

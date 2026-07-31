@@ -142,6 +142,7 @@ export default function Canvas({
   // is the sole source of drag movement, keyed to the resolved target only.
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     if (tryMode) return;
+    e.preventDefault(); // prevent native browser image/text drag hijacking mouse events
     const el = (e.target as HTMLElement).closest("[data-widget-id]");
     if (!el) { onSelect(null); return; }
     const clickedId = el.getAttribute("data-widget-id")!;
@@ -204,6 +205,7 @@ export default function Canvas({
       <img
         src={WORLD_IMAGE_URL}
         alt=""
+        draggable={false}
         style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none", zIndex: 0 }}
       />
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.48)", pointerEvents: "none", zIndex: 1 }} />

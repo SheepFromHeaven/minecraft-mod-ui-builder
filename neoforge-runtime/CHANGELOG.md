@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.8.0...neoforge-runtime-v0.8.1) (2026-07-31)
+
+
+### Bug Fixes
+
+* **ci:** revert invalid Minotaur env fields; use PAT for release-please ([baae817](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/baae8170343cb63bc2f0274d6cdaf060906709ec))
+
 ## [0.8.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.7.0...neoforge-runtime-v0.8.0) (2026-07-31)
 
 

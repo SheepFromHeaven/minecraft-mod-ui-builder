@@ -15,6 +15,7 @@ jobs:
     outputs:
       neoforge--release_created: ${{ steps.release.outputs['neoforge-runtime--release_created'] }}
       neoforge--tag_name: ${{ steps.release.outputs['neoforge-runtime--tag_name'] }}
+      webapp--release_created: ${{ steps.release.outputs['webapp--release_created'] }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
@@ -22,6 +23,35 @@ jobs:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  # When one package releases, the other package's open release PR has a stale
+  # .release-please-manifest.json (it was written when the sibling was at an older
+  # version). Release-please sees the generated content as identical to what is
+  # already in that PR and skips updating it, leaving the conflict permanently.
+  # Fix: close every remaining open release-please PR so release-please regenerates
+  # it fresh — with the current manifest — on the very next run (which is this same
+  # push, since release-please runs once for releases and once for PR creation).
+  refresh-stale-release-prs:
+    needs: release-please
+    runs-on: ubuntu-latest
+    if: >
+      needs.release-please.outputs.neoforge--release_created == 'true' ||
+      needs.release-please.outputs.webapp--release_created == 'true'
+    steps:
+      - name: Close stale sibling release PRs
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          prs=$(gh pr list \
+            --repo "${{ github.repository }}" \
+            --label "autorelease: pending" \
+            --json number \
+            --jq '.[].number')
+          for pr in $prs; do
+            gh pr close "$pr" \
+              --repo "${{ github.repository }}" \
+              --comment "Closed automatically: sibling package released and manifest is now stale. Release-please will reopen this PR with an updated manifest on the next push."
+          done
 
   release-neoforge:
     needs: release-please

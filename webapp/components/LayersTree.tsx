@@ -243,7 +243,7 @@ function TreeNode({ widget, depth, isOpen, selectedId, isMultiSelected, dragOver
       <SidebarMenuButton
         isActive={widget.id === selectedId}
         onClick={(e) => onSelect(widget.id, e.shiftKey)}
-        className="cursor-grab active:cursor-grabbing pr-16"
+        className={`${isDragging ? "cursor-grabbing" : "cursor-default"} pr-16`}
         style={{
           paddingLeft: BASE_PL + depth * INDENT,
           ...(isMultiSelected && widget.id !== selectedId ? { background: "hsl(217 91% 60% / 0.15)" } : {}),

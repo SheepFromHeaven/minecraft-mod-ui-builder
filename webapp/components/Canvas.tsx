@@ -527,9 +527,6 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
           if (axis === "y") w = SCROLLBAR_FIXED_PX;
           else              h = SCROLLBAR_FIXED_PX;
         }
-        // Clear any direct DOM overrides applied in onResize; react-rnd will
-        // immediately re-apply the correct transform via draggable.setState.
-        ref.style.transform = "";
         resizeStartRef.current = null;
         altResizeRef.current = null;
         if (x === widget.x && y === widget.y && w === widget.w && h === widget.h) return;

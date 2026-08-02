@@ -7,10 +7,16 @@ import { Rnd } from "react-rnd";
 import type { WidgetSpec, BindingsSchema } from "@/lib/types";
 import { getBindingNode } from "@/components/BindingsTree";
 import WidgetVisual from "./WidgetVisual";
+import { ScrollbarVisual, SCROLLBAR_THUMB_LEN, SCROLLBAR_BORDER_PX } from "@/components/widgets";
+import { ScrollbarTry, SCROLLBAR_FIXED_PX } from "@/components/widgets/scrollbar/ScrollbarTry";
+import { InventoryAreaTry } from "@/components/widgets/inventory_area/InventoryAreaTry";
+import { TextureCtx, ScrollCtx, type ScrollPos, type ScrollCtxVal } from "@/components/widgets/tryContext";
 import WIDGET_REGISTRY from "@/lib/widgetRegistry";
 import { useTextures } from "@/lib/TextureContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AddWidgetItems } from "@/components/AddWidgetItems";
+import { TabsEditHeader, type TabDrag } from "@/components/widgets/tabs/TabsEditHeader";
+import { TabsTryHeader } from "@/components/widgets/tabs/TabsTryHeader";
 
 const BindingsCtx = createContext<BindingsSchema>({});
 const UpdateWidgetCtx = React.createContext<(w: WidgetSpec) => void>(() => {});
@@ -25,42 +31,14 @@ const ActiveTabCtx = React.createContext<ActiveTabCtxVal>({
   setActiveTab: () => {},
 });
 
-// ── Shared scroll state for try mode ─────────────────────────────────────────
-interface ScrollPos   { x: number; y: number }
-interface ScrollCtxVal {
-  getScroll:    (id: string) => ScrollPos;
-  setScroll:    (id: string, pos: ScrollPos) => void;
-  getMaxScroll: (id: string) => ScrollPos;
-  setMaxScroll: (id: string, max: ScrollPos) => void;
-}
-const ScrollCtx = React.createContext<ScrollCtxVal>({
-  getScroll:    () => ({ x: 0, y: 0 }),
-  setScroll:    () => undefined,
-  getMaxScroll: () => ({ x: 0, y: 0 }),
-  setMaxScroll: () => undefined,
-});
-
 const WORLD_IMAGE_URL = "/mc-world-bg.jpg";
 
 const CONTAINER_TYPES = new Set(
   WIDGET_REGISTRY.filter(d => d.isContainer).map(d => d.type),
 );
 
-// Handle texture is 12px wide + 1px bevel each side
-const SCROLLBAR_FIXED_PX = 14;
-
 // Resize handle visuals — the hit area is provided by re-resizable; we render
 // a centered square inside it so the handle looks like standard design tools.
-const HANDLE_VISUAL = (
-  <div style={{
-    width: 8, height: 8,
-    background: "#fff",
-    border: "1.5px solid #1a6bcc",
-    borderRadius: 1.5,
-    boxShadow: "0 0 0 1px rgba(0,0,0,0.25)",
-    pointerEvents: "none",
-  }} />
-);
 const RESIZE_HANDLE_STYLES: Record<string, React.CSSProperties> = {
   top:         { display: "flex", alignItems: "center",   justifyContent: "center" },
   bottom:      { display: "flex", alignItems: "center",   justifyContent: "center" },
@@ -71,13 +49,6 @@ const RESIZE_HANDLE_STYLES: Record<string, React.CSSProperties> = {
   bottomLeft:  { display: "flex", alignItems: "center",   justifyContent: "center" },
   bottomRight: { display: "flex", alignItems: "center",   justifyContent: "center" },
 };
-const RESIZE_HANDLE_COMPONENT: Record<string, React.ReactElement> = {
-  top: HANDLE_VISUAL, bottom: HANDLE_VISUAL,
-  left: HANDLE_VISUAL, right: HANDLE_VISUAL,
-  topLeft: HANDLE_VISUAL, topRight: HANDLE_VISUAL,
-  bottomLeft: HANDLE_VISUAL, bottomRight: HANDLE_VISUAL,
-};
-
 interface Props {
   width: number;
   height: number;
@@ -225,6 +196,10 @@ export default function Canvas({
     let moved = false;
 
     const snapToGrid = (v: number) => Math.round(v / gridSize) * gridSize;
+    const clamp = (nx: number, ny: number) => ({
+      x: Math.max(0, Math.min(width  - target.w, nx)),
+      y: Math.max(0, Math.min(height - target.h, ny)),
+    });
     const onMove = (ev: MouseEvent) => {
       const dx = snapToGrid(origX + (ev.clientX - startClientX) / scale) - origX;
       const dy = snapToGrid(origY + (ev.clientY - startClientY) / scale) - origY;
@@ -234,7 +209,7 @@ export default function Canvas({
         // An actual drag unambiguously identifies its target.
         onSelect(targetId);
       }
-      setDraggingPos({ id: targetId, x: Math.max(0, origX + dx), y: Math.max(0, origY + dy) });
+      setDraggingPos({ id: targetId, ...clamp(origX + dx, origY + dy) });
     };
     const onUp = (ev: MouseEvent) => {
       window.removeEventListener("mousemove", onMove);
@@ -242,7 +217,7 @@ export default function Canvas({
       if (moved) {
         const dx = snapToGrid(origX + (ev.clientX - startClientX) / scale) - origX;
         const dy = snapToGrid(origY + (ev.clientY - startClientY) / scale) - origY;
-        onUpdateWidget({ ...target, x: Math.max(0, origX + dx), y: Math.max(0, origY + dy) });
+        onUpdateWidget({ ...target, ...clamp(origX + dx, origY + dy) });
       } else {
         // No movement occurred — this was a plain click, so apply the
         // ambiguous-click drill-down instead of the drag-target resolution.
@@ -407,14 +382,6 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
       if (tab) updateWidget({ ...tab, text: draft });
     }
   }, [inlineEdit, widget, tabChildren, updateWidget]); // eslint-disable-line react-hooks/exhaustive-deps
-  type TabDrag = {
-    type: "move" | "resize-right" | "resize-left";
-    id: string;
-    startMouseX: number;
-    startX: number; startW: number;
-    minX: number; maxX: number;
-    minW: number; maxW: number;
-  };
   const [tabDrag, setTabDrag] = useState<TabDrag | null>(null);
   const tabDragRef = useRef(tabDrag);
   tabDragRef.current = tabDrag;
@@ -422,6 +389,24 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
   tabChildrenRef.current = tabChildren;
   const scaleRef = useRef(scale);
   scaleRef.current = scale;
+
+  const handleVisual = (
+    <div style={{
+      width: 8, height: 8,
+      transform: `scale(${1 / scale})`,
+      background: "#fff",
+      border: "1.5px solid #1a6bcc",
+      borderRadius: 1.5,
+      boxShadow: "0 0 0 1px rgba(0,0,0,0.25)",
+      pointerEvents: "none",
+    }} />
+  );
+  const resizeHandleComponent: Record<string, React.ReactElement> = {
+    top: handleVisual, bottom: handleVisual,
+    left: handleVisual, right: handleVisual,
+    topLeft: handleVisual, topRight: handleVisual,
+    bottomLeft: handleVisual, bottomRight: handleVisual,
+  };
 
   // Modifier keys for resize: shift = lock aspect ratio, alt = center origin
   const [shiftPressed, setShiftPressed] = useState(false);
@@ -532,7 +517,7 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
             w: Math.max(1, Math.round(altW)),
             h: Math.max(1, Math.round(altH)),
           };
-        } else {
+        } else if (altResizeRef.current !== null) {
           // Alt released mid-drag: restore ref to the resize-start transform so the
           // widget snaps back to its natural position cleanly.
           ref.style.transform = `translate(${initT.x}px, ${initT.y}px)`;
@@ -589,7 +574,7 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
           : false
       }
       resizeHandleStyles={isSelected ? RESIZE_HANDLE_STYLES : undefined}
-      resizeHandleComponent={isSelected ? RESIZE_HANDLE_COMPONENT : undefined}
+      resizeHandleComponent={isSelected ? resizeHandleComponent : undefined}
     >
       <WidgetVisual widget={previewWidget} scale={scale} interactState="idle" />
       {inlineEdit?.id === widget.id && (() => {
@@ -647,445 +632,32 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
           ))}
         </div>
       )}
-      {isTabs && (() => {
-        const topSlice = 4;
-        const sideSlice = 3;
-        const leftSlice = 4;
-        const GAP = 2;
-        // Compute layout: equal distribution when tabs haven't been sized yet (both x and w are 0)
-        const allDefault = tabChildren.length > 0 && tabChildren.every(t => t.w === 0);
-        const defaultTabW = tabChildren.length > 0
-          ? Math.max(16, Math.floor((widget.w - GAP * Math.max(0, tabChildren.length - 1)) / tabChildren.length))
-          : 0;
-        const getW = (t: WidgetSpec) => allDefault ? defaultTabW : Math.max(16, t.w || defaultTabW);
-        const getX = (t: WidgetSpec, i: number) => allDefault
-          ? tabChildren.slice(0, i).reduce((acc, prev) => acc + getW(prev) + GAP, 0)
-          : t.x;
-        // per-tab min width = content chars × ~4px + 8px padding per side (16px total)
-        const getMinW = (t: WidgetSpec) => {
-          const text = t.text || t.id || "";
-          return Math.max(16, text.length * 4 + 16);
-        };
-        const computedTabs = tabChildren.map((t, i) => ({ t, w: getW(t), x: getX(t, i) }));
-        const tabCount = computedTabs.length;
-
-        // Commit all tab layout defaults as ONE history entry before a drag starts.
-        const initIfDefault = () => {
-          if (allDefault) updateWidgets(tabChildren.map((tc, i) => ({ ...tc, x: getX(tc, i), w: getW(tc) })));
-        };
-
-        return (
-          <div style={{ position: "absolute", inset: 0 }}>
-            {/* Tab selector row — absolutely positioned tabs, overflow visible */}
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: tabHeaderHeight, overflow: "visible" }}>
-              {computedTabs.map(({ t: tab, x: tabX, w: tabW }, idx) => {
-                const isActive = tab.id === activeTabId;
-                const touchesLeft = tabX <= 0;
-                const touchesRight = tabX + tabW >= widget.w;
-                const pos = touchesLeft ? "left" : touchesRight ? "right" : "middle";
-                const tabTex = tex(isActive ? `tab_selected_${pos}.png` : `tab_unselected_${pos}.png`);
-                const minW = getMinW(tab);
-                const prev = computedTabs[idx - 1];
-                const next = computedTabs[idx + 1];
-                // clamp bounds — captured at drag-start so neighbors don't need re-lookup in mousemove
-                const moveMinX = prev ? prev.x + prev.w + GAP : 0;
-                const moveMaxX = next ? next.x - tabW - GAP : widget.w - tabW;
-                const resizeRightMaxW = next ? next.x - tabX - GAP : widget.w - tabX;
-                const resizeLeftMaxW = prev ? tabX + tabW - (prev.x + prev.w + GAP) : tabX + tabW;
-                const isMoving = tabDrag?.type === "move" && tabDrag.id === tab.id;
-                const tabH = tabHeaderHeight + topSlice;
-                return (
-                  <div
-                    key={tab.id}
-                    style={{
-                      position: "absolute",
-                      left: tabX,
-                      width: tabW,
-                      top: -1,
-                      height: tabH,
-                      zIndex: isActive ? 2 : 0,
-                      overflow: "visible",
-                      userSelect: "none",
-                      cursor: isMoving ? "grabbing" : "grab",
-                    }}
-                    onMouseDown={(e) => {
-                      if ((e.target as HTMLElement).dataset.resizeHandle) return;
-                      if (inlineEdit?.id === tab.id) return;
-                      e.stopPropagation();
-                      e.nativeEvent.stopImmediatePropagation();
-                      initIfDefault();
-                      setTabDrag({ type: "move", id: tab.id, startMouseX: e.clientX,
-                        startX: tabX, startW: tabW,
-                        minX: moveMinX, maxX: moveMaxX,
-                        minW: 0, maxW: 0 });
-                    }}
-                    onClick={(e) => { if (!(e.target as HTMLElement).dataset.resizeHandle) setPreviewTabId(tab.id); }}
-                    onDoubleClick={(e) => {
-                      e.stopPropagation();
-                      e.nativeEvent.stopImmediatePropagation();
-                      setInlineEdit({ id: tab.id, text: tab.text });
-                    }}
-                  >
-                    {tabTex && (
-                      <div style={{ position: "absolute", left: 0, top: 0, width: tabW, height: tabH, boxSizing: "border-box", overflow: "visible",
-                        borderImage: `url("${tabTex}") ${4} ${3} ${0} ${4} fill / ${topSlice}px ${sideSlice}px 0px ${leftSlice}px stretch` }} />
-                    )}
-                    {/* Content overlay */}
-                    <div style={{
-                      position: "absolute", inset: 0,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      whiteSpace: "nowrap",
-                      fontSize: 6,
-                      fontFamily: '"Minecraft", monospace',
-                      color: isActive ? "#404040" : "#909090",
-                      pointerEvents: "none",
-                    }}>
-                      {inlineEdit?.id === tab.id ? null : tab.icon ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={tab.icon} alt="" style={{ width: tabHeaderHeight * 0.6, height: tabHeaderHeight * 0.6, imageRendering: "pixelated", pointerEvents: "none" }} />
-                      ) : (
-                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>{tab.text || tab.id}</span>
-                      )}
-                    </div>
-                    {inlineEdit?.id === tab.id && (
-                      <input
-                        ref={inlineInputRef}
-                        defaultValue={inlineEdit.text}
-                        onBlur={(e) => commitInlineEdit(e.currentTarget.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") { e.currentTarget.blur(); }
-                          if (e.key === "Escape") { setInlineEdit(null); }
-                          e.stopPropagation();
-                        }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                          position: "absolute", inset: `0 ${sideSlice}px`,
-                          background: "rgba(0,0,0,0.75)",
-                          color: "#fff", border: "none", outline: "2px solid #ff0",
-                          fontSize: 6,
-                          fontFamily: '"Minecraft", monospace',
-                          textAlign: "center", width: `calc(100% - ${sideSlice * 2}px)`,
-                          zIndex: 10, padding: 0,
-                        }}
-                      />
-                    )}
-                    {/* Left-edge resize handle */}
-                    <div data-resize-handle="left"
-                      onMouseDown={(e) => {
-                        e.stopPropagation(); e.preventDefault();
-                        e.nativeEvent.stopImmediatePropagation();
-                        initIfDefault();
-                        setTabDrag({ type: "resize-left", id: tab.id, startMouseX: e.clientX,
-                          startX: tabX, startW: tabW,
-                          minX: 0, maxX: 0,
-                          minW, maxW: resizeLeftMaxW });
-                      }}
-                      style={{ position: "absolute", left: -sideSlice, top: 0, bottom: 0, width: sideSlice + 4, cursor: "ew-resize", zIndex: 3 }}
-                    />
-                    {/* Right-edge resize handle */}
-                    <div data-resize-handle="right"
-                      onMouseDown={(e) => {
-                        e.stopPropagation(); e.preventDefault();
-                        e.nativeEvent.stopImmediatePropagation();
-                        initIfDefault();
-                        setTabDrag({ type: "resize-right", id: tab.id, startMouseX: e.clientX,
-                          startX: tabX, startW: tabW,
-                          minX: 0, maxX: 0,
-                          minW, maxW: resizeRightMaxW });
-                      }}
-                      style={{ position: "absolute", right: -sideSlice, top: 0, bottom: 0, width: sideSlice + 4, cursor: "ew-resize", zIndex: 3 }}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-            {/* Content panel */}
-            <div style={{
-              position: "absolute",
-              left: 0,
-              top: tabHeaderHeight,
-              width: widget.w,
-              height: widget.h - tabHeaderHeight,
-              overflow: "hidden",
-              zIndex: 1,
-            }}>
-              {tex("mc_panel_slice.png") && (
-                <div style={{ position: "absolute", left: 0, top: 0, width: widget.w, height: widget.h - tabHeaderHeight, boxSizing: "border-box",
-                  borderImage: `url("${tex("mc_panel_slice.png")}") 3 fill / 3px stretch` }} />
-              )}
-              {activeTabChildren.map((child, idx) => (
-                <EditWidget
-                  key={child.id}
-                  widget={child}
-                  scale={scale}
-                  selectedId={selectedId}
-                  snapPx={snapPx}
-                  draggingPos={draggingPos}
-                  onResizeCommit={onResizeCommit}
-                  childMap={childMap}
-                  zBase={idx + 1}
-                />
-              ))}
-            </div>
-          </div>
-        );
-      })()}
+      {isTabs && (
+        <TabsEditHeader
+          widget={widget}
+          tabChildren={tabChildren}
+          tex={tex}
+          activeTabId={activeTabId}
+          tabDrag={tabDrag}
+          setTabDrag={setTabDrag}
+          inlineEdit={inlineEdit}
+          setInlineEdit={setInlineEdit}
+          inlineInputRef={inlineInputRef}
+          commitInlineEdit={commitInlineEdit}
+          setPreviewTabId={setPreviewTabId}
+          updateWidgets={updateWidgets}
+          tabHeaderHeight={tabHeaderHeight}
+          scale={scale}
+          selectedId={selectedId}
+          snapPx={snapPx}
+          draggingPos={draggingPos}
+          onResizeCommit={onResizeCommit}
+          childMap={childMap}
+          activeTabChildren={activeTabChildren}
+          EditWidget={EditWidget}
+        />
+      )}
     </Rnd>
-  );
-}
-
-// tiny context bridge so try-mode components can reach textures without prop drilling
-const TextureCtx = React.createContext<{ textures: Record<string, string> }>({ textures: {} });
-
-// ── Try mode inventory area (scrollable) ─────────────────────────────────────
-
-function TryInventoryArea({ widget, scale, zBase, externalScrollbarIdY, externalScrollbarIdX }: {
-  widget: WidgetSpec;
-  scale: number;
-  zBase: number;
-  externalScrollbarIdY?: string;
-  externalScrollbarIdX?: string;
-}) {
-  const { textures } = React.useContext(TextureCtx);
-  const tex = (name: string) => (textures as Record<string, string>)[name];
-  const scrollCtx = React.useContext(ScrollCtx);
-
-  const cols     = parseInt(widget.props.cols      ?? "9",  10);
-  const rows     = parseInt(widget.props.rows      ?? "3",  10);
-  // slotSize is in MC pixels (inner canvas is 1:1)
-  const slotSize = parseInt(widget.props.slot_size ?? "18", 10);
-  const fullW    = cols * slotSize;
-  const fullH    = rows * slotSize;
-  const viewW    = widget.w;
-  const viewH    = widget.h;
-
-  const maxScrollLeft = Math.max(0, fullW - viewW);
-  const maxScrollTop  = Math.max(0, fullH - viewH);
-
-  // Re-render when an external scrollbar's pct changes
-  const [, forceRender] = useState(0);
-  React.useEffect(() => {
-    const ctx = scrollCtx as unknown as { _listeners?: Map<string, Set<() => void>> };
-    if (!ctx._listeners) ctx._listeners = new Map();
-    const fn = () => forceRender(n => n + 1);
-    const ids = [externalScrollbarIdY, externalScrollbarIdX].filter(Boolean) as string[];
-    ids.forEach(id => {
-      const set = ctx._listeners!.get(id) ?? new Set<() => void>();
-      set.add(fn);
-      ctx._listeners!.set(id, set);
-    });
-    return () => { ids.forEach(id => ctx._listeners?.get(id)?.delete(fn)); };
-  }, [externalScrollbarIdY, externalScrollbarIdX, scrollCtx]);
-
-  // External scrollbar pct → snap to whole rows/cols
-  // scrollableRows = rows that can scroll out of view before the last row hits the bottom
-  const scrollableRows = Math.max(0, rows - Math.floor(viewH / slotSize));
-  const scrollableCols = Math.max(0, cols - Math.floor(viewW / slotSize));
-  const extPctY = externalScrollbarIdY ? (scrollCtx.getScroll(externalScrollbarIdY).y ?? 0) : null;
-  const extPctX = externalScrollbarIdX ? (scrollCtx.getScroll(externalScrollbarIdX).x ?? 0) : null;
-
-  const clipsH = maxScrollTop  > 0;
-  const clipsW = maxScrollLeft > 0;
-  const showBuiltinY = clipsH && !externalScrollbarIdY;
-  const showBuiltinX = clipsW && !externalScrollbarIdX;
-
-  const barW = 4;
-  const innerViewW = showBuiltinY ? viewW - barW : viewW;
-  const innerViewH = showBuiltinX ? viewH - barW : viewH;
-
-  // Internal scroll state (wheel / built-in thumb)
-  const [pos, setPos] = useState<ScrollPos>({ x: 0, y: 0 });
-
-  // Final scroll: external scrollbar pct snaps to whole row/col; internal state used otherwise
-  const scrollY = extPctY !== null
-    ? Math.round(extPctY * scrollableRows) * slotSize
-    : pos.y;
-  const scrollX = extPctX !== null
-    ? Math.round(extPctX * scrollableCols) * slotSize
-    : pos.x;
-
-  const setScroll = useCallback((next: ScrollPos) => {
-    setPos(next);
-  }, []);
-
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    setPos(prev => ({
-      x: Math.max(0, Math.min(maxScrollLeft, prev.x + (e.deltaX || (!clipsH ? e.deltaY : 0)))),
-      y: Math.max(0, Math.min(maxScrollTop,  prev.y + (clipsH ? e.deltaY : 0))),
-    }));
-  };
-
-  // Built-in scrollbar thumb drag
-  const [thumbDrag, setThumbDrag] = useState<{ axis: "v"|"h"; startClient: number; startScroll: number } | null>(null);
-  const thumbHRatio = Math.min(1, innerViewH / fullH);
-  const thumbWRatio = Math.min(1, innerViewW / fullW);
-  const thumbH      = Math.max(barW * 2, innerViewH * thumbHRatio);
-  const thumbW      = Math.max(barW * 2, innerViewW * thumbWRatio);
-  const thumbTop    = maxScrollTop  > 0 ? (scrollY / maxScrollTop)  * (innerViewH - thumbH) : 0;
-  const thumbLeft   = maxScrollLeft > 0 ? (scrollX / maxScrollLeft) * (innerViewW - thumbW) : 0;
-
-  const onThumbPointerMove = (e: React.PointerEvent) => {
-    if (!thumbDrag) return;
-    if (thumbDrag.axis === "v") {
-      // e.clientY is CSS px; innerViewH - thumbH is MC px — divide client delta by scale
-      const delta = (e.clientY - thumbDrag.startClient) / scale / (innerViewH - thumbH) * maxScrollTop;
-      setScroll({ ...pos, y: Math.max(0, Math.min(maxScrollTop, thumbDrag.startScroll + delta)) });
-    } else {
-      const delta = (e.clientX - thumbDrag.startClient) / scale / (innerViewW - thumbW) * maxScrollLeft;
-      setScroll({ ...pos, x: Math.max(0, Math.min(maxScrollLeft, thumbDrag.startScroll + delta)) });
-    }
-  };
-
-  return (
-    <div
-      style={{ position: "absolute", left: widget.x, top: widget.y, width: viewW, height: viewH, zIndex: zBase }}
-      onWheel={handleWheel}
-      onPointerMove={thumbDrag ? onThumbPointerMove : undefined}
-      onPointerUp={() => setThumbDrag(null)}
-    >
-      <div style={{ position: "absolute", top: 0, left: 0, width: innerViewW, height: innerViewH, overflow: "hidden", boxSizing: "border-box" }}>
-        <div style={{
-          position: "absolute",
-          top: -scrollY, left: -scrollX,
-          width: fullW, height: fullH,
-          backgroundImage: `url("${tex("mc_slot_tile.png")}")`,
-          backgroundSize: `${slotSize}px ${slotSize}px`,
-          backgroundRepeat: "repeat",
-          imageRendering: "pixelated",
-          boxSizing: "border-box",
-        }} />
-      </div>
-
-      {showBuiltinY && (
-        <div style={{ position: "absolute", top: 0, right: 0, width: barW, height: innerViewH, background: "#1a1a1a", borderLeft: `1px solid #444` }}>
-          <div style={{ position: "absolute", top: thumbTop, width: "100%", height: thumbH, background: "#555", cursor: "pointer" }}
-            onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); setThumbDrag({ axis: "v", startClient: e.clientY, startScroll: pos.y }); }} />
-        </div>
-      )}
-      {showBuiltinX && (
-        <div style={{ position: "absolute", bottom: 0, left: 0, width: innerViewW, height: barW, background: "#1a1a1a", borderTop: `1px solid #444` }}>
-          <div style={{ position: "absolute", left: thumbLeft, height: "100%", width: thumbW, background: "#555", cursor: "pointer" }}
-            onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); setThumbDrag({ axis: "h", startClient: e.clientX, startScroll: pos.x }); }} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Try mode scrollbar (external, controls a target inventory_area) ────────────
-
-function TryScrollbar({ widget, scale, zBase }: {
-  widget: WidgetSpec;
-  scale: number;
-  zBase: number;
-}) {
-  const { textures } = React.useContext(TextureCtx);
-  const tex = (name: string) => (textures as Record<string, string>)[name];
-  const scrollCtx = React.useContext(ScrollCtx);
-
-  const axis       = widget.props.axis ?? "y";
-  const isVertical = axis === "y";
-  const borderPx   = 1;
-
-  // Re-render when own pct changes
-  const [, forceRender] = useState(0);
-  React.useEffect(() => {
-    const ctx = scrollCtx as unknown as { _listeners?: Map<string, Set<() => void>> };
-    if (!ctx._listeners) ctx._listeners = new Map();
-    const set = ctx._listeners.get(widget.id) ?? new Set<() => void>();
-    const fn = () => forceRender(n => n + 1);
-    set.add(fn);
-    ctx._listeners.set(widget.id, set);
-    return () => { set.delete(fn); };
-  }, [widget.id, scrollCtx]);
-
-  // Scrollbar owns a pct (0-1) stored under its own id — target reads it
-  const ownPos = scrollCtx.getScroll(widget.id);
-  const pct    = isVertical ? ownPos.y : ownPos.x;
-
-  // All lengths are in MC pixel units (inner canvas is 1:1)
-  const trackLen   = isVertical ? widget.h : widget.w;
-  const thumbLen   = 15;
-  const travelLen  = Math.max(1, trackLen - thumbLen - 2 * borderPx);
-  const thumbOffset = pct * travelLen;
-
-  const dragRef = React.useRef<{ startClient: number; startPct: number } | null>(null);
-
-  const trackRef = React.useRef<HTMLDivElement>(null);
-
-  const snapPct = (rawPct: number) => {
-    // Snap to whole MC pixels
-    const snapped = Math.round(rawPct * travelLen);
-    return Math.max(0, Math.min(travelLen, snapped)) / travelLen;
-  };
-
-  const getPctFromEvent = (e: React.PointerEvent) => {
-    const rect = trackRef.current!.getBoundingClientRect();
-    // rect values are CSS px; divide by scale to convert to MC px
-    const offset = isVertical
-      ? (e.clientY - rect.top) / scale
-      : (e.clientX - rect.left) / scale;
-    return snapPct((offset - thumbLen / 2) / travelLen);
-  };
-
-  const dragCursor = isVertical ? "ns-resize" : "ew-resize";
-
-  const onTrackPointerDown = (e: React.PointerEvent) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    const nextPct = getPctFromEvent(e);
-    dragRef.current = { startClient: isVertical ? e.clientY : e.clientX, startPct: nextPct };
-    if (trackRef.current) trackRef.current.style.cursor = dragCursor;
-    scrollCtx.setScroll(widget.id, isVertical ? { x: 0, y: nextPct } : { x: nextPct, y: 0 });
-  };
-  const onTrackPointerMove = (e: React.PointerEvent) => {
-    if (!dragRef.current) return;
-    // client coords are CSS px, travelLen is MC px — divide by scale
-    const deltaPct = ((isVertical ? e.clientY : e.clientX) - dragRef.current.startClient) / scale / travelLen;
-    const nextPct  = snapPct(dragRef.current.startPct + deltaPct);
-    scrollCtx.setScroll(widget.id, isVertical ? { x: 0, y: nextPct } : { x: nextPct, y: 0 });
-  };
-
-  const fixedW = isVertical ? SCROLLBAR_FIXED_PX : widget.w;
-  const fixedH = isVertical ? widget.h : SCROLLBAR_FIXED_PX;
-
-  return (
-    <div
-      ref={trackRef}
-      style={{
-        position: "absolute",
-        left: widget.x, top: widget.y,
-        width: fixedW, height: fixedH,
-        zIndex: zBase,
-        cursor: "pointer",
-      }}
-      onPointerDown={onTrackPointerDown}
-      onPointerMove={onTrackPointerMove}
-      onPointerUp={() => { dragRef.current = null; if (trackRef.current) trackRef.current.style.cursor = "pointer"; }}
-    >
-      {tex("mc_slot_tile.png") && (
-        <div style={{ position: "absolute", left: 0, top: 0, width: fixedW, height: fixedH, boxSizing: "border-box",
-          borderImage: `url("${tex("mc_slot_tile.png")}") 1 fill / ${borderPx}px stretch` }} />
-      )}
-      <div
-        style={{
-          position: "absolute",
-          zIndex: 1,
-          ...(isVertical
-            ? { top: thumbOffset, left: 0 }
-            : { left: thumbOffset, top: (12 - 15) / 2 }),
-          width: 12, height: 15,
-          backgroundImage: `url("${tex("mc_scrollbar_handle.png")}")`,
-          backgroundSize: `12px 15px`,
-          backgroundRepeat: "no-repeat",
-          imageRendering: "pixelated",
-          pointerEvents: "none",
-          transform: isVertical ? undefined : "rotate(90deg)",
-          transformOrigin: "center",
-        }}
-      />
-    </div>
   );
 }
 
@@ -1112,9 +684,9 @@ function TryWidgetRoot(props: { widget: WidgetSpec; scale: number; childMap: Map
   return (
     <TextureCtx.Provider value={{ textures: textures as Record<string, string> }}>
       {widget.type === "inventory_area"
-        ? <TryInventoryArea widget={widget} scale={scale} zBase={zBase} externalScrollbarIdY={extScrollbarY?.id} externalScrollbarIdX={extScrollbarX?.id} />
+        ? <InventoryAreaTry widget={widget} scale={scale} zBase={zBase} externalScrollbarIdY={extScrollbarY?.id} externalScrollbarIdX={extScrollbarX?.id} />
         : widget.type === "scrollbar"
-          ? <TryScrollbar widget={widget} scale={scale} zBase={zBase} />
+          ? <ScrollbarTry widget={widget} scale={scale} zBase={zBase} />
           : <TryWidget widget={widget} scale={scale} childMap={props.childMap} zBase={zBase} allWidgets={allWidgets} />}
     </TextureCtx.Provider>
   );
@@ -1222,85 +794,21 @@ function TryWidget({ widget, scale, childMap, zBase, allWidgets }: {
           ))}
         </div>
       )}
-      {isTabs && (() => {
-        const topSlice = 4;
-        const sideSlice = 3;
-        const leftSlice = 4;
-        const GAP = 2;
-        // Mirror edit-mode layout: equal distribution when tabs haven't been sized yet
-        const allDefault = tabChildren.length > 0 && tabChildren.every(t => t.w === 0);
-        const defaultTabW = tabChildren.length > 0
-          ? Math.max(16, Math.floor((widget.w - GAP * Math.max(0, tabChildren.length - 1)) / tabChildren.length))
-          : 0;
-        const getW = (t: WidgetSpec) => allDefault ? defaultTabW : Math.max(16, t.w || defaultTabW);
-        const getX = (t: WidgetSpec, i: number) => allDefault
-          ? tabChildren.slice(0, i).reduce((acc, prev) => acc + getW(prev) + GAP, 0)
-          : t.x;
-        const tabCount = tabChildren.length;
-        return (
-          <div style={{ position: "absolute", inset: 0 }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: tabHeaderHeight, overflow: "visible" }}>
-              {tabChildren.map((tab, idx) => {
-                const isActive = tab.id === resolvedTabId;
-                const tabX = getX(tab, idx);
-                const tabW = getW(tab);
-                const touchesLeft = tabX <= 0;
-                const touchesRight = tabX + tabW >= widget.w;
-                const pos = touchesLeft ? "left" : touchesRight ? "right" : "middle";
-                const tabTex = tex(isActive ? `tab_selected_${pos}.png` : `tab_unselected_${pos}.png`);
-                const tabH = tabHeaderHeight + topSlice;
-                return (
-                  <div
-                    key={tab.id}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onClick={() => setActiveTab(widget.id, tab.id)}
-                    style={{
-                      position: "absolute",
-                      left: tabX,
-                      width: tabW,
-                      top: -1,
-                      height: tabH,
-                      zIndex: isActive ? 2 : 0,
-                      overflow: "visible",
-                      cursor: "pointer",
-                      userSelect: "none",
-                    }}
-                  >
-                    {tabTex && (
-                      <div style={{ position: "absolute", left: 0, top: 0, width: tabW, height: tabH, boxSizing: "border-box", overflow: "visible",
-                        borderImage: `url("${tabTex}") ${4} ${3} ${0} ${4} fill / ${topSlice}px ${sideSlice}px 0px ${leftSlice}px stretch` }} />
-                    )}
-                    <div style={{
-                      position: "absolute", inset: 0,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      whiteSpace: "nowrap",
-                      fontSize: 6,
-                      fontFamily: '"Minecraft", monospace',
-                      color: isActive ? "#404040" : "#909090",
-                      pointerEvents: "none",
-                    }}>
-                      {tab.icon
-                        // eslint-disable-next-line @next/next/no-img-element
-                        ? <img src={tab.icon} alt="" style={{ width: tabHeaderHeight * 0.6, height: tabHeaderHeight * 0.6, imageRendering: "pixelated" }} />
-                        : tab.text || tab.id
-                      }
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div style={{ position: "absolute", left: 0, top: tabHeaderHeight, width: widget.w, height: widget.h - tabHeaderHeight, overflow: "hidden", zIndex: 1 }}>
-              {tex("mc_panel_slice.png") && (
-                <div style={{ position: "absolute", left: 0, top: 0, width: widget.w, height: widget.h - tabHeaderHeight, boxSizing: "border-box",
-                  borderImage: `url("${tex("mc_panel_slice.png")}") 3 fill / 3px stretch` }} />
-              )}
-              {activeTabChildren.map((child, idx) => (
-                <TryWidgetRoot key={child.id} widget={child} scale={scale} childMap={childMap} zBase={idx + 1} allWidgets={allWidgets} scrollListeners={new Map()} />
-              ))}
-            </div>
-          </div>
-        );
-      })()}
+      {isTabs && (
+        <TabsTryHeader
+          widget={widget}
+          tabChildren={tabChildren}
+          tex={tex}
+          resolvedTabId={resolvedTabId}
+          setActiveTab={setActiveTab}
+          tabHeaderHeight={tabHeaderHeight}
+          scale={scale}
+          childMap={childMap}
+          activeTabChildren={activeTabChildren}
+          allWidgets={allWidgets}
+          TryWidgetRoot={TryWidgetRoot}
+        />
+      )}
       {isInput && (
         <input
           ref={inputRef}

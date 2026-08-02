@@ -8,56 +8,22 @@ import AppSidebar from "@/components/Sidebar";
 import Toolbar from "@/components/Toolbar";
 import { useTextures } from "@/lib/TextureContext";
 import TexturePickerModal from "@/components/TexturePickerModal";
-import type { ContainerSpec, ScreenSpec, WidgetSpec } from "@/lib/types";
+import type { ScreenSpec, WidgetSpec } from "@/lib/types";
 import { generateJavaClass } from "@/lib/generateJavaClass";
 import { getWidgetDef } from "@/lib/widgetRegistry";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { buildContainerSpec, excludeFromExportedWidgets } from "@/components/widgets/inventory_area/inventoryAreaExport";
 
 let idCounter = 1000;
 function newId(type: string) {
   return `${type}_${++idCounter}`;
 }
 
-function resolveAbsolutePos(w: WidgetSpec, byId: Map<string, WidgetSpec>): { x: number; y: number } {
-  if (!w.parentId) return { x: w.x, y: w.y };
-  const parent = byId.get(w.parentId);
-  if (!parent) return { x: w.x, y: w.y };
-  const parentOrigin = resolveAbsolutePos(parent, byId);
-  if (w.type === "tab" && parent.type === "tabs") {
-    const tabHeight = parseInt(parent.props?.tab_height ?? "20", 10);
-    return { x: parentOrigin.x, y: parentOrigin.y + tabHeight };
-  }
-  return { x: parentOrigin.x + w.x, y: parentOrigin.y + w.y };
-}
-
-function buildContainerSpec(widgets: WidgetSpec[]): ContainerSpec | undefined {
-  const inventoryWidgets = widgets.filter((w) => w.type === "inventory_area");
-  if (inventoryWidgets.length === 0) return undefined;
-
-  const seen = new Set<string>();
-  for (const w of inventoryWidgets) {
-    if (seen.has(w.id)) {
-      throw new Error(`Duplicate inventory_area id "${w.id}" — give each inventory area a unique ID before exporting.`);
-    }
-    seen.add(w.id);
-  }
-
-  const byId = new Map(widgets.map((w) => [w.id, w]));
-  return {
-    slots: inventoryWidgets.map((w) => {
-      const slotSize = parseInt(w.props.slot_size ?? "18", 10);
-      const abs = resolveAbsolutePos(w, byId);
-      return {
-        id:            w.id,
-        x:             abs.x,
-        y:             abs.y,
-        cols:          parseInt(w.props.cols ?? "1", 10),
-        slot_size:     slotSize,
-        viewport_rows: Math.max(1, Math.floor(w.h / slotSize)),
-        ...(w.props.source ? { source: w.props.source as "player" | "player_hotbar" } : {}),
-      };
-    }),
-  };
+/** Composes each widget type's own export transform into the final exported ScreenSpec JSON. */
+function buildExportedScreen(screen: ScreenSpec): ScreenSpec {
+  const widgets = excludeFromExportedWidgets(screen.widgets);
+  const container = buildContainerSpec(screen.widgets);
+  return { ...screen, widgets, ...(container ? { container } : {}) };
 }
 
 const MAX_HISTORY = 100;
@@ -474,9 +440,7 @@ export default function EditorPage() {
 
   const handleExport = useCallback(() => {
     try {
-      const regularWidgets = screen.widgets.filter((w) => w.type !== "inventory_area");
-      const container = buildContainerSpec(screen.widgets);
-      const exported = { ...screen, widgets: regularWidgets, ...(container ? { container } : {}) };
+      const exported = buildExportedScreen(screen);
       const json = JSON.stringify(exported, null, 2);
       const blob = new Blob([json], { type: "application/json" });
       const url = URL.createObjectURL(blob);
@@ -520,9 +484,7 @@ export default function EditorPage() {
 
   const handleSaveToTestMod = useCallback(async () => {
     try {
-      const regularWidgets = screen.widgets.filter((w) => w.type !== "inventory_area");
-      const container = buildContainerSpec(screen.widgets);
-      const exported = { ...screen, widgets: regularWidgets, ...(container ? { container } : {}) };
+      const exported = buildExportedScreen(screen);
       const res = await fetch("/api/dev/test-screen", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -606,8 +568,8 @@ export default function EditorPage() {
           />
 
           <div className="flex flex-1 overflow-hidden">
-            <div ref={canvasWrapperRef} className="flex flex-1 items-center justify-center overflow-hidden p-8">
-              <div style={{ transform: `translate(${panX}px, ${panY}px)`, flexShrink: 0 }}>
+            <div ref={canvasWrapperRef} className="flex flex-1 overflow-hidden p-8">
+              <div style={{ transform: `translate(${panX}px, ${panY}px)`, margin: "auto", flexShrink: 0 }}>
               <Canvas
                 width={screen.width}
                 height={screen.height}
@@ -619,7 +581,11 @@ export default function EditorPage() {
                 tryMode={tryMode}
                 onSelect={setSelectedId}
                 onUpdateWidget={updateWidget}
-                onUpdateWidgets={(widgets) => commitScreen({ ...screen, widgets })}
+                onUpdateWidgets={(updated) => {
+                  const updatedIds = new Set(updated.map(w => w.id));
+                  const merged = screen.widgets.map(w => updatedIds.has(w.id) ? updated.find(u => u.id === w.id)! : w);
+                  commitScreen({ ...screen, widgets: merged });
+                }}
                 bindingsSchema={screen.bindingsSchema ?? {}}
                 onAddWidget={(type, x, y) => addWidget(type, undefined, x, y)}
               />

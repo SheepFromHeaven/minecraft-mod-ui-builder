@@ -30,14 +30,18 @@ export function NineSlice({
   ) {
     if (sw <= 0 || sh <= 0 || dw <= 0 || dh <= 0) return null;
     // Scale the entire source image so the [sx,sy,sw,sh] region fills the [dw,dh] cell.
-    const bsW = Math.round(srcW * (dw / sw));
-    const bsH = Math.round(srcH * (dh / sh));
-    // Use Math.floor for the background offsets (they're negative). Math.round can
-    // round toward the origin which causes the cell to start at source pixel sx-1
-    // (a 1px border bleed). Math.floor always rounds away from origin, guaranteeing
-    // the cell starts exactly at source pixel sx.
-    const bpX = Math.floor(-(sx * (dw / sw)));
-    const bpY = Math.floor(-(sy * (dh / sh)));
+    // Deliberately NOT rounded: background-size and background-position accept
+    // fractional px, and rounding bsW/bsH here while computing bpX/bpY from the
+    // exact ratio made the two inconsistent — the browser's actual per-source-pixel
+    // scale (rounded bsH/srcH) then differed slightly from what bpY assumed,
+    // letting the crop window drift past its intended source row/col and bleed
+    // in a sliver of the neighboring border pixel (visible as an oversized edge
+    // on any cell whose stretch ratio isn't a clean integer, e.g. a scrollbar
+    // track tall enough that its fill region doesn't evenly divide the source).
+    const bsW = srcW * (dw / sw);
+    const bsH = srcH * (dh / sh);
+    const bpX = -(sx * (dw / sw));
+    const bpY = -(sy * (dh / sh));
     // Round cell edges to integers and derive size from edge pair so adjacent cells
     // share an exact integer boundary — no sub-pixel gap between cells.
     const rdx = Math.round(dx), rdy = Math.round(dy);

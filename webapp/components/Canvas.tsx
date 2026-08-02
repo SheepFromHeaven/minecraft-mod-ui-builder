@@ -296,8 +296,14 @@ export default function Canvas({
         const dy = snapToGrid(origY + (ev.clientY - startClientY) / scale) - origY;
         onUpdateWidget({ ...target, ...clamp(origX + dx, origY + dy) });
       } else if (!moved) {
-        // No movement — plain click: apply ambiguous-click drill-down.
-        handleClickWidget(clickedId);
+        if (inTabHeader) {
+          // Tab header buttons map 1:1 to tab widgets — select directly, no drill-down.
+          selectionChangedRef.current = true;
+          onSelect(clickedId);
+        } else {
+          // No movement — plain click: apply ambiguous-click drill-down.
+          handleClickWidget(clickedId);
+        }
       }
       // inTabHeader && moved: tab drag handled its own commit, nothing to do here.
       setDraggingPos(null);

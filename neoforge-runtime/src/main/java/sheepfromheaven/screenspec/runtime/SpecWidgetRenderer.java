@@ -206,8 +206,28 @@ final class SpecWidgetRenderer {
     private static final int TAB_SAFE_U = 13;
     private static final int TAB_SAFE_V = 16;
 
-    /** Draws a {@code tabs} selector button by nine-slicing vanilla's creative-inventory tab sprite (see above). */
-    void renderTab(GuiGraphics graphics, boolean active, TabButtonWidget.Position position, int x, int y, int w, int h) {
+    // Nested tab sprites — vanilla widget/tab.png and widget/tab_selected.png (130×24), uniform 3px
+    // border on all sides, no left/middle/right variants.
+    private static final Identifier NESTED_TAB_SEL   = Identifier.withDefaultNamespace("textures/gui/sprites/widget/tab_selected.png");
+    private static final Identifier NESTED_TAB_UNSEL = Identifier.withDefaultNamespace("textures/gui/sprites/widget/tab.png");
+    private static final int NESTED_TAB_TEX_W  = 130;
+    private static final int NESTED_TAB_TEX_H  = 24;
+    private static final int NESTED_TAB_BORDER = 3;
+    private static final int NESTED_TAB_SAFE_U = 65;
+    private static final int NESTED_TAB_SAFE_V = 12;
+
+    /** Draws a {@code tabs} selector button. {@code nested} selects the compact {@code widget/tab}
+     *  sprite (3px uniform border); {@code !nested} uses vanilla's creative-inventory sprite (4px,
+     *  position-dependent). */
+    void renderTab(GuiGraphics graphics, boolean active, TabButtonWidget.Position position, boolean nested, int x, int y, int w, int h) {
+        if (nested) {
+            renderNestedTab(graphics, active, x, y, w, h);
+        } else {
+            renderTopTab(graphics, active, position, x, y, w, h);
+        }
+    }
+
+    private void renderTopTab(GuiGraphics graphics, boolean active, TabButtonWidget.Position position, int x, int y, int w, int h) {
         Identifier tex;
         if (!active) {
             tex = TAB_UNSELECTED;
@@ -246,6 +266,33 @@ final class SpecWidgetRenderer {
             ninePatch(graphics, tex, x,                 bottomDestY, 0,          bottomV, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
             ninePatch(graphics, tex, x + TAB_BORDER,     bottomDestY, TAB_SAFE_U, bottomV, 1,          TAB_BORDER, destFillW,  TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
             ninePatch(graphics, tex, x + w - TAB_BORDER, bottomDestY, rightU,     bottomV, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
+        }
+    }
+
+    private void renderNestedTab(GuiGraphics graphics, boolean active, int x, int y, int w, int h) {
+        Identifier tex    = active ? NESTED_TAB_SEL : NESTED_TAB_UNSEL;
+        int b             = NESTED_TAB_BORDER;
+        int rightU        = NESTED_TAB_TEX_W - b;
+        int bottomV       = NESTED_TAB_TEX_H - b;
+        int destFillW     = Math.max(0, w - b * 2);
+        int destFillH     = Math.max(0, h - b * 2);
+
+        ninePatch(graphics, tex, x,         y, 0,                   0,                   b, b, b,         b,         NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
+        ninePatch(graphics, tex, x + b,     y, NESTED_TAB_SAFE_U,   0,                   1, b, destFillW, b,         NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
+        ninePatch(graphics, tex, x + w - b, y, rightU,              0,                   b, b, b,         b,         NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
+
+        if (destFillH > 0) {
+            int fillY = y + b;
+            ninePatch(graphics, tex, x,         fillY, 0,                 NESTED_TAB_SAFE_V, b, 1, b,         destFillH, NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
+            ninePatch(graphics, tex, x + b,     fillY, NESTED_TAB_SAFE_U, NESTED_TAB_SAFE_V, 1, 1, destFillW, destFillH, NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
+            ninePatch(graphics, tex, x + w - b, fillY, rightU,            NESTED_TAB_SAFE_V, b, 1, b,         destFillH, NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
+        }
+
+        int bottomDestY = y + h - b;
+        if (bottomDestY > y + b) {
+            ninePatch(graphics, tex, x,         bottomDestY, 0,                 bottomV, b, b, b,         b, NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
+            ninePatch(graphics, tex, x + b,     bottomDestY, NESTED_TAB_SAFE_U, bottomV, 1, b, destFillW, b, NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
+            ninePatch(graphics, tex, x + w - b, bottomDestY, rightU,            bottomV, b, b, b,         b, NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
         }
     }
 

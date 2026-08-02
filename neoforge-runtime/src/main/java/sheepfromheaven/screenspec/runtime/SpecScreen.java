@@ -235,7 +235,7 @@ public class SpecScreen extends Screen implements ActionHost {
             if (!w.type.equals("tabs")) continue;
             // Inactive tabs render beneath the body panel (see SpecContainerScreen.renderBg).
             builder().forEachTab(w, (tab, pos, active, x, y, tw, th) -> {
-                if (!active) renderer.renderTab(graphics, false, pos, x, y, tw, th + SpecWidgetBuilder.TAB_OVERLAP);
+                if (!active) renderer.renderTab(graphics, false, pos, w.parentId != null, x, y, tw, th + SpecWidgetBuilder.TAB_OVERLAP);
             });
             renderTabBody(graphics, w);
         }

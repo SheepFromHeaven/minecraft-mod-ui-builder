@@ -191,7 +191,7 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
             // edge tucks behind it) — vanilla creative-inventory layering. The active tab's sprite
             // is drawn by its TabButtonWidget, on top of the panel.
             builder().forEachTab(w, (tab, pos, active, x, y, tw, th) -> {
-                if (!active) renderer.renderTab(graphics, false, pos, x, y, tw, th + SpecWidgetBuilder.TAB_OVERLAP);
+                if (!active) renderer.renderTab(graphics, false, pos, w.parentId != null, x, y, tw, th + SpecWidgetBuilder.TAB_OVERLAP);
             });
             renderTabBody(graphics, w);
         }

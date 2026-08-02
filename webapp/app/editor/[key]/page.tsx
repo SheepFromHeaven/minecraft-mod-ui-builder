@@ -602,7 +602,15 @@ export default function EditorPage() {
           />
 
           <div className="flex flex-1 overflow-hidden">
-            <div ref={canvasWrapperRef} className="flex flex-1 overflow-hidden p-8">
+            <div
+              ref={canvasWrapperRef}
+              className="flex flex-1 overflow-hidden p-8"
+              onMouseDown={(e) => {
+                if (e.target !== e.currentTarget) return; // only the wrapper background, not canvas
+                if (document.activeElement instanceof HTMLInputElement) document.activeElement.blur();
+                setSelectedId(null);
+              }}
+            >
               <div style={{ transform: `translate(${panX}px, ${panY}px)`, margin: "auto", flexShrink: 0 }}>
               <Canvas
                 width={screen.width}

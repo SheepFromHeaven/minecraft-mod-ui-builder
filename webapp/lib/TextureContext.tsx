@@ -23,6 +23,8 @@ export const REQUIRED_TEXTURES = [
   "tab_unselected_left.png",
   "tab_unselected_middle.png",
   "tab_unselected_right.png",
+  "widget_tab_selected.png",
+  "widget_tab_unselected.png",
 ] as const;
 
 export type TextureName = (typeof REQUIRED_TEXTURES)[number];

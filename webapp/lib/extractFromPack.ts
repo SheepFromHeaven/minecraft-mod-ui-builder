@@ -1,7 +1,7 @@
 import JSZip from "jszip";
 import { saveTexture } from "./textureStore";
 import {
-  TASKS_9SLICE, CHECKBOX_SPRITES, TAB_SPRITES,
+  TASKS_9SLICE, NESTED_TAB_TASKS, CHECKBOX_SPRITES, TAB_SPRITES,
   SLOT_SPRITE_PATH, SLOT_CROP, SCROLLBAR_SPRITE_PATH, SCROLLBAR_ATLAS_FALLBACK,
   sample9slice, bitmapToImageData, imageDataToBlob, cropImageData,
 } from "./textureTasks";
@@ -35,7 +35,7 @@ export async function extractFromPack(buffer: ArrayBuffer): Promise<ExtractResul
   const missing: string[] = [];
 
   // --- 9-slice textures ---
-  for (const task of TASKS_9SLICE) {
+  for (const task of [...TASKS_9SLICE, ...NESTED_TAB_TASKS]) {
     const bitmap = await readBitmap(zip, task.path);
     if (!bitmap) {
       missing.push(task.name);

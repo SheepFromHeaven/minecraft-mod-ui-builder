@@ -288,7 +288,27 @@ export default function EditorPage() {
 
   const deleteWidget = useCallback((id = selectedId) => {
     if (!id) return;
-    commitScreen({ ...screen, widgets: screen.widgets.filter((w) => w.id !== id) });
+    const target = screen.widgets.find(w => w.id === id);
+    if (target?.type === "tab" && target.parentId) {
+      const siblings = screen.widgets.filter(w => w.type === "tab" && w.parentId === target.parentId);
+      if (siblings.length <= 1) return;
+    }
+    const collectDescendants = (rootId: string, all: WidgetSpec[]): Set<string> => {
+      const ids = new Set<string>([rootId]);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const w of all) {
+          if (w.parentId && ids.has(w.parentId) && !ids.has(w.id)) {
+            ids.add(w.id);
+            changed = true;
+          }
+        }
+      }
+      return ids;
+    };
+    const toRemove = collectDescendants(id, screen.widgets);
+    commitScreen({ ...screen, widgets: screen.widgets.filter((w) => !toRemove.has(w.id)) });
     setSelectedId(null);
   }, [screen, commitScreen, selectedId]);
 
@@ -297,8 +317,15 @@ export default function EditorPage() {
     if (!def) return;
     const id = newId(type);
     const pos = atX !== undefined && atY !== undefined ? { x: atX, y: atY } : {};
-    const widget: WidgetSpec = { ...def.defaultWidget, id, ...pos, ...(parentId ? { parentId } : {}) };
-    commitScreen({ ...screen, widgets: [...screen.widgets, widget] });
+    const parent = parentId ? screen.widgets.find(w => w.id === parentId) : undefined;
+    const sizeClamp = parent ? { w: Math.min(def.defaultWidget.w, parent.w), h: Math.min(def.defaultWidget.h, parent.h) } : {};
+    const widget: WidgetSpec = { ...def.defaultWidget, id, ...sizeClamp, ...pos, ...(parentId ? { parentId } : {}) };
+    const extra: WidgetSpec[] = [];
+    if (type === "tabs") {
+      const tabDef = getWidgetDef("tab");
+      if (tabDef) extra.push({ ...tabDef.defaultWidget, id: newId("tab"), parentId: id });
+    }
+    commitScreen({ ...screen, widgets: [...screen.widgets, widget, ...extra] });
     setSelectedId(id);
   }, [screen, commitScreen]);
 

@@ -272,7 +272,16 @@ function TreeNode({ widget, depth, isOpen, selectedId, isMultiSelected, dragOver
       </SidebarMenuButton>
 
       <NodeActionBar>
-        {isContainer && <AddWidgetButton onAdd={onAdd} />}
+        {widget.type === "tabs" && (
+          <button
+            className="flex size-5 items-center justify-center rounded hover:bg-sidebar-accent"
+            title="Add tab"
+            onClick={(e) => { e.stopPropagation(); onAdd("tab"); }}
+          >
+            <Plus className="size-3" />
+          </button>
+        )}
+        {isContainer && widget.type !== "tabs" && <AddWidgetButton onAdd={onAdd} />}
         <button
           className="flex size-5 items-center justify-center rounded hover:bg-sidebar-accent"
           title="Delete"

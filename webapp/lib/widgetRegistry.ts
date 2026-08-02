@@ -37,13 +37,6 @@ const WIDGET_REGISTRY: WidgetDef[] = [
     ],
   },
   {
-    type: "scroll",
-    label: "Scroll Area",
-    isContainer: true,
-    defaultWidget: { type: "scroll", x: 8, y: 8, w: 160, h: 120, text: "", icon: null, props: {} },
-    propSchema: [],
-  },
-  {
     type: "tabs",
     label: "Tabs",
     isContainer: true,
@@ -113,7 +106,8 @@ const WIDGET_REGISTRY: WidgetDef[] = [
     propSchema: [
       { key: "color", label: "Color (ARGB int)", type: "number", defaultValue: "4210752" },
       { key: "shadow", label: "Shadow", type: "boolean", defaultValue: "false" },
-      { key: "align", label: "Align", type: "select", options: ["left", "center", "right"], defaultValue: "left" },
+      { key: "align",  label: "Align",          type: "select", options: ["left", "center", "right"],        defaultValue: "left" },
+      { key: "valign", label: "Vertical Align", type: "select", options: ["top", "middle", "bottom"], defaultValue: "middle" },
     ],
   },
   {

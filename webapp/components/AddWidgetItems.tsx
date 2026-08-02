@@ -26,7 +26,7 @@ export const WIDGET_ICONS: Record<string, React.ElementType> = {
 export function AddWidgetItems({ onAdd }: { onAdd: (type: string) => void }) {
   return (
     <>
-      {WIDGET_REGISTRY.map(def => {
+      {WIDGET_REGISTRY.filter(def => def.type !== "tab").map(def => {
         const Icon = WIDGET_ICONS[def.type] ?? HelpCircle;
         return (
           <DropdownMenuItem key={def.type} onClick={() => onAdd(def.type)}>

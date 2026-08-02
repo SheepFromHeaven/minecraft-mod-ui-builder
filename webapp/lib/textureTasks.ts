@@ -74,6 +74,12 @@ export const TAB_SPRITES: { name: string; path: string }[] = [
   { name: "tab_unselected_right.png",  path: "assets/minecraft/textures/gui/sprites/advancements/tab_above_right.png" },
 ];
 
+// Nested tab sprites from the widget folder — 9-sliced at 3px, single texture per state
+export const NESTED_TAB_TASKS: Task9Slice[] = [
+  { name: "widget_tab_selected.png",   path: "assets/minecraft/textures/gui/sprites/widget/tab_selected.png", slice: 3 },
+  { name: "widget_tab_unselected.png", path: "assets/minecraft/textures/gui/sprites/widget/tab.png",          slice: 3 },
+];
+
 // Slot tile: dedicated sprite (1.20.2+) preferred; atlas crop (with the 1px
 // bevel border) as fallback for older packs where the sprite is missing.
 export const SLOT_SPRITE_PATH = "assets/minecraft/textures/gui/sprites/container/slot.png";

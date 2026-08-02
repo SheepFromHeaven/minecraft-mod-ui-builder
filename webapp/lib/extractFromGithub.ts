@@ -1,6 +1,6 @@
 import { saveTexture } from "./textureStore";
 import {
-  TASKS_9SLICE, CHECKBOX_SPRITES, TAB_SPRITES,
+  TASKS_9SLICE, NESTED_TAB_TASKS, CHECKBOX_SPRITES, TAB_SPRITES,
   SLOT_SPRITE_PATH, SLOT_CROP, SCROLLBAR_SPRITE_PATH, SCROLLBAR_ATLAS_FALLBACK,
   sample9slice, bitmapToImageData, imageDataToBlob, cropImageData,
 } from "./textureTasks";
@@ -41,7 +41,7 @@ export async function extractFromGithub(): Promise<ExtractResult> {
   const extracted: string[] = [];
   const missing: string[] = [];
 
-  for (const task of TASKS_9SLICE) {
+  for (const task of [...TASKS_9SLICE, ...NESTED_TAB_TASKS]) {
     const bitmap = await readBitmap(task.path);
     if (!bitmap) { missing.push(task.name); continue; }
     const srcData = bitmapToImageData(bitmap);

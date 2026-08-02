@@ -12,11 +12,15 @@ import { ScrollbarTry, SCROLLBAR_FIXED_PX } from "@/components/widgets/scrollbar
 import { InventoryAreaTry } from "@/components/widgets/inventory_area/InventoryAreaTry";
 import { TextureCtx, ScrollCtx, type ScrollPos, type ScrollCtxVal } from "@/components/widgets/tryContext";
 import WIDGET_REGISTRY from "@/lib/widgetRegistry";
+import { SELECTION_COLOR, SELECTION_OUTLINE } from "@/lib/selectionStyle";
 import { useTextures } from "@/lib/TextureContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AddWidgetItems } from "@/components/AddWidgetItems";
-import { TabsEditHeader, type TabDrag } from "@/components/widgets/tabs/TabsEditHeader";
-import { TabsTryHeader } from "@/components/widgets/tabs/TabsTryHeader";
+import { TabsTopEditHeader, type TabDrag } from "@/components/widgets/tabs/top/TabsTopEditHeader";
+import { tabsMinWidth, reflowTabsForWidth, computeTabLayout, TAB_GAP, NESTED_TAB_GAP } from "@/components/widgets/tabs/tabLayout";
+import { TabsTopTryHeader } from "@/components/widgets/tabs/top/TabsTopTryHeader";
+import { TabsNestedEditHeader } from "@/components/widgets/tabs/nested/TabsNestedEditHeader";
+import { TabsNestedTryHeader } from "@/components/widgets/tabs/nested/TabsNestedTryHeader";
 
 const BindingsCtx = createContext<BindingsSchema>({});
 const UpdateWidgetCtx = React.createContext<(w: WidgetSpec) => void>(() => {});
@@ -120,6 +124,7 @@ export default function Canvas({
   // Rnd, and any ancestor group auto-sizing to wrap it, update in real time
   // before the drag commits.
   const [draggingPos, setDraggingPos] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [draggingSize, setDraggingSize] = useState<{ id: string; w: number; h: number; x: number; y: number } | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null); // canvas-unit coords
   // canvasRef points to the outer wrapper div so getBoundingClientRect returns the visual bounding box
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -140,6 +145,16 @@ export default function Canvas({
   // (a static click on nested widgets is inherently ambiguous about which
   // level the user means, so successive clicks refine the target).
   const handleClickWidget = (clickedId: string) => {
+    // If a tab is already selected and the user clicks a sibling tab, jump
+    // directly to that tab without restarting the drill-down cycle.
+    if (selectedId !== null) {
+      const selected = getWidget(selectedId);
+      const clicked = getWidget(clickedId);
+      if (selected?.type === "tab" && clicked?.type === "tab" && selected.parentId === clicked.parentId) {
+        onSelect(clickedId);
+        return;
+      }
+    }
     const chain = resolveChain(clickedId);
     const idx = selectedId !== null ? chain.indexOf(selectedId) : -1;
     onSelect(idx >= 0 && idx < chain.length - 1 ? chain[idx + 1] : chain[0]);
@@ -189,6 +204,10 @@ export default function Canvas({
     const target = getWidget(targetId);
     if (!target) return;
 
+    // Tab header buttons manage their own drag (move/resize). Canvas must not
+    // move the widget, but should still handle click drill-down selection.
+    const inTabHeader = !!(e.target as HTMLElement).closest("[data-tab-header]");
+
     const startClientX = e.clientX;
     const startClientY = e.clientY;
     const origX = target.x;
@@ -201,6 +220,12 @@ export default function Canvas({
       y: Math.max(0, Math.min(height - target.h, ny)),
     });
     const onMove = (ev: MouseEvent) => {
+      if (inTabHeader) {
+        // Track movement so a drag doesn't trigger click-selection on mouseup,
+        // but let the tab's own drag handler move the widget.
+        if (Math.abs(ev.clientX - startClientX) > 2 || Math.abs(ev.clientY - startClientY) > 2) moved = true;
+        return;
+      }
       const dx = snapToGrid(origX + (ev.clientX - startClientX) / scale) - origX;
       const dy = snapToGrid(origY + (ev.clientY - startClientY) / scale) - origY;
       if (dx === 0 && dy === 0) return;
@@ -214,15 +239,15 @@ export default function Canvas({
     const onUp = (ev: MouseEvent) => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
-      if (moved) {
+      if (moved && !inTabHeader) {
         const dx = snapToGrid(origX + (ev.clientX - startClientX) / scale) - origX;
         const dy = snapToGrid(origY + (ev.clientY - startClientY) / scale) - origY;
         onUpdateWidget({ ...target, ...clamp(origX + dx, origY + dy) });
-      } else {
-        // No movement occurred — this was a plain click, so apply the
-        // ambiguous-click drill-down instead of the drag-target resolution.
+      } else if (!moved) {
+        // No movement — plain click: apply ambiguous-click drill-down.
         handleClickWidget(clickedId);
       }
+      // inTabHeader && moved: tab drag handled its own commit, nothing to do here.
       setDraggingPos(null);
     };
     window.addEventListener("mousemove", onMove);
@@ -234,6 +259,7 @@ export default function Canvas({
     // and owns the event handlers so getBoundingClientRect gives the correct visual box.
     <div
       ref={canvasRef}
+      data-canvas
       style={{
         width: cssWidth,
         height: cssHeight,
@@ -290,6 +316,8 @@ export default function Canvas({
                     selectedId={selectedId}
                     snapPx={snapPx}
                     draggingPos={draggingPos}
+                    draggingSize={draggingSize}
+                    setDraggingSize={setDraggingSize}
                     onResizeCommit={onUpdateWidget}
                     childMap={childMap}
                     zBase={idx + 2}
@@ -329,12 +357,14 @@ function buildChildMap(widgets: WidgetSpec[]): Map<string, WidgetSpec[]> {
 
 // ── Edit mode widget ──────────────────────────────────────────────────────────
 
-function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCommit, childMap, zBase }: {
+function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSize, setDraggingSize, onResizeCommit, childMap, zBase }: {
   widget: WidgetSpec;
   scale: number;
   selectedId: string | null;
   snapPx: number;
   draggingPos: { id: string; x: number; y: number } | null;
+  draggingSize: { id: string; w: number; h: number; x: number; y: number } | null;
+  setDraggingSize: (v: { id: string; w: number; h: number; x: number; y: number } | null) => void;
   onResizeCommit: (widget: WidgetSpec) => void;
   childMap: Map<string, WidgetSpec[]>;
   zBase: number;
@@ -346,7 +376,7 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
   const isSelected = widget.id === selectedId;
   const isContainer = CONTAINER_TYPES.has(widget.type);
   const children = isContainer ? (childMap.get(widget.id) ?? []) : [];
-  const clips = widget.type === "scroll";
+  const clips = false;
   const isGroup = widget.type === "group";
   const isTabs = widget.type === "tabs";
 
@@ -395,7 +425,7 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
       width: 8, height: 8,
       transform: `scale(${1 / scale})`,
       background: "#fff",
-      border: "1.5px solid #1a6bcc",
+      border: `1.5px solid ${SELECTION_COLOR}`,
       borderRadius: 1.5,
       boxShadow: "0 0 0 1px rgba(0,0,0,0.25)",
       pointerEvents: "none",
@@ -425,6 +455,7 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
   // The wrapper's CSS translate at resize-start, in MC pixel space (inner canvas coords).
   const resizeInitTransformRef = useRef<{ x: number; y: number } | null>(null);
 
+  // Tab drag — handled via useEffect (started from resize/move handle's onMouseDown)
   React.useEffect(() => {
     if (!tabDrag) return;
     const onMove = (e: MouseEvent) => {
@@ -449,18 +480,19 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabDrag !== null]);
 
+
   // Live drag position substitution: this widget itself may be the current
   // drag target (position moves live before the drag commits)...
-  const liveX = draggingPos?.id === widget.id ? draggingPos.x : widget.x;
-  const liveY = draggingPos?.id === widget.id ? draggingPos.y : widget.y;
+  const liveX = draggingPos?.id === widget.id ? draggingPos.x : draggingSize?.id === widget.id ? draggingSize.x : widget.x;
+  const liveY = draggingPos?.id === widget.id ? draggingPos.y : draggingSize?.id === widget.id ? draggingSize.y : widget.y;
 
   // ...or, for groups, one of its children may be, which changes auto-size.
   const renderW = isGroup && children.length > 0
     ? Math.max(...children.map(c => (draggingPos?.id === c.id ? draggingPos.x : c.x) + c.w))
-    : widget.w;
+    : draggingSize?.id === widget.id ? draggingSize.w : widget.w;
   const renderH = isGroup && children.length > 0
     ? Math.max(...children.map(c => (draggingPos?.id === c.id ? draggingPos.y : c.y) + c.h))
-    : widget.h;
+    : draggingSize?.id === widget.id ? draggingSize.h : widget.h;
 
   return (
     <Rnd
@@ -470,7 +502,11 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
         width:  widget.type === "scrollbar" && (widget.props.axis ?? "y") === "y" ? SCROLLBAR_FIXED_PX : renderW,
         height: widget.type === "scrollbar" && (widget.props.axis ?? "y") === "x" ? SCROLLBAR_FIXED_PX : renderH,
       }}
-      minWidth={widget.type === "scrollbar" && (widget.props.axis ?? "y") === "y" ? SCROLLBAR_FIXED_PX : undefined}
+      minWidth={
+        widget.type === "scrollbar" && (widget.props.axis ?? "y") === "y" ? SCROLLBAR_FIXED_PX :
+        isTabs ? tabsMinWidth(children.filter(c => c.type === "tab")) :
+        undefined
+      }
       maxWidth={widget.type === "scrollbar" && (widget.props.axis ?? "y") === "y" ? SCROLLBAR_FIXED_PX : undefined}
       minHeight={widget.type === "scrollbar" && widget.props.axis === "x" ? SCROLLBAR_FIXED_PX : undefined}
       maxHeight={widget.type === "scrollbar" && widget.props.axis === "x" ? SCROLLBAR_FIXED_PX : undefined}
@@ -486,7 +522,7 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
         altResizeRef.current = null;
         resizeInitTransformRef.current = null; // captured on first onResize
       }}
-      onResize={(e, _dir, ref, delta, _position) => {
+      onResize={(e, _dir, ref, delta, position) => {
         if (!resizeStartRef.current) return;
         // react-draggable applies its transform directly on `ref` via React.cloneElement —
         // there is no separate wrapper div. Capture the transform from ref itself.
@@ -511,20 +547,32 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
           ref.style.width     = `${altW}px`;
           ref.style.height    = `${altH}px`;
           ref.style.transform = `translate(${altTX}px, ${altTY}px)`;
-          altResizeRef.current = {
+          const altVals = {
             x: Math.max(0, Math.round(widget.x - delta.width)),
             y: Math.max(0, Math.round(widget.y - delta.height)),
             w: Math.max(1, Math.round(altW)),
             h: Math.max(1, Math.round(altH)),
           };
-        } else if (altResizeRef.current !== null) {
-          // Alt released mid-drag: restore ref to the resize-start transform so the
-          // widget snaps back to its natural position cleanly.
-          ref.style.transform = `translate(${initT.x}px, ${initT.y}px)`;
-          altResizeRef.current = null;
+          altResizeRef.current = altVals;
+          setDraggingSize({ id: widget.id, ...altVals });
+        } else {
+          if (altResizeRef.current !== null) {
+            // Alt released mid-drag: restore ref to the resize-start transform so the
+            // widget snaps back to its natural position cleanly.
+            ref.style.transform = `translate(${initT.x}px, ${initT.y}px)`;
+            altResizeRef.current = null;
+          }
+          setDraggingSize({
+            id: widget.id,
+            x: Math.max(0, Math.round(position.x)),
+            y: Math.max(0, Math.round(position.y)),
+            w: Math.max(1, Math.round(parseInt(ref.style.width))),
+            h: Math.max(1, Math.round(parseInt(ref.style.height))),
+          });
         }
       }}
       onResizeStop={(_e, _dir, ref, _delta, position) => {
+        setDraggingSize(null);
         let x: number;
         let y: number;
         let w: number;
@@ -549,7 +597,19 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
         resizeStartRef.current = null;
         altResizeRef.current = null;
         if (x === widget.x && y === widget.y && w === widget.w && h === widget.h) return;
-        onResizeCommit({ ...widget, x, y, w, h });
+        // For tabs: commit container + reflowed tab children in one atomic update
+        if (isTabs) {
+          const tabGap = widget.parentId ? NESTED_TAB_GAP : TAB_GAP;
+          const tabKids = children.filter(c => c.type === "tab");
+          const { allDefault, tabs: rawTabs } = computeTabLayout(tabKids, w, tabGap);
+          const reflowedTabs = !allDefault ? reflowTabsForWidth(rawTabs, w, tabGap) : rawTabs;
+          const movedTabs = reflowedTabs
+            .filter((rt, i) => rt.x !== rawTabs[i].x)
+            .map(rt => ({ ...rt.tab, x: rt.x }));
+          updateWidgets([{ ...widget, x, y, w, h }, ...movedTabs]);
+        } else {
+          onResizeCommit({ ...widget, x, y, w, h });
+        }
       }}
       onDoubleClick={(e: React.MouseEvent) => {
         if (isTabs) return; // tabs: double-click handled per tab button below
@@ -559,7 +619,7 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
         setInlineEdit({ id: widget.id, text: widget.text });
       }}
       style={{
-        outline: isSelected ? `2px solid #ff0` : "none",
+        outline: isSelected ? SELECTION_OUTLINE : "none",
         outlineOffset: 1,
         zIndex: zBase,
         cursor: "move",
@@ -576,7 +636,7 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
       resizeHandleStyles={isSelected ? RESIZE_HANDLE_STYLES : undefined}
       resizeHandleComponent={isSelected ? resizeHandleComponent : undefined}
     >
-      <WidgetVisual widget={previewWidget} scale={scale} interactState="idle" />
+      {!isTabs && <WidgetVisual widget={draggingSize?.id === widget.id ? { ...previewWidget, w: draggingSize.w, h: draggingSize.h } : previewWidget} scale={scale} interactState="idle" />}
       {inlineEdit?.id === widget.id && (() => {
         // Mirror WidgetVisual's text alignment and padding so the edit position matches display.
         const align = widget.type === "label"
@@ -625,6 +685,8 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
               selectedId={selectedId}
               snapPx={snapPx}
               draggingPos={draggingPos}
+              draggingSize={draggingSize}
+              setDraggingSize={setDraggingSize}
               onResizeCommit={onResizeCommit}
               childMap={childMap}
               zBase={idx + 1}
@@ -632,25 +694,51 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, onResizeCo
           ))}
         </div>
       )}
-      {isTabs && (
-        <TabsEditHeader
+      {isTabs && !widget.parentId && (
+        <TabsTopEditHeader
           widget={widget}
           tabChildren={tabChildren}
           tex={tex}
           activeTabId={activeTabId}
           tabDrag={tabDrag}
           setTabDrag={setTabDrag}
+          updateWidgets={updateWidgets}
           inlineEdit={inlineEdit}
           setInlineEdit={setInlineEdit}
           inlineInputRef={inlineInputRef}
           commitInlineEdit={commitInlineEdit}
           setPreviewTabId={setPreviewTabId}
-          updateWidgets={updateWidgets}
           tabHeaderHeight={tabHeaderHeight}
           scale={scale}
           selectedId={selectedId}
           snapPx={snapPx}
           draggingPos={draggingPos}
+          draggingSize={draggingSize}
+          setDraggingSize={setDraggingSize}
+          onResizeCommit={onResizeCommit}
+          childMap={childMap}
+          activeTabChildren={activeTabChildren}
+          EditWidget={EditWidget}
+        />
+      )}
+      {isTabs && !!widget.parentId && (
+        <TabsNestedEditHeader
+          widget={widget}
+          tabChildren={tabChildren}
+          tex={tex}
+          activeTabId={activeTabId}
+          inlineEdit={inlineEdit}
+          setInlineEdit={setInlineEdit}
+          inlineInputRef={inlineInputRef}
+          commitInlineEdit={commitInlineEdit}
+          setPreviewTabId={setPreviewTabId}
+          tabHeaderHeight={tabHeaderHeight}
+          scale={scale}
+          selectedId={selectedId}
+          snapPx={snapPx}
+          draggingPos={draggingPos}
+          draggingSize={draggingSize}
+          setDraggingSize={setDraggingSize}
           onResizeCommit={onResizeCommit}
           childMap={childMap}
           activeTabChildren={activeTabChildren}
@@ -714,7 +802,7 @@ function TryWidget({ widget, scale, childMap, zBase, allWidgets }: {
 
   const isContainer = CONTAINER_TYPES.has(widget.type);
   const children = isContainer ? (childMap.get(widget.id) ?? []) : [];
-  const clips = widget.type === "scroll";
+  const clips = false;
   const isTabs = widget.type === "tabs";
   const tabChildren = isTabs ? children.filter((c) => c.type === "tab") : [];
   const tabHeaderHeight = isTabs ? parseInt(widget.props.tab_height ?? "20", 10) : 0;
@@ -728,7 +816,7 @@ function TryWidget({ widget, scale, childMap, zBase, allWidgets }: {
   const isToggle = widget.type === "toggle_button" || widget.type === "checkbox";
   const isSlider = widget.type === "slider";
   const isInput = widget.type === "input";
-  const isPassive = widget.type === "panel" || widget.type === "scroll" || widget.type === "group"
+  const isPassive = widget.type === "panel" || widget.type === "group"
     || widget.type === "label" || widget.type === "icon" || widget.type === "tabs";
   const interactState = pressed ? "pressed" : (isInput ? focused : hovered) ? "hovered" : "idle";
 
@@ -763,6 +851,7 @@ function TryWidget({ widget, scale, childMap, zBase, allWidgets }: {
   return (
     <div
       ref={isSlider ? trackRef : undefined}
+      data-widget-id={widget.id}
       style={{
         position: "absolute",
         left: widget.x,
@@ -786,7 +875,7 @@ function TryWidget({ widget, scale, childMap, zBase, allWidgets }: {
       }}
       onPointerDown={isSlider ? handleSliderPointer : undefined}
     >
-      <WidgetVisual widget={liveWidget} scale={scale} interactState={interactState} toggled={toggled} />
+      {!isTabs && <WidgetVisual widget={liveWidget} scale={scale} interactState={interactState} toggled={toggled} />}
       {isContainer && !isTabs && (
         <div style={{ position: "absolute", inset: 0, overflow: clips ? "hidden" : "visible" }}>
           {children.map((child, idx) => (
@@ -794,8 +883,23 @@ function TryWidget({ widget, scale, childMap, zBase, allWidgets }: {
           ))}
         </div>
       )}
-      {isTabs && (
-        <TabsTryHeader
+      {isTabs && !widget.parentId && (
+        <TabsTopTryHeader
+          widget={widget}
+          tabChildren={tabChildren}
+          tex={tex}
+          resolvedTabId={resolvedTabId}
+          setActiveTab={setActiveTab}
+          tabHeaderHeight={tabHeaderHeight}
+          scale={scale}
+          childMap={childMap}
+          activeTabChildren={activeTabChildren}
+          allWidgets={allWidgets}
+          TryWidgetRoot={TryWidgetRoot}
+        />
+      )}
+      {isTabs && !!widget.parentId && (
+        <TabsNestedTryHeader
           widget={widget}
           tabChildren={tabChildren}
           tex={tex}

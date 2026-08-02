@@ -2,7 +2,8 @@
 
 import type { ComponentType } from "react";
 import type { WidgetSpec } from "@/lib/types";
-import { TAB_TOP_SLICE, TAB_SIDE_SLICE, TAB_LEFT_SLICE, computeTabLayout, tabEdgePosition } from "./tabLayout";
+import { TAB_TOP_SLICE, TAB_SIDE_SLICE, TAB_LEFT_SLICE, TAB_GAP, computeTabLayout, tabEdgePosition } from "../tabLayout";
+import { TabBackground, TabLabel } from "../TabParts";
 
 interface TryWidgetRootProps {
   widget: WidgetSpec;
@@ -13,13 +14,7 @@ interface TryWidgetRootProps {
   scrollListeners: Map<string, Set<() => void>>;
 }
 
-/**
- * Try-mode's tab selector row + content panel. Passed TryWidgetRoot itself
- * (rather than importing it) to avoid a circular import — it renders this
- * component for `tabs` widgets, and this component recurses back into it for
- * the active tab's children.
- */
-export function TabsTryHeader({
+export function TabsTopTryHeader({
   widget, tabChildren, tex, resolvedTabId, setActiveTab, tabHeaderHeight,
   scale, childMap, activeTabChildren, allWidgets, TryWidgetRoot,
 }: {
@@ -38,7 +33,7 @@ export function TabsTryHeader({
   const topSlice = TAB_TOP_SLICE;
   const sideSlice = TAB_SIDE_SLICE;
   const leftSlice = TAB_LEFT_SLICE;
-  const { tabs: computedTabs } = computeTabLayout(tabChildren, widget.w);
+  const { tabs: computedTabs } = computeTabLayout(tabChildren, widget.w, TAB_GAP);
   return (
     <div style={{ position: "absolute", inset: 0 }}>
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: tabHeaderHeight, overflow: "visible" }}>
@@ -54,36 +49,16 @@ export function TabsTryHeader({
               onClick={() => setActiveTab(widget.id, tab.id)}
               style={{
                 position: "absolute",
-                left: tabX,
-                width: tabW,
-                top: -1,
-                height: tabH,
+                left: tabX, width: tabW, top: -1, height: tabH,
                 zIndex: isActive ? 3 : 2,
-                overflow: "visible",
-                cursor: "pointer",
-                userSelect: "none",
+                overflow: "visible", cursor: "pointer", userSelect: "none",
               }}
             >
               {tabTex && (
-                <div style={{ position: "absolute", left: 0, top: 0, width: tabW, height: tabH, boxSizing: "border-box", overflow: "visible",
-                  pointerEvents: "none",
-                  borderImage: `url("${tabTex}") ${4} ${3} ${0} ${4} fill / ${topSlice}px ${sideSlice}px 0px ${leftSlice}px stretch` }} />
+                <TabBackground tex={tabTex} tabW={tabW} tabH={tabH}
+                  borderImageCss={`url("${tabTex}") ${4} ${3} ${0} ${4} fill / ${topSlice}px ${sideSlice}px 0px ${leftSlice}px stretch`} />
               )}
-              <div style={{
-                position: "absolute", inset: 0,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                whiteSpace: "nowrap",
-                fontSize: 6,
-                fontFamily: '"Minecraft", monospace',
-                color: isActive ? "#404040" : "#909090",
-                pointerEvents: "none",
-              }}>
-                {tab.icon
-                  // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={tab.icon} alt="" style={{ width: tabHeaderHeight * 0.6, height: tabHeaderHeight * 0.6, imageRendering: "pixelated" }} />
-                  : tab.text || tab.id
-                }
-              </div>
+              <TabLabel tab={tab} isActive={isActive} inactivePaddingTop={topSlice} tabHeaderHeight={tabHeaderHeight} />
             </div>
           );
         })}

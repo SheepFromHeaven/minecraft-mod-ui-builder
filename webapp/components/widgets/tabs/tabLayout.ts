@@ -8,6 +8,8 @@ export const TAB_TOP_SLICE = 4;
 export const TAB_SIDE_SLICE = 3;
 export const TAB_LEFT_SLICE = 4;
 export const TAB_GAP = 2;
+export const NESTED_TAB_SLICE = 3;
+export const NESTED_TAB_GAP = 0;
 
 export interface ComputedTab {
   tab: WidgetSpec;
@@ -21,26 +23,82 @@ export interface ComputedTab {
  * distributed evenly across the container width; afterward each tab's own
  * x/w (set by a prior drag/resize) is used as-is.
  */
-export function computeTabLayout(tabChildren: WidgetSpec[], containerWidth: number): {
+export function computeTabLayout(tabChildren: WidgetSpec[], containerWidth: number, gap?: number): {
   allDefault: boolean;
   defaultTabW: number;
   getW: (t: WidgetSpec) => number;
   getX: (t: WidgetSpec, i: number) => number;
   tabs: ComputedTab[];
 } {
+  const g = gap ?? TAB_GAP;
   const allDefault = tabChildren.length > 0 && tabChildren.every((t) => t.w === 0);
   const defaultTabW = tabChildren.length > 0
-    ? Math.max(16, Math.floor((containerWidth - TAB_GAP * Math.max(0, tabChildren.length - 1)) / tabChildren.length))
+    ? Math.max(16, Math.floor((containerWidth - g * Math.max(0, tabChildren.length - 1)) / tabChildren.length))
     : 0;
   const getW = (t: WidgetSpec) => (allDefault ? defaultTabW : Math.max(16, t.w || defaultTabW));
   const getX = (t: WidgetSpec, i: number) => (allDefault
-    ? tabChildren.slice(0, i).reduce((acc, prev) => acc + getW(prev) + TAB_GAP, 0)
+    ? tabChildren.slice(0, i).reduce((acc, prev) => acc + getW(prev) + g, 0)
     : t.x);
 
   const tabs = tabChildren.map((t, i) => ({ tab: t, w: getW(t), x: getX(t, i) }));
 
   return { allDefault, defaultTabW, getW, getX, tabs };
 }
+
+/**
+ * Given a list of already-computed tabs and a new container width, push tabs
+ * left (from right to left) to ensure no tab overflows past `newW` and the
+ * minimum `gap` between adjacent tabs is maintained.
+ * Returns a new array with adjusted x values; widths are unchanged.
+ */
+export function reflowTabsForWidth(tabs: ComputedTab[], newW: number, gap: number): ComputedTab[] {
+  const result = tabs.map(t => ({ ...t }));
+  const n = result.length;
+  if (n === 0) return result;
+  // Clamp rightmost tab to container edge
+  result[n - 1].x = Math.min(result[n - 1].x, newW - result[n - 1].w);
+  // Propagate left: each tab must not overlap the one to its right
+  for (let i = n - 2; i >= 0; i--) {
+    const next = result[i + 1];
+    result[i].x = Math.min(result[i].x, next.x - result[i].w - gap);
+  }
+  return result;
+}
+
+/**
+ * Minimum container width needed to fit all tabs at their current sizes with at least `gap` between them.
+ * For default-layout tabs (all w=0), uses `minTabW` for each tab.
+ */
+export function tabsMinWidth(tabChildren: WidgetSpec[], gap?: number, minTabW = 16): number {
+  if (tabChildren.length === 0) return minTabW;
+  const g = gap ?? TAB_GAP;
+  const allDefault = tabChildren.every((t) => t.w === 0);
+  // Min width = sum of all tab widths (or minTabW each) + gaps between them
+  const widths = tabChildren.map(t => (allDefault ? minTabW : Math.max(minTabW, t.w)));
+  return widths.reduce((sum, w) => sum + w, 0) + (tabChildren.length - 1) * g;
+}
+
+/**
+ * Commits evenly-distributed x/w values for all tabs, with the last tab
+ * absorbing any remainder so tabs fill the container with zero gap.
+ */
+export function defaultTabLayout(tabChildren: WidgetSpec[], containerWidth: number, gap: number): WidgetSpec[] {
+  const { getW, getX } = computeTabLayout(tabChildren, containerWidth, gap);
+  return tabChildren.map((tc, i) => {
+    const x = getX(tc, i);
+    const w = i === tabChildren.length - 1 ? containerWidth - x : getW(tc);
+    return { ...tc, x, w };
+  });
+}
+
+export type TabDrag = {
+  type: "move" | "resize-right" | "resize-left";
+  id: string;
+  startMouseX: number;
+  startX: number; startW: number;
+  minX: number; maxX: number;
+  minW: number; maxW: number;
+};
 
 /** "left" | "middle" | "right" — which tab-sprite variant to use, based on whether the tab touches either edge of the tabs container. */
 export function tabEdgePosition(tabX: number, tabW: number, containerWidth: number): "left" | "middle" | "right" {

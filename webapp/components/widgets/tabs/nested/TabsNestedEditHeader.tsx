@@ -55,7 +55,7 @@ export function TabsNestedEditHeader({
   return (
     <div style={{ position: "absolute", inset: 0 }}>
       <div data-tab-header style={{ position: "absolute", top: 0, left: 0, right: 0, height: tabHeaderHeight, overflow: "visible", zIndex: 2 }}>
-        {computedTabs.map(({ tab, x: tabX, w: tabW }) => {
+        {computedTabs.filter(({ tab }) => !tab.hidden).map(({ tab, x: tabX, w: tabW }) => {
           const isActive = tab.id === activeTabId;
           const tabTex = tex(isActive ? "widget_tab_selected.png" : "widget_tab_unselected.png");
           const tabH = tabHeaderHeight + slice;
@@ -114,7 +114,7 @@ export function TabsNestedEditHeader({
         height: (draggingSize?.id === widget.id ? draggingSize.h : widget.h) - tabHeaderHeight,
         overflow: "hidden", zIndex: 1,
       }}>
-        {activeTabChildren.map((child, idx) => (
+        {!tabChildren.find(t => t.id === activeTabId)?.hidden && activeTabChildren.map((child, idx) => (
           <EditWidget key={child.id} widget={child} scale={scale} selectedId={selectedId}
             snapPx={snapPx} draggingPos={draggingPos} draggingSize={draggingSize}
             setDraggingSize={setDraggingSize} onResizeCommit={onResizeCommit}

@@ -494,6 +494,8 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSi
     ? Math.max(...children.map(c => (draggingPos?.id === c.id ? draggingPos.y : c.y) + c.h))
     : draggingSize?.id === widget.id ? draggingSize.h : widget.h;
 
+  if (widget.hidden) return null;
+
   return (
     <Rnd
       scale={scale}

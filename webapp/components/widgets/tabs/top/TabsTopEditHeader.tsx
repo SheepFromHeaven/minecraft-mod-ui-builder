@@ -68,7 +68,7 @@ export function TabsTopEditHeader({
   return (
     <div style={{ position: "absolute", inset: 0 }}>
       <div data-tab-header style={{ position: "absolute", top: 0, left: 0, right: 0, height: tabHeaderHeight, overflow: "visible" }}>
-        {computedTabs.map(({ tab, x: tabX, w: tabW }, idx) => {
+        {computedTabs.filter(({ tab }) => !tab.hidden).map(({ tab, x: tabX, w: tabW }, idx) => {
           const isActive = tab.id === activeTabId;
           const pos = tabEdgePosition(tabX, tabW, liveW);
           const tabTex = tex(isActive ? `tab_selected_${pos}.png` : `tab_unselected_${pos}.png`);
@@ -170,7 +170,7 @@ export function TabsTopEditHeader({
           <div style={{ position: "absolute", inset: 0, boxSizing: "border-box",
             borderImage: `url("${tex("mc_panel_slice.png")}") 3 fill / 3px stretch` }} />
         )}
-        {activeTabChildren.map((child, idx) => (
+        {!tabChildren.find(t => t.id === activeTabId)?.hidden && activeTabChildren.map((child, idx) => (
           <EditWidget key={child.id} widget={child} scale={scale} selectedId={selectedId}
             snapPx={snapPx} draggingPos={draggingPos} draggingSize={draggingSize}
             setDraggingSize={setDraggingSize} onResizeCommit={onResizeCommit}

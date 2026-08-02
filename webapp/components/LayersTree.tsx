@@ -9,7 +9,7 @@ import {
 import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
-  ChevronDown, ChevronRight, Plus, Trash2, HelpCircle,
+  ChevronDown, ChevronRight, Plus, Trash2, HelpCircle, Eye, EyeOff,
 } from "lucide-react";
 import {
   SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarGroupAction,
@@ -85,13 +85,14 @@ export interface LayersTreeProps {
   onSelect: (id: string, shiftKey: boolean) => void;
   onAdd: (type: string, parentId?: string) => void;
   onDelete: (id: string) => void;
+  onToggleHidden: (id: string) => void;
   onReorder: (draggedIds: string[], overId: string, placement: Placement) => void;
 }
 
 // ── main component ─────────────────────────────────────────────────────────────
 
 export default function LayersTree({
-  widgets, selectedId, selectedIds, onSelect, onAdd, onDelete, onReorder,
+  widgets, selectedId, selectedIds, onSelect, onAdd, onDelete, onToggleHidden, onReorder,
 }: LayersTreeProps) {
   const [expanded, setExpanded] = useState<Set<string>>(() =>
     new Set(widgets.filter(w => CONTAINER_TYPES.has(w.type)).map(w => w.id)),
@@ -186,6 +187,7 @@ export default function LayersTree({
                 onSelect={onSelect}
                 onAdd={(type) => expandAndAdd(type, widget.id)}
                 onDelete={onDelete}
+                onToggleHidden={onToggleHidden}
                 onToggle={() => toggle(item.id)}
               />
             );
@@ -212,7 +214,7 @@ export default function LayersTree({
 
 // ── unified tree node (all depths) ────────────────────────────────────────────
 
-function TreeNode({ widget, depth, isOpen, selectedId, isMultiSelected, dragOver, onSelect, onAdd, onDelete, onToggle }: {
+function TreeNode({ widget, depth, isOpen, selectedId, isMultiSelected, dragOver, onSelect, onAdd, onDelete, onToggleHidden, onToggle }: {
   widget: WidgetSpec;
   depth: number;
   isOpen: boolean;
@@ -222,6 +224,7 @@ function TreeNode({ widget, depth, isOpen, selectedId, isMultiSelected, dragOver
   onSelect: (id: string, shiftKey: boolean) => void;
   onAdd: (type: string) => void;
   onDelete: (id: string) => void;
+  onToggleHidden: (id: string) => void;
   onToggle: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -243,7 +246,7 @@ function TreeNode({ widget, depth, isOpen, selectedId, isMultiSelected, dragOver
       <SidebarMenuButton
         isActive={widget.id === selectedId}
         onClick={(e) => onSelect(widget.id, e.shiftKey)}
-        className={`${isDragging ? "cursor-grabbing" : "cursor-default"} pr-16`}
+        className={`${isDragging ? "cursor-grabbing" : "cursor-default"} pr-20`}
         style={{
           paddingLeft: BASE_PL + depth * INDENT,
           ...(isMultiSelected && widget.id !== selectedId ? { background: "hsl(217 91% 60% / 0.15)" } : {}),
@@ -267,9 +270,19 @@ function TreeNode({ widget, depth, isOpen, selectedId, isMultiSelected, dragOver
           // spacer so labels align when siblings include containers
           <span className="mr-0.5 size-3 shrink-0 inline-block" />
         )}
-        <Icon className="size-3.5 shrink-0" />
-        <span className="truncate text-xs">{widget.id}</span>
+        <Icon className={`size-3.5 shrink-0 ${widget.hidden ? "opacity-40" : ""}`} />
+        <span className={`truncate text-xs ${widget.hidden ? "opacity-40" : ""}`}>{widget.id}</span>
       </SidebarMenuButton>
+
+      {/* Eye toggle — always visible so position never shifts on hover */}
+      <button
+        className="absolute right-1 top-1.5 flex size-5 items-center justify-center rounded hover:bg-sidebar-accent opacity-40 hover:opacity-100"
+        title={widget.hidden ? "Show" : "Hide"}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); onToggleHidden(widget.id); }}
+      >
+        {widget.hidden ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+      </button>
 
       <NodeActionBar>
         {widget.type === "tabs" && (
@@ -321,7 +334,7 @@ function NodeActionBar({ children }: { children: React.ReactNode }) {
       onClose: () => setTimeout(() => setOpenCount(c => Math.max(0, c - 1)), 150),
     }}>
       <div
-        className="absolute right-1 top-1.5 items-center gap-0.5 hidden group-hover/menu-item:flex"
+        className="absolute right-7 top-1.5 items-center gap-0.5 hidden group-hover/menu-item:flex"
         style={openCount > 0 ? { display: "flex" } : undefined}
       >
         {children}

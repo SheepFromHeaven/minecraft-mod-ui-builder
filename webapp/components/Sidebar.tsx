@@ -35,6 +35,7 @@ interface Props {
   onAddWidget: (type: string, parentId?: string) => void;
   onSelectWidget: (id: string, shiftKey: boolean) => void;
   onDeleteWidget: (id: string) => void;
+  onToggleHiddenWidget: (id: string) => void;
   onReparentWidget: (id: string, newParentId: string | null) => void;
   onReorderWidget: (draggedIds: string[], overId: string, placement: "before" | "after" | "inside") => void;
 }
@@ -42,7 +43,7 @@ interface Props {
 export default function AppSidebar({
   screens, activeIdx, modId, widgets, selectedId, selectedIds,
   onGoHome, onSelectScreen, onAddScreen, onRemoveScreen, onRenameScreen,
-  onAddWidget, onSelectWidget, onDeleteWidget, onReparentWidget, onReorderWidget,
+  onAddWidget, onSelectWidget, onDeleteWidget, onToggleHiddenWidget, onReparentWidget, onReorderWidget,
 }: Props) {
   const [screensOpen, setScreensOpen] = useState(true);
   const [layersOpen, setLayersOpen] = useState(true);
@@ -174,6 +175,7 @@ export default function AppSidebar({
                 onSelect={onSelectWidget}
                 onAdd={onAddWidget}
                 onDelete={onDeleteWidget}
+                onToggleHidden={onToggleHiddenWidget}
                 onReorder={onReorderWidget}
               />
             </SidebarGroupContent>

@@ -286,6 +286,12 @@ export default function EditorPage() {
     if (updated.id !== selectedId) setSelectedId(updated.id);
   }, [screen, commitScreen, selectedId]);
 
+  const toggleHiddenWidget = useCallback((id: string) => {
+    const widget = screen.widgets.find(w => w.id === id);
+    if (!widget) return;
+    commitScreen({ ...screen, widgets: screen.widgets.map(w => w.id === id ? { ...w, hidden: !w.hidden } : w) });
+  }, [screen, commitScreen]);
+
   const deleteWidget = useCallback((id = selectedId) => {
     if (!id) return;
     const target = screen.widgets.find(w => w.id === id);
@@ -557,6 +563,7 @@ export default function EditorPage() {
             onAddWidget={addWidget}
             onSelectWidget={selectWidgetInTree}
             onDeleteWidget={deleteWidget}
+            onToggleHiddenWidget={toggleHiddenWidget}
             onReparentWidget={reparentWidget}
             onReorderWidget={reorderWidget}
           />

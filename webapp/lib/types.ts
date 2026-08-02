@@ -12,6 +12,7 @@ export interface WidgetSpec {
   props: Record<string, string>;
   item_template?: WidgetSpec[];
   parentId?: string;
+  hidden?: boolean;
 }
 
 export interface SlotAreaSpec {

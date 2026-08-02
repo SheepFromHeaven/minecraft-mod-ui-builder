@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.9.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.8.1...neoforge-runtime-v0.9.0) (2026-08-02)
+
+
+### Features
+
+* **runtime:** pass action id to onAction; remove built-in close action ([a9818c5](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/a9818c577a869ef2cde32f18db34896e3a9d858e))
+* **runtime:** register checkbox widget factory ([d4cb4c9](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/d4cb4c93648ebb7330ef2e7861833380322247a7))
+
+
+### Bug Fixes
+
+* **neoforge-runtime:** render nested tabs with correct widget/tab sprites ([dbf2c0b](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/dbf2c0b9e648d4414373523af761e9be4803061b))
+* **webapp:** checkbox defaults and property panel cleanup ([3d1ff6e](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/3d1ff6ee29101cc0b395e421d7604a6dc8782f38))
+
 ## [0.8.1](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.8.0...neoforge-runtime-v0.8.1) (2026-07-31)
 
 

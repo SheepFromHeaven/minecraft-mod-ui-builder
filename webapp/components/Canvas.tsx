@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, createContext, useContext } from "react"
 import React from "react";
 
 import { Rnd } from "react-rnd";
+import { toast } from "sonner";
 import type { WidgetSpec, BindingsSchema } from "@/lib/types";
 import { getBindingNode } from "@/components/BindingsTree";
 import WidgetVisual from "./WidgetVisual";
@@ -965,6 +966,7 @@ function TryWidget({ widget, scale, childMap, zBase, allWidgets }: {
         if (isPassive || isSlider || isInput) return;
         setPressed(false);
         if (isToggle) setToggled((v) => !v);
+        if (widget.action) toast(`Action triggered: ${widget.action}`);
       }}
       onPointerDown={isSlider ? handleSliderPointer : undefined}
     >

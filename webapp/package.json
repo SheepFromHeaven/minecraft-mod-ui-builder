@@ -6,16 +6,21 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "gen:test-textures": "node tests/fixtures/generate-textures.mjs",
+    "gen:real-test-textures": "node tests/scripts/extract-real-textures.mjs",
+    "test:e2e": "npm run gen:test-textures && playwright test",
+    "test:e2e:update": "npm run gen:test-textures && playwright test --update-snapshots",
+    "test:e2e:ui": "npm run gen:test-textures && playwright test --ui"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
-    "jszip": "^3.10.1",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "jszip": "^3.10.1",
     "lucide-react": "^1.27.0",
     "next": "16.2.12",
     "next-themes": "^0.4.6",
@@ -27,6 +32,7 @@
     "tw-animate-css": "^1.4.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

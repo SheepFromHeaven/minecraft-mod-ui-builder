@@ -1,13 +1,20 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Loader2, PackageOpen } from "lucide-react";
+import { Loader2, PackageOpen, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTextures } from "@/lib/TextureContext";
 
+/**
+ * Fallback screen — only shown when the automatic texture load (straight
+ * from GitHub's raw CDN, see lib/extractFromGithub.ts) didn't fully succeed,
+ * e.g. no network, GitHub unreachable, or a corporate proxy blocking it.
+ * Lets you retry that, or load your own JAR/resource pack instead.
+ */
 export default function SetupScreen() {
-  const { extractPack } = useTextures();
+  const { extractPack, reset } = useTextures();
   const [loading, setLoading] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const [packResult, setPackResult] = useState<{ extracted: number; missing: string[] } | null>(null);
   const [packError, setPackError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -29,16 +36,31 @@ export default function SetupScreen() {
     }
   };
 
+  const handleRetry = async () => {
+    setRetrying(true);
+    try {
+      await reset();
+    } finally {
+      setRetrying(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-10 bg-background px-6">
       <div className="text-center">
         <h1 className="text-3xl font-bold tracking-tight">MC Screen Designer</h1>
         <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-          To show Minecraft GUI textures, load your own game files. They are extracted locally — nothing leaves your browser.
+          Couldn&apos;t automatically load the default textures (probably a network issue). Try again, or load your own game files instead — extracted locally, nothing leaves your browser.
         </p>
       </div>
 
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-sm flex flex-col gap-4">
+        <Button onClick={handleRetry} disabled={retrying} variant="secondary" className="w-full">
+          {retrying
+            ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Retrying…</>
+            : <><RefreshCw className="mr-2 h-4 w-4" />Try loading default textures again</>}
+        </Button>
+
         <div className="rounded-lg border bg-card p-5 flex flex-col gap-3">
           <div className="flex items-start gap-3">
             <PackageOpen className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />

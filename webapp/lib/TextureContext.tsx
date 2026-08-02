@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { clearTextures, loadAllTextures, saveTexture } from "./textureStore";
 import { extractFromPack, type ExtractResult } from "./extractFromPack";
+import { extractFromGithub, fetchGithubPackCatalog } from "./extractFromGithub";
 
 export const REQUIRED_TEXTURES = [
   "mc_panel_slice.png",
@@ -60,41 +61,70 @@ export function TextureProvider({ children }: { children: React.ReactNode }) {
   const [initialized, setInitialized] = useState(false);
   const [setupRequired, setSetupRequired] = useState(false);
   const urlsRef = useRef<string[]>([]);
+  // Raw GitHub CDN URLs for arbitrary pack textures (sprite/icon widgets),
+  // fetched once and merged under any keys an uploaded pack didn't provide.
+  const githubCatalogRef = useRef<Record<string, string>>({});
 
   const applyBlobs = (blobs: Record<string, Blob>) => {
     urlsRef.current.forEach((u) => URL.revokeObjectURL(u));
     urlsRef.current = [];
     const next: Partial<Record<TextureName, string>> = {};
+    const pack: Record<string, string> = { ...githubCatalogRef.current };
     for (const name of REQUIRED_TEXTURES) {
       if (blobs[name]) {
         const url = URL.createObjectURL(blobs[name]);
         urlsRef.current.push(url);
         next[name] = url;
+        // Also expose derived textures in the picker under a virtual folder
+        pack[`extracted/${name}`] = url;
       }
     }
     setTextures(next);
-    const pack: Record<string, string> = {};
     for (const [key, blob] of Object.entries(blobs)) {
       if (key.startsWith("pack:")) {
         const url = URL.createObjectURL(blob);
         urlsRef.current.push(url);
-        pack[key.slice(5)] = url;
+        pack[key.slice(5)] = url; // an uploaded pack's own file wins over the GitHub catalog entry
       }
     }
     setPackTextures(pack);
   };
 
-  useEffect(() => {
-    (async () => {
-      const blobs = await loadAllTextures();
-      if (Object.keys(blobs).length === 0) {
+  /**
+   * Loads textures from IndexedDB; if empty, auto-loads the default
+   * reference pack straight from GitHub's raw CDN (the browser fetches
+   * directly from GitHub — this app never hosts or redistributes those
+   * bytes itself). Only falls back to requiring manual "upload a JAR/pack"
+   * if that fetch didn't fully succeed (offline, GitHub unreachable, etc),
+   * so the app keeps working either way. Shared by the mount effect and reset().
+   */
+  const loadOrAutoFetch = async () => {
+    let blobs = await loadAllTextures();
+    if (Object.keys(blobs).length === 0) {
+      const result = await extractFromGithub().catch(() => null);
+      blobs = await loadAllTextures();
+      const gotAllRequired = result && result.missing.length === 0;
+      if (!gotAllRequired || Object.keys(blobs).length === 0) {
         setSetupRequired(true);
         setInitialized(true);
         return;
       }
-      applyBlobs(blobs);
-      setInitialized(true);
-    })().catch((e) => {
+    }
+    applyBlobs(blobs);
+    setSetupRequired(false);
+    setInitialized(true);
+  };
+
+  useEffect(() => {
+    // The GitHub pack catalog (arbitrary item/sprite textures) is
+    // independent of the required-texture pipeline below — fetch it
+    // opportunistically; an empty result just means nothing to browse.
+    fetchGithubPackCatalog().then((catalog) => {
+      githubCatalogRef.current = catalog;
+      setPackTextures((prev) => ({ ...catalog, ...prev }));
+    });
+
+    loadOrAutoFetch().catch((e) => {
       console.error(e);
       setSetupRequired(true);
       setInitialized(true);
@@ -132,7 +162,10 @@ export function TextureProvider({ children }: { children: React.ReactNode }) {
     urlsRef.current.forEach((u) => URL.revokeObjectURL(u));
     urlsRef.current = [];
     setTextures({});
-    setSetupRequired(true);
+    setPackTextures({});
+    // Same auto-detect flow as first mount: try the default GitHub-hosted
+    // pack again, only falling back to manual upload if that fails.
+    await loadOrAutoFetch();
   };
 
   const ready = REQUIRED_TEXTURES.every((n) => !!textures[n]);

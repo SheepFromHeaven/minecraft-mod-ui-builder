@@ -104,7 +104,7 @@ export default function TextureDebug({ onClose }: Props) {
         </div>
 
         <p style={{ color: "#555", fontSize: 10, marginTop: 10, marginBottom: 0 }}>
-          All textures shown above are extracted from your JAR / resource pack and stored in IndexedDB.
+          All textures shown above were auto-loaded from the default reference pack (or your own uploaded JAR / resource pack, if you loaded one) and stored in IndexedDB.
         </p>
       </div>
     </div>

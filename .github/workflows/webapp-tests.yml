@@ -36,7 +36,7 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Generate synthetic test textures
+      - name: Extract real test textures from GitHub CDN
         run: pnpm run gen:test-textures
 
       - name: Run Playwright tests

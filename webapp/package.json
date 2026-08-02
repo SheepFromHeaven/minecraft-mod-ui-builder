@@ -7,8 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "gen:test-textures": "node tests/fixtures/generate-textures.mjs",
-    "gen:real-test-textures": "node tests/scripts/extract-real-textures.mjs",
+    "gen:test-textures": "tsx tests/scripts/extract-real-textures.ts",
     "test:e2e": "npm run gen:test-textures && playwright test",
     "test:e2e:update": "npm run gen:test-textures && playwright test --update-snapshots",
     "test:e2e:ui": "npm run gen:test-textures && playwright test --ui"
@@ -39,7 +38,9 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
+    "pngjs": "^7.0.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.4",
     "typescript": "^5"
   }
 }

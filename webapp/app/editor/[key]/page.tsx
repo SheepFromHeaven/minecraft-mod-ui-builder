@@ -15,9 +15,11 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { buildContainerSpec, excludeFromExportedWidgets } from "@/components/widgets/inventory_area/inventoryAreaExport";
 import { computeInitialSize } from "@/lib/widgetBounds";
 
-let idCounter = 1000;
-function newId(type: string) {
-  return `${type}_${++idCounter}`;
+function newId(type: string, existing: WidgetSpec[]): string {
+  const used = new Set(existing.map(w => w.id));
+  let n = 1;
+  while (used.has(`${type}_${n}`)) n++;
+  return `${type}_${n}`;
 }
 
 /** Composes each widget type's own export transform into the final exported ScreenSpec JSON. */
@@ -85,14 +87,6 @@ function saveProjects(projects: StoredProject[]): void {
   try { localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects)); } catch { /* quota */ }
 }
 
-function syncIdCounter(screens: ScreenSpec[]) {
-  for (const screen of screens) {
-    for (const w of screen.widgets) {
-      const n = parseInt(w.id.split("_").pop() ?? "0", 10);
-      if (n > idCounter) idCounter = n;
-    }
-  }
-}
 
 const PLACEHOLDER_SCREEN: ScreenSpec = { id: "main", width: 320, height: 180, widgets: [] };
 const EMPTY_SESSION: SavedSession = {
@@ -153,7 +147,6 @@ export default function EditorPage() {
       return;
     }
     const s = project.session;
-    syncIdCounter(s.history.flatMap(e => e.screens));
     setHistory(s.history);
     setCursor(s.cursor);
     setGridSize(s.gridSize);
@@ -322,14 +315,14 @@ export default function EditorPage() {
   const addWidget = useCallback((type: string, parentId?: string, atX?: number, atY?: number) => {
     const def = getWidgetDef(type);
     if (!def) return;
-    const id = newId(type);
+    const id = newId(type, screen.widgets);
     const pos = atX !== undefined && atY !== undefined ? { x: atX, y: atY } : {};
     const sizeClamp = computeInitialSize(def.defaultWidget.w, def.defaultWidget.h, parentId, screen.widgets);
     const widget: WidgetSpec = { ...def.defaultWidget, id, ...sizeClamp, ...pos, ...(parentId ? { parentId } : {}) };
     const extra: WidgetSpec[] = [];
     if (type === "tabs") {
       const tabDef = getWidgetDef("tab");
-      if (tabDef) extra.push({ ...tabDef.defaultWidget, id: newId("tab"), parentId: id });
+      if (tabDef) extra.push({ ...tabDef.defaultWidget, id: newId("tab", [...screen.widgets, widget]), parentId: id });
     }
     commitScreen({ ...screen, widgets: [...screen.widgets, widget, ...extra] });
     setSelectedId(id);
@@ -406,13 +399,13 @@ export default function EditorPage() {
   const pasteWidget   = useCallback(() => {
     const src = clipboardRef.current;
     if (!src) return;
-    const id = newId(src.type);
+    const id = newId(src.type, screen.widgets);
     commitScreen({ ...screen, widgets: [...screen.widgets, { ...src, id, x: src.x + 8, y: src.y + 8 }] });
     setSelectedId(id);
   }, [screen, commitScreen]);
   const duplicateWidget = useCallback(() => {
     if (!selectedWidget) return;
-    const id = newId(selectedWidget.type);
+    const id = newId(selectedWidget.type, screen.widgets);
     commitScreen({ ...screen, widgets: [...screen.widgets, { ...selectedWidget, id, x: selectedWidget.x + 8, y: selectedWidget.y + 8 }] });
     setSelectedId(id);
   }, [screen, commitScreen, selectedWidget]);
@@ -641,6 +634,12 @@ export default function EditorPage() {
                   onUpdate={updateWidget}
                   bindingsSchema={screen.bindingsSchema ?? {}}
                   actions={screen.actions ?? []}
+                  onCreateAction={(name) => {
+                    const updatedWidgets = selectedWidget
+                      ? screen.widgets.map(w => w.id === selectedWidget.id ? { ...w, action: name } : w)
+                      : screen.widgets;
+                    commitScreen({ ...screen, actions: [...(screen.actions ?? []), name], widgets: updatedWidgets });
+                  }}
                   inventoryAreaIds={screen.widgets.filter((w) => w.type === "inventory_area").map((w) => w.id)}
                 />
               </aside>

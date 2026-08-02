@@ -21,10 +21,12 @@ import { tabsMinWidth, reflowTabsForWidth, computeTabLayout, TAB_GAP, NESTED_TAB
 import { TabsTopTryHeader } from "@/components/widgets/tabs/top/TabsTopTryHeader";
 import { TabsNestedEditHeader } from "@/components/widgets/tabs/nested/TabsNestedEditHeader";
 import { TabsNestedTryHeader } from "@/components/widgets/tabs/nested/TabsNestedTryHeader";
+import { computeDragBounds, computeResizeBounds } from "@/lib/widgetBounds";
 
 const BindingsCtx = createContext<BindingsSchema>({});
 const UpdateWidgetCtx = React.createContext<(w: WidgetSpec) => void>(() => {});
 const UpdateWidgetsCtx = React.createContext<(ws: WidgetSpec[]) => void>(() => {});
+const AllWidgetsCtx = React.createContext<WidgetSpec[]>([]);
 
 interface ActiveTabCtxVal {
   activeTabIds: Map<string, string>;
@@ -215,9 +217,10 @@ export default function Canvas({
     let moved = false;
 
     const snapToGrid = (v: number) => Math.round(v / gridSize) * gridSize;
+    const dragBounds = computeDragBounds(target, widgets, width, height);
     const clamp = (nx: number, ny: number) => ({
-      x: Math.max(0, Math.min(width  - target.w, nx)),
-      y: Math.max(0, Math.min(height - target.h, ny)),
+      x: Math.max(0, Math.min(dragBounds.maxX, nx)),
+      y: Math.max(0, Math.min(dragBounds.maxY, ny)),
     });
     const onMove = (ev: MouseEvent) => {
       if (inTabHeader) {
@@ -304,6 +307,7 @@ export default function Canvas({
           )}
         </ScrollCtx.Provider>}
         <BindingsCtx.Provider value={bindingsSchema}>
+          <AllWidgetsCtx.Provider value={widgets}>
           <UpdateWidgetsCtx.Provider value={onUpdateWidgets}>
           <UpdateWidgetCtx.Provider value={onUpdateWidget}>
             {rootWidgets.map((widget, idx) =>
@@ -326,6 +330,7 @@ export default function Canvas({
             )}
           </UpdateWidgetCtx.Provider>
           </UpdateWidgetsCtx.Provider>
+          </AllWidgetsCtx.Provider>
         </BindingsCtx.Provider>
         </ActiveTabCtx.Provider>
 
@@ -370,6 +375,7 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSi
   zBase: number;
 }) {
   const bindingsSchema = useContext(BindingsCtx);
+  const allWidgets = useContext(AllWidgetsCtx);
   const { textures: editTextures } = useTextures();
   const tex = (name: string) => (editTextures as Record<string, string>)[name];
   const { widget: previewWidget, hidden } = applyBindingPreviews(widget, bindingsSchema);
@@ -494,6 +500,8 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSi
     ? Math.max(...children.map(c => (draggingPos?.id === c.id ? draggingPos.y : c.y) + c.h))
     : draggingSize?.id === widget.id ? draggingSize.h : widget.h;
 
+  const resizeBounds = computeResizeBounds(widget, allWidgets);
+
   if (widget.hidden) return null;
 
   return (
@@ -589,6 +597,11 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSi
           y = Math.max(0, Math.round(position.y));
           w = Math.max(1, Math.round(parseInt(ref.style.width)));
           h = Math.max(1, Math.round(parseInt(ref.style.height)));
+        }
+        // Clamp to parent container's content area
+        if (resizeBounds) {
+          w = Math.min(w, resizeBounds.maxW);
+          h = Math.min(h, resizeBounds.maxH);
         }
         // Scrollbar: lock the cross-axis to the handle texture width (12px + 2px bevel = 14)
         if (widget.type === "scrollbar") {

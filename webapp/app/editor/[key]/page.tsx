@@ -13,6 +13,7 @@ import { generateJavaClass } from "@/lib/generateJavaClass";
 import { getWidgetDef } from "@/lib/widgetRegistry";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { buildContainerSpec, excludeFromExportedWidgets } from "@/components/widgets/inventory_area/inventoryAreaExport";
+import { computeInitialSize } from "@/lib/widgetBounds";
 
 let idCounter = 1000;
 function newId(type: string) {
@@ -323,8 +324,7 @@ export default function EditorPage() {
     if (!def) return;
     const id = newId(type);
     const pos = atX !== undefined && atY !== undefined ? { x: atX, y: atY } : {};
-    const parent = parentId ? screen.widgets.find(w => w.id === parentId) : undefined;
-    const sizeClamp = parent ? { w: Math.min(def.defaultWidget.w, parent.w), h: Math.min(def.defaultWidget.h, parent.h) } : {};
+    const sizeClamp = computeInitialSize(def.defaultWidget.w, def.defaultWidget.h, parentId, screen.widgets);
     const widget: WidgetSpec = { ...def.defaultWidget, id, ...sizeClamp, ...pos, ...(parentId ? { parentId } : {}) };
     const extra: WidgetSpec[] = [];
     if (type === "tabs") {

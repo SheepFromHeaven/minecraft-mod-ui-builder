@@ -46,10 +46,11 @@ interface Props {
   onUpdate: (w: WidgetSpec) => void;
   bindingsSchema: BindingsSchema;
   actions: string[];
+  onCreateAction?: (name: string) => void;
   inventoryAreaIds?: string[];
 }
 
-export default function PropertyPanel({ widget, onUpdate, bindingsSchema, actions, inventoryAreaIds = [] }: Props) {
+export default function PropertyPanel({ widget, onUpdate, bindingsSchema, actions, onCreateAction, inventoryAreaIds = [] }: Props) {
   if (!widget) {
     return (
       <div className="flex flex-col gap-2 p-3 text-xs text-muted-foreground italic">
@@ -330,11 +331,11 @@ export default function PropertyPanel({ widget, onUpdate, bindingsSchema, action
 
       {widget.type !== "group" && (
         <Field label="Action">
-          <PropSelect
+          <ActionSelect
             value={widget.action ?? ""}
-            options={["", ...actions]}
-            labels={{ "": "(none)" }}
+            actions={actions}
             onChange={(v) => set({ action: v || undefined })}
+            onCreateAction={onCreateAction}
           />
         </Field>
       )}
@@ -438,6 +439,75 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
         }`}
       />
     </button>
+  );
+}
+
+function ActionSelect({
+  value,
+  actions,
+  onChange,
+  onCreateAction,
+}: {
+  value: string;
+  actions: string[];
+  onChange: (v: string) => void;
+  onCreateAction?: (name: string) => void;
+}) {
+  const [creating, setCreating] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  if (creating) {
+    const confirm = () => {
+      const name = draft.trim();
+      if (name) onCreateAction?.(name);
+      setCreating(false);
+      setDraft("");
+    };
+    return (
+      <div className="flex gap-1">
+        <Input
+          autoFocus
+          className="h-6 text-xs px-1.5 flex-1"
+          placeholder="action name"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") confirm();
+            if (e.key === "Escape") { setCreating(false); setDraft(""); }
+          }}
+        />
+        <button
+          className="shrink-0 text-xs px-1.5 rounded border border-input bg-background hover:bg-accent"
+          onClick={confirm}
+        >
+          Add
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <Select value={value} onValueChange={(v) => {
+      if (v === "__create__") { setCreating(true); }
+      else onChange(v ?? "");
+    }}>
+      <SelectTrigger size="sm" className="w-full h-6 text-xs">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="" className="text-xs py-0.5">
+          <span className="text-muted-foreground">(none)</span>
+        </SelectItem>
+        {actions.map((a) => (
+          <SelectItem key={a} value={a} className="text-xs py-0.5">{a}</SelectItem>
+        ))}
+        {onCreateAction && (
+          <SelectItem value="__create__" className="text-xs py-0.5 text-muted-foreground italic">
+            + Create new action…
+          </SelectItem>
+        )}
+      </SelectContent>
+    </Select>
   );
 }
 

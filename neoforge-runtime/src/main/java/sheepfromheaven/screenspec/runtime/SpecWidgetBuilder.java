@@ -253,11 +253,12 @@ final class SpecWidgetBuilder {
 
     private void buildTabSelector(WidgetSpec tabsWidget) {
         String tabsId = tabsWidget.id;
+        boolean nested = tabsWidget.parentId != null;
         forEachTab(tabsWidget, (tab, pos, isActive, x, y, w, h) -> {
             String tabId = tab.id;
             Button btn = Button.builder(Component.literal(tab.text), b -> switchTabCallback.accept(tabsId, tabId))
                 .bounds(x, y, w, h)
-                .build(b -> new TabButtonWidget(b, renderer, pos));
+                .build(b -> new TabButtonWidget(b, renderer, pos, nested));
             btn.active = !isActive;
             ((TabButtonWidget) btn).setSelected(isActive);
             addWidget.apply(btn);

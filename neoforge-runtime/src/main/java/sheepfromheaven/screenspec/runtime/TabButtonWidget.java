@@ -10,15 +10,17 @@ import net.minecraft.client.gui.components.Button;
  */
 final class TabButtonWidget extends Button {
     private final SpecWidgetRenderer renderer;
-    /** LEFT, MIDDLE, or RIGHT — drives which selected-tab texture variant is used. */
+    /** LEFT, MIDDLE, or RIGHT — drives which selected-tab texture variant is used for top-level tabs. */
     enum Position { LEFT, MIDDLE, RIGHT }
     private final Position position;
+    private final boolean nested;
     private boolean selected;
 
-    TabButtonWidget(Button.Builder builder, SpecWidgetRenderer renderer, Position position) {
+    TabButtonWidget(Button.Builder builder, SpecWidgetRenderer renderer, Position position, boolean nested) {
         super(builder);
         this.renderer = renderer;
         this.position = position;
+        this.nested   = nested;
     }
 
     void setSelected(boolean selected) {
@@ -32,7 +34,7 @@ final class TabButtonWidget extends Button {
         // screen's background pass so the panel renders OVER their bottom edge — vanilla's
         // creative-inventory layering. Labels always render here, above everything.
         if (selected) {
-            renderer.renderTab(graphics, true, position, getX(), getY(), getWidth(), getHeight());
+            renderer.renderTab(graphics, true, position, nested, getX(), getY(), getWidth(), getHeight());
         }
         renderDefaultLabel(graphics.textRendererForWidget(this, GuiGraphics.HoveredTextEffects.NONE));
     }

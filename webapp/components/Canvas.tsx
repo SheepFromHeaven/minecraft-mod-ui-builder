@@ -297,8 +297,14 @@ export default function Canvas({
         const dy = snapToGrid(origY + (ev.clientY - startClientY) / scale) - origY;
         onUpdateWidget({ ...target, ...clamp(origX + dx, origY + dy) });
       } else if (!moved) {
-        // No movement — plain click: apply ambiguous-click drill-down.
-        handleClickWidget(clickedId);
+        if (inTabHeader) {
+          // Tab header buttons map 1:1 to tab widgets — select directly, no drill-down.
+          selectionChangedRef.current = true;
+          onSelect(clickedId);
+        } else {
+          // No movement — plain click: apply ambiguous-click drill-down.
+          handleClickWidget(clickedId);
+        }
       }
       // inTabHeader && moved: tab drag handled its own commit, nothing to do here.
       setDraggingPos(null);
@@ -532,7 +538,23 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSi
         updateWidget({ ...tab, x: d.startX + d.startW - newW, w: newW });
       }
     };
-    const onUp = () => setTabDrag(null);
+    const onUp = () => {
+      const d = tabDragRef.current;
+      if (d?.type === "move") {
+        // Sort all sibling tabs by their current committed x, then redistribute
+        // positions so there are no overlaps or gaps between them.
+        const gap = widget.parentId ? NESTED_TAB_GAP : TAB_GAP;
+        const sorted = [...tabChildrenRef.current].sort((a, b) => a.x - b.x);
+        let cursor = 0;
+        const reordered = sorted.map(t => {
+          const x = cursor;
+          cursor += t.w + gap;
+          return { ...t, x };
+        });
+        updateWidgets(reordered);
+      }
+      setTabDrag(null);
+    };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };

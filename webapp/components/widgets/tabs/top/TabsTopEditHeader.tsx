@@ -76,8 +76,8 @@ export function TabsTopEditHeader({
           const minW = getMinW(tab);
           const prev = computedTabs[idx - 1];
           const next = computedTabs[idx + 1];
-          const moveMinX = prev ? prev.x + prev.w + GAP : 0;
-          const moveMaxX = next ? next.x - tabW - GAP : liveW - tabW;
+          const moveMinX = 0;
+          const moveMaxX = liveW - tabW;
           const resizeRightMaxW = next ? next.x - tabX - GAP : liveW - tabX;
           const resizeLeftMaxW = prev ? tabX + tabW - (prev.x + prev.w + GAP) : tabX + tabW;
           const isMoving = tabDrag?.type === "move" && tabDrag.id === tab.id;

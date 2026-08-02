@@ -181,6 +181,7 @@ export default function LayersTree({
                 widget={widget}
                 depth={item.depth}
                 isOpen={item.isContainer && expanded.has(item.id)}
+                hasChildren={widgets.some(w => w.parentId === item.id)}
                 selectedId={selectedId}
                 isMultiSelected={!!selectedIds && selectedIds.length > 1 && selectedIds.includes(item.id)}
                 dragOver={dragOver}
@@ -214,10 +215,11 @@ export default function LayersTree({
 
 // ── unified tree node (all depths) ────────────────────────────────────────────
 
-function TreeNode({ widget, depth, isOpen, selectedId, isMultiSelected, dragOver, onSelect, onAdd, onDelete, onToggleHidden, onToggle }: {
+function TreeNode({ widget, depth, isOpen, hasChildren, selectedId, isMultiSelected, dragOver, onSelect, onAdd, onDelete, onToggleHidden, onToggle }: {
   widget: WidgetSpec;
   depth: number;
   isOpen: boolean;
+  hasChildren: boolean;
   selectedId: string | null;
   isMultiSelected: boolean;
   dragOver: DragOverState;
@@ -255,11 +257,11 @@ function TreeNode({ widget, depth, isOpen, selectedId, isMultiSelected, dragOver
         {...attributes}
         {...listeners}
       >
-        {isContainer ? (
+        {isContainer && hasChildren ? (
           <span
             role="button"
             tabIndex={0}
-            className="mr-0.5 shrink-0 opacity-60 hover:opacity-100"
+            className="mr-0.5 size-3 shrink-0 flex items-center justify-center opacity-60 hover:opacity-100"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); onToggle(); }}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onToggle(); } }}
@@ -267,7 +269,6 @@ function TreeNode({ widget, depth, isOpen, selectedId, isMultiSelected, dragOver
             {isOpen ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
           </span>
         ) : (
-          // spacer so labels align when siblings include containers
           <span className="mr-0.5 size-3 shrink-0 inline-block" />
         )}
         <Icon className={`size-3.5 shrink-0 ${widget.hidden ? "opacity-40" : ""}`} />

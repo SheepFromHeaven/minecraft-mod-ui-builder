@@ -27,6 +27,10 @@ const BindingsCtx = createContext<BindingsSchema>({});
 const UpdateWidgetCtx = React.createContext<(w: WidgetSpec) => void>(() => {});
 const UpdateWidgetsCtx = React.createContext<(ws: WidgetSpec[]) => void>(() => {});
 const AllWidgetsCtx = React.createContext<WidgetSpec[]>([]);
+// Whether selection changed during the current click sequence (reset when a new
+// sequence starts, i.e. mousedown gap > 400ms). Prevents a double-click that
+// also establishes selection from immediately entering text-edit mode.
+const SelectionChangedCtx = React.createContext<React.MutableRefObject<boolean>>({ current: false });
 
 interface ActiveTabCtxVal {
   activeTabIds: Map<string, string>;
@@ -45,15 +49,18 @@ const CONTAINER_TYPES = new Set(
 
 // Resize handle visuals — the hit area is provided by re-resizable; we render
 // a centered square inside it so the handle looks like standard design tools.
+// Left/right handles cap their height so they don't consume the full widget
+// height on short widgets (labels), which would block clicks and double-clicks.
+const SIDE_HANDLE_SIZE = 8; // px, screen-space hit area for edge handles
 const RESIZE_HANDLE_STYLES: Record<string, React.CSSProperties> = {
-  top:         { display: "flex", alignItems: "center",   justifyContent: "center" },
-  bottom:      { display: "flex", alignItems: "center",   justifyContent: "center" },
-  left:        { display: "flex", alignItems: "center",   justifyContent: "center" },
-  right:       { display: "flex", alignItems: "center",   justifyContent: "center" },
-  topLeft:     { display: "flex", alignItems: "center",   justifyContent: "center" },
-  topRight:    { display: "flex", alignItems: "center",   justifyContent: "center" },
-  bottomLeft:  { display: "flex", alignItems: "center",   justifyContent: "center" },
-  bottomRight: { display: "flex", alignItems: "center",   justifyContent: "center" },
+  top:         { display: "flex", alignItems: "center", justifyContent: "center", width: SIDE_HANDLE_SIZE, left: "50%", transform: "translateX(-50%)" },
+  bottom:      { display: "flex", alignItems: "center", justifyContent: "center", width: SIDE_HANDLE_SIZE, left: "50%", transform: "translateX(-50%)" },
+  left:        { display: "flex", alignItems: "center", justifyContent: "center", height: SIDE_HANDLE_SIZE, top: "50%", transform: "translateY(-50%)" },
+  right:       { display: "flex", alignItems: "center", justifyContent: "center", height: SIDE_HANDLE_SIZE, top: "50%", transform: "translateY(-50%)" },
+  topLeft:     { display: "flex", alignItems: "center", justifyContent: "center", width: SIDE_HANDLE_SIZE, height: SIDE_HANDLE_SIZE, top: -SIDE_HANDLE_SIZE / 2, left: -SIDE_HANDLE_SIZE / 2 },
+  topRight:    { display: "flex", alignItems: "center", justifyContent: "center", width: SIDE_HANDLE_SIZE, height: SIDE_HANDLE_SIZE, top: -SIDE_HANDLE_SIZE / 2, right: -SIDE_HANDLE_SIZE / 2 },
+  bottomLeft:  { display: "flex", alignItems: "center", justifyContent: "center", width: SIDE_HANDLE_SIZE, height: SIDE_HANDLE_SIZE, bottom: -SIDE_HANDLE_SIZE / 2, left: -SIDE_HANDLE_SIZE / 2 },
+  bottomRight: { display: "flex", alignItems: "center", justifyContent: "center", width: SIDE_HANDLE_SIZE, height: SIDE_HANDLE_SIZE, bottom: -SIDE_HANDLE_SIZE / 2, right: -SIDE_HANDLE_SIZE / 2 },
 };
 interface Props {
   width: number;
@@ -98,12 +105,32 @@ export default function Canvas({
   const childMap = buildChildMap(widgets);
   const rootWidgets = widgets.filter(w => !w.parentId);
 
+  // Flag: did selection change during the current click sequence?
+  // Reset when a new sequence starts (mousedown gap > 400ms).
+  const selectionChangedRef = useRef<boolean>(false);
+  const lastMousedownTimeRef = useRef<number>(0);
+
   // Active tab selection — shared across edit and try mode so switching modes
   // doesn't reset which tab is open.
   const [activeTabIds, setActiveTabIds] = useState<Map<string, string>>(() => new Map());
   const setActiveTab = React.useCallback((tabsWidgetId: string, tabId: string) => {
     setActiveTabIds(prev => new Map(prev).set(tabsWidgetId, tabId));
   }, []);
+
+  // When selection changes, activate every tab in the ancestor chain so the
+  // selected widget becomes visible regardless of which tab pane it lives in.
+  React.useEffect(() => {
+    if (!selectedId) return;
+    const byId = new Map(widgets.map(w => [w.id, w]));
+    let cur = byId.get(selectedId);
+    while (cur?.parentId) {
+      const parent = byId.get(cur.parentId);
+      if (cur.type === "tab" && parent?.type === "tabs") {
+        setActiveTab(parent.id, cur.id);
+      }
+      cur = parent;
+    }
+  }, [selectedId, widgets, setActiveTab]);
 
   // Shared scroll state for try mode — kept in refs so updates don't re-render
   // the whole canvas; individual TryWidget components re-render via their own state.
@@ -143,6 +170,15 @@ export default function Canvas({
     return chain;
   };
 
+  // `tab` widgets are transparent in the selection cycle — their content is
+  // treated as being at the same level as the tabs container. They can still
+  // be selected by clicking directly on the tab header button (in which case
+  // clickedId IS the tab and it stays in the chain).
+  const selectionChain = (clickedId: string): string[] =>
+    resolveChain(clickedId).filter(id =>
+      id === clickedId || getWidget(id)?.type !== "tab"
+    );
+
   // Plain click: drill one level deeper into the ancestor chain each click
   // (a static click on nested widgets is inherently ambiguous about which
   // level the user means, so successive clicks refine the target).
@@ -152,14 +188,19 @@ export default function Canvas({
     if (selectedId !== null) {
       const selected = getWidget(selectedId);
       const clicked = getWidget(clickedId);
-      if (selected?.type === "tab" && clicked?.type === "tab" && selected.parentId === clicked.parentId) {
+      if (selected?.type === "tab" && clicked?.type === "tab" && selectedId !== clickedId && selected.parentId === clicked.parentId) {
+        selectionChangedRef.current = true;
         onSelect(clickedId);
         return;
       }
     }
-    const chain = resolveChain(clickedId);
+    const chain = selectionChain(clickedId);
     const idx = selectedId !== null ? chain.indexOf(selectedId) : -1;
-    onSelect(idx >= 0 && idx < chain.length - 1 ? chain[idx + 1] : chain[0]);
+    // Already at the deepest element in the chain — clicking it again does nothing.
+    // This ensures double-clicking a selected widget doesn't cycle away before dblclick fires.
+    if (idx === chain.length - 1) return;
+    selectionChangedRef.current = true;
+    onSelect(idx >= 0 ? chain[idx + 1] : chain[0]);
   };
 
   // Drag target resolution is deliberately different from click's drill-down:
@@ -169,7 +210,7 @@ export default function Canvas({
   // E.g. dragging an unselected button moves its root panel; dragging that
   // same button while its containing group is selected moves the group.
   const resolveDragTargetId = (clickedId: string): string => {
-    const chain = resolveChain(clickedId);
+    const chain = selectionChain(clickedId);
     return selectedId !== null && chain.includes(selectedId) ? selectedId : chain[0];
   };
 
@@ -193,8 +234,16 @@ export default function Canvas({
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     if (tryMode) return;
     if (e.button !== 0) return; // ignore right/middle click — right-click is handled by contextmenu
+    // Commit any active inline text edit. e.preventDefault() below suppresses the normal
+    // focus-transfer that would blur the input automatically, so we do it explicitly.
+    if (document.activeElement instanceof HTMLInputElement) document.activeElement.blur();
     e.preventDefault(); // prevent native browser image/text drag hijacking mouse events
     setCtxMenu(null);
+    // Reset selection-changed flag when a new click sequence starts (gap > 250ms = not a double-click).
+    const now = Date.now();
+    const gap = now - lastMousedownTimeRef.current;
+    if (gap > 250) { selectionChangedRef.current = false; }
+    lastMousedownTimeRef.current = now;
     const el = (e.target as HTMLElement).closest("[data-widget-id]");
     if (!el) { onSelect(null); return; }
     const clickedId = el.getAttribute("data-widget-id")!;
@@ -300,6 +349,7 @@ export default function Canvas({
           }} />
         )}
 
+        <SelectionChangedCtx.Provider value={selectionChangedRef}>
         <ActiveTabCtx.Provider value={React.useMemo(() => ({ activeTabIds, setActiveTab }), [activeTabIds, setActiveTab])}>
         {tryMode && <ScrollCtx.Provider value={scrollCtxVal}>
           {rootWidgets.map((widget, idx) =>
@@ -333,6 +383,7 @@ export default function Canvas({
           </AllWidgetsCtx.Provider>
         </BindingsCtx.Provider>
         </ActiveTabCtx.Provider>
+        </SelectionChangedCtx.Provider>
 
         {ctxMenu && onAddWidget && (
           <CanvasContextMenu
@@ -376,6 +427,7 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSi
 }) {
   const bindingsSchema = useContext(BindingsCtx);
   const allWidgets = useContext(AllWidgetsCtx);
+  const selectionChangedRef = useContext(SelectionChangedCtx);
   const { textures: editTextures } = useTextures();
   const tex = (name: string) => (editTextures as Record<string, string>)[name];
   const { widget: previewWidget, hidden } = applyBindingPreviews(widget, bindingsSchema);
@@ -628,6 +680,8 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSi
       }}
       onDoubleClick={(e: React.MouseEvent) => {
         if (isTabs) return; // tabs: double-click handled per tab button below
+        if (!isSelected) return; // must be already selected to enter text edit
+        if (selectionChangedRef.current) return; // selection was just established this click sequence
         const EDITABLE = new Set(["label", "button", "toggle_button", "checkbox", "slider", "input"]);
         if (!EDITABLE.has(widget.type)) return;
         e.stopPropagation();
@@ -726,6 +780,7 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSi
           tabHeaderHeight={tabHeaderHeight}
           scale={scale}
           selectedId={selectedId}
+          selectionChangedRef={selectionChangedRef}
           snapPx={snapPx}
           draggingPos={draggingPos}
           draggingSize={draggingSize}
@@ -750,6 +805,7 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSi
           tabHeaderHeight={tabHeaderHeight}
           scale={scale}
           selectedId={selectedId}
+          selectionChangedRef={selectionChangedRef}
           snapPx={snapPx}
           draggingPos={draggingPos}
           draggingSize={draggingSize}

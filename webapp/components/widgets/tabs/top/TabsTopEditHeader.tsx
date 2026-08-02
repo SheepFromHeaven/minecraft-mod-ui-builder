@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentType, RefObject } from "react";
+import type { ComponentType, MutableRefObject, RefObject } from "react";
 import type { WidgetSpec } from "@/lib/types";
 import { TAB_TOP_SLICE, TAB_SIDE_SLICE, TAB_LEFT_SLICE, TAB_GAP, computeTabLayout, reflowTabsForWidth, tabEdgePosition, defaultTabLayout, type TabDrag } from "../tabLayout";
 import { SelectionOverlay } from "@/components/SelectionOverlay";
@@ -24,7 +24,7 @@ interface EditWidgetProps {
 export function TabsTopEditHeader({
   widget, tabChildren, tex, activeTabId, tabDrag, setTabDrag, inlineEdit, setInlineEdit,
   inlineInputRef, commitInlineEdit, setPreviewTabId, updateWidgets, tabHeaderHeight,
-  scale, selectedId, snapPx, draggingPos, draggingSize, setDraggingSize, onResizeCommit, childMap, activeTabChildren, EditWidget,
+  scale, selectedId, selectionChangedRef, snapPx, draggingPos, draggingSize, setDraggingSize, onResizeCommit, childMap, activeTabChildren, EditWidget,
 }: {
   widget: WidgetSpec;
   tabChildren: WidgetSpec[];
@@ -48,6 +48,7 @@ export function TabsTopEditHeader({
   onResizeCommit: (widget: WidgetSpec) => void;
   childMap: Map<string, WidgetSpec[]>;
   activeTabChildren: WidgetSpec[];
+  selectionChangedRef: MutableRefObject<boolean>;
   EditWidget: ComponentType<EditWidgetProps>;
 }) {
   const topSlice = TAB_TOP_SLICE;
@@ -103,6 +104,8 @@ export function TabsTopEditHeader({
               }}
               onClick={(e) => { if (!(e.target as HTMLElement).dataset.resizeHandle) setPreviewTabId(tab.id); }}
               onDoubleClick={(e) => {
+                if (selectedId !== tab.id) return;
+                if (selectionChangedRef.current) return;
                 e.stopPropagation();
                 e.nativeEvent.stopImmediatePropagation();
                 setInlineEdit({ id: tab.id, text: tab.text });

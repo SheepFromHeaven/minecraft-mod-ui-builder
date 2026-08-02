@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentType, RefObject } from "react";
+import type { ComponentType, MutableRefObject, RefObject } from "react";
 import type { WidgetSpec } from "@/lib/types";
 import { NESTED_TAB_SLICE, NESTED_TAB_GAP, computeTabLayout, reflowTabsForWidth } from "../tabLayout";
 import { SelectionOverlay } from "@/components/SelectionOverlay";
@@ -22,7 +22,7 @@ interface EditWidgetProps {
 export function TabsNestedEditHeader({
   widget, tabChildren, tex, activeTabId, inlineEdit, setInlineEdit,
   inlineInputRef, commitInlineEdit, setPreviewTabId, tabHeaderHeight,
-  scale, selectedId, snapPx, draggingPos, draggingSize, setDraggingSize, onResizeCommit, childMap, activeTabChildren, EditWidget,
+  scale, selectedId, selectionChangedRef, snapPx, draggingPos, draggingSize, setDraggingSize, onResizeCommit, childMap, activeTabChildren, EditWidget,
 }: {
   widget: WidgetSpec;
   tabChildren: WidgetSpec[];
@@ -43,6 +43,7 @@ export function TabsNestedEditHeader({
   onResizeCommit: (widget: WidgetSpec) => void;
   childMap: Map<string, WidgetSpec[]>;
   activeTabChildren: WidgetSpec[];
+  selectionChangedRef: MutableRefObject<boolean>;
   EditWidget: ComponentType<EditWidgetProps>;
 }) {
   const slice = NESTED_TAB_SLICE;
@@ -71,6 +72,8 @@ export function TabsNestedEditHeader({
               }}
               onClick={(e) => { if (!(e.target as HTMLElement).dataset.resizeHandle) setPreviewTabId(tab.id); }}
               onDoubleClick={(e) => {
+                if (selectedId !== tab.id) return;
+                if (selectionChangedRef.current) return;
                 e.stopPropagation();
                 e.nativeEvent.stopImmediatePropagation();
                 setInlineEdit({ id: tab.id, text: tab.text });

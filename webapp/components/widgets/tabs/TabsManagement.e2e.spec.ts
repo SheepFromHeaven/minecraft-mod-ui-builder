@@ -52,7 +52,7 @@ test("add-widget palette contains Tabs but not Tab", async ({ page }) => {
 
   // Tabs (the container) must be addable; Tab (the child) must not be.
   await expect(page.getByRole("menuitem", { name: "Tabs" })).toHaveCount(1);
-  await expect(page.getByRole("menuitem", { name: "Tab" })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: "Tab", exact: true })).toHaveCount(0);
 });
 
 // ── last-tab protection ───────────────────────────────────────────────────────

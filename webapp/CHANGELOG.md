@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.6.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.5.0...webapp-v0.6.0) (2026-08-02)
+
+
+### Features
+
+* **editor:** allow creating actions inline from the Action dropdown ([efa1998](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/efa1998b87c8ba370952c7f48b9a1667c14ee680))
+* **editor:** generate widget IDs with per-type counters starting at 1 ([121d9f6](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/121d9f6cddef6d44f05ac2f9ea09e87a034f963c))
+* **webapp:** add checkbox widget with texture-based visual ([24de6d1](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/24de6d1007cd072820dab84c98d990c574df7e37))
+* **webapp:** add copy Java class definition toolbar action ([eac7d3a](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/eac7d3a4af207d6059482fd4cebbbbb9110d7aaa))
+* **webapp:** add middle-mouse pan and scroll-to-zoom on canvas; fix viewport height and history bug ([16d68e6](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/16d68e6275e4dfd3f1b2bc8fd47f6cccc7f8be12))
+* **webapp:** add per-widget visibility toggle in layers panel ([dde6767](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/dde67671d34e028f3c7f325101a89714db505c9c))
+* **webapp:** add vertical alignment prop to label widget ([1452358](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/14523585fe81e632f79f703c8883c0765db25a8e))
+* **webapp:** auto-load default textures from GitHub instead of requiring upload ([7b5bd1d](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/7b5bd1d87ed49cfb2dc95aa6830108026f29d7f2))
+* **webapp:** extract checkbox+tab textures from pack; drop bundled asset fallbacks ([866f23a](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/866f23a0a5a451bdb3b1fc6918674f5e5f44a204))
+* **webapp:** nested tabs widget with visual and e2e tests ([e4e3e64](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/e4e3e64e2350b589ca88ba83d15c80e4c1067292))
+* **webapp:** refactor canvas to CSS transform scale; replace border-image with NineSlice divs for tabs; switch to advancements tab textures ([a33e807](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/a33e807a78d544c38db9bf717834d9a3e352fa3a))
+* **webapp:** rework property panel UX ([be56340](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/be56340630bfd433576cfe0f8cf69f360f376dd2))
+* **webapp:** show toast when a widget action fires in try mode ([#31](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/issues/31)) ([d827e67](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/d827e67b4b1ee430745c2021292844e1fe2ff66a))
+
+
+### Bug Fixes
+
+* **canvas:** remove stale transform clear on resize end; fix layer tree cursor state ([5006bad](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/5006bada07b876e3d29784a3148368d979d647b8))
+* **webapp:** add @types/pngjs to fix Vercel build type error ([64843c0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/64843c01d5f1105906cc6d88dd43b5a06216e17c))
+* **webapp:** add linux visual baselines and fix tab header click selection ([a69f6ef](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/a69f6efa4b832e3c41c2982581d4183f6eb70a4c))
+* **webapp:** checkbox defaults and property panel cleanup ([3d1ff6e](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/3d1ff6ee29101cc0b395e421d7604a6dc8782f38))
+* **webapp:** clamp widget position/size to parent container bounds ([a98ae4c](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/a98ae4c7eb0a7dc99c672262fba622d623879e86))
+* **webapp:** click on canvas wrapper background deselects active widget ([2d350a8](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/2d350a8a7238d28386a6fb9f252bc8f58be8927b))
+* **webapp:** fix two failing tab e2e tests ([9cc955d](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/9cc955df9c379fdcc0e62bb0781e3fa4744df69c))
+* **webapp:** hide expand chevron in layers panel when container has no children ([e1c54e8](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/e1c54e8c2c8f52d9c9d8c24600534abefbf6bf21))
+* **webapp:** prevent double-click from entering edit mode when selection was just established ([e003b6b](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/e003b6b576b4454670b54416e14546e11fb2301e))
+* **webapp:** round zoom percentage shown in toolbar ([f947598](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/f947598eb11ef9a1492af4f67df9a88c2f8fee5b))
+
 ## [0.5.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.4.0...webapp-v0.5.0) (2026-07-31)
 
 

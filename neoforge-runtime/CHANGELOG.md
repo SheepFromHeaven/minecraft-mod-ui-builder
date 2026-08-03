@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.9.0...neoforge-runtime-v0.10.0) (2026-08-03)
+
+
+### Features
+
+* add progress widget ([#33](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/issues/33)) ([bfddc21](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/bfddc214c55b8926dc0933129ad9bf05c3dd5783))
+* add requirement widget type ([#36](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/issues/36)) ([29242c9](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/29242c95c5056364b043cbe925e99865e599aa0c))
+
 ## [0.9.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.8.1...neoforge-runtime-v0.9.0) (2026-08-02)
 
 

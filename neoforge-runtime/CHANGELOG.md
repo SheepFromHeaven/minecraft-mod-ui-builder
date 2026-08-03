@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.1](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.11.0...neoforge-runtime-v0.11.1) (2026-08-03)
+
+
+### Bug Fixes
+
+* **runtime:** avoid double renderBackground call in SpecScreen.render ([#40](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/issues/40)) ([3fa62d4](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/3fa62d4d8456b487db84d556217cb421036cda81))
+
 ## [0.11.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.10.0...neoforge-runtime-v0.11.0) (2026-08-03)
 
 

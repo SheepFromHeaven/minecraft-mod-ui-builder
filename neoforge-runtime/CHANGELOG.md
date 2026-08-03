@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.2](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.11.1...neoforge-runtime-v0.11.2) (2026-08-03)
+
+
+### Bug Fixes
+
+* **runtime:** remove stray renderBackground call from SpecScreen.render ([77807c4](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/77807c4517df915308200e100a8bf4990c101da9))
+
 ## [0.11.1](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.11.0...neoforge-runtime-v0.11.1) (2026-08-03)
 
 

@@ -3,7 +3,7 @@
 import {
   Square, MousePointerClick, ToggleLeft, TextCursorInput,
   SlidersHorizontal, Type, Image, List, ScrollText, Folder, HelpCircle,
-  PanelTop, RectangleHorizontal,
+  PanelTop, RectangleHorizontal, Gauge,
 } from "lucide-react";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import WIDGET_REGISTRY from "@/lib/widgetRegistry";
@@ -16,6 +16,7 @@ export const WIDGET_ICONS: Record<string, React.ElementType> = {
   toggle_button: ToggleLeft,
   input:         TextCursorInput,
   slider:        SlidersHorizontal,
+  progress:      Gauge,
   label:         Type,
   icon:          Image,
   list:          List,

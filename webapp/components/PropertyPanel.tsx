@@ -25,12 +25,14 @@ const BINDING_TARGETS: Record<string, string[]> = {
   slider:        ["enabled", "visible"],
   label:         ["text", "visible"],
   panel:         ["visible"],
+  progress:      ["value", "visible"],
 };
 
 const BINDING_TARGET_TYPES: Record<string, BindingType> = {
   text:    "string",
   enabled: "boolean",
   visible: "boolean",
+  value:   "number",
 };
 
 function argbIntToHex(val: number): string {

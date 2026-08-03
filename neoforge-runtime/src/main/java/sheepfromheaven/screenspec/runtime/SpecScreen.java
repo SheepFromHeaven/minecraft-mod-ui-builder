@@ -253,7 +253,9 @@ public class SpecScreen extends Screen implements ActionHost {
             else if (w.type.equals("progress"))  renderProgress(graphics, w);
             else if (w.type.equals("custom"))    renderCustom(graphics, w);
         }
-        super.render(graphics, mouseX, mouseY, partialTick);
+        for (var renderable : renderables) {
+            renderable.render(graphics, mouseX, mouseY, partialTick);
+        }
         for (WidgetSpec w : builder().visibleWidgets()) {
             if (w.type.equals("label"))     renderLabel(graphics, w);
             else if (w.type.equals("icon")) renderIcon(graphics, w);

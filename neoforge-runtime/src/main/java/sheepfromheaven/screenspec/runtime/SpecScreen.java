@@ -256,6 +256,7 @@ public class SpecScreen extends Screen implements ActionHost {
         for (WidgetSpec w : builder().visibleWidgets()) {
             if (w.type.equals("label"))     renderLabel(graphics, w);
             else if (w.type.equals("icon")) renderIcon(graphics, w);
+            else if (w.type.equals("requirement")) renderRequirement(graphics, w);
         }
     }
 
@@ -340,5 +341,14 @@ public class SpecScreen extends Screen implements ActionHost {
     /** Resolves an {@code icon} widget's {@code icon} id to a texture location. Returns {@code null} (no-op) by default. */
     protected Identifier resolveIcon(WidgetSpec w) {
         return null;
+    }
+
+    /**
+     * Draws a {@code requirement} widget: an item icon with a satisfied/unmet colored border.
+     * Uses {@link #resolveIcon} to map the widget's {@code icon} id to a texture, same as {@code icon}.
+     */
+    protected void renderRequirement(GuiGraphics graphics, WidgetSpec w) {
+        int[] origin = builder().originOf(w);
+        renderer.renderRequirement(graphics, w, origin[0], origin[1], this::resolveIcon);
     }
 }

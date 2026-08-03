@@ -34,6 +34,8 @@ final class SpecWidgetRenderer {
     private final Map<String, Double> boundValue = new HashMap<>();
     // subclass-driven value overrides - NOT cleared each frame; take priority over boundValue
     private final Map<String, Double> pinnedValue = new HashMap<>();
+    // resolved bound satisfied flag for requirement widgets - cleared and recomputed each frame
+    private final Map<String, Boolean> boundSatisfied = new HashMap<>();
     // src path → Identifier cache for sprite widgets - avoids allocation on every render frame
     private final Map<String, Identifier> spriteTexCache = new HashMap<>();
 
@@ -74,6 +76,7 @@ final class SpecWidgetRenderer {
     void refreshBindings() {
         boundText.clear();
         boundValue.clear();
+        boundSatisfied.clear();
         for (WidgetSpec w : spec.widgets) {
             String textPath = w.bindings.get("text");
             if (textPath != null) {
@@ -91,6 +94,11 @@ final class SpecWidgetRenderer {
                     }
                 }
             }
+            String satisfiedPath = w.bindings.get("satisfied");
+            if (satisfiedPath != null) {
+                String value = DataRegistry.resolve(qualify(spec.modId, satisfiedPath));
+                if (value != null) boundSatisfied.put(w.id, Boolean.parseBoolean(value));
+            }
         }
     }
 
@@ -104,6 +112,11 @@ final class SpecWidgetRenderer {
         Double pinned = pinnedValue.get(w.id);
         if (pinned != null) return pinned;
         return boundValue.getOrDefault(w.id, fallback);
+    }
+
+    /** Resolves a {@code requirement} widget's fulfillment flag: binding first, else {@code fallback}. */
+    boolean resolveSatisfied(WidgetSpec w, boolean fallback) {
+        return boundSatisfied.getOrDefault(w.id, fallback);
     }
 
     /**
@@ -203,6 +216,36 @@ final class SpecWidgetRenderer {
         }
         int scale = w.propInt("scale", 1);
         graphics.blit(RenderPipelines.GUI_TEXTURED, location, x, y, 0f, 0f, w.w * scale, w.h * scale, w.w * scale, w.h * scale);
+    }
+
+    private static final int REQUIREMENT_COLOR_MET = 0xFF00FF00;
+    private static final int REQUIREMENT_COLOR_UNMET = 0xFFFF0000;
+
+    /**
+     * Draws a {@code requirement} widget at {@code (x, y)} in screen space: an item icon (see
+     * {@link #renderIcon}) framed by a solid border whose color reflects this widget's {@code
+     * satisfied} binding - fulfilled requirements (green by default) vs. unmet ones (red by
+     * default). Ported from mine-now's {@code StructureMarkerScreen#drawRequirementRow} slot look.
+     */
+    void renderRequirement(GuiGraphics graphics, WidgetSpec w, int x, int y, IconResolver resolveIcon) {
+        boolean satisfied = resolveSatisfied(w, false);
+        int borderColor = (satisfied
+                ? w.propInt("color_met", REQUIREMENT_COLOR_MET)
+                : w.propInt("color_unmet", REQUIREMENT_COLOR_UNMET)) | 0xFF000000;
+        int borderWidth = Math.max(1, w.propInt("border_width", 2));
+
+        graphics.fill(x, y, x + w.w, y + w.h, borderColor);
+        graphics.fill(x + borderWidth, y + borderWidth, x + w.w - borderWidth, y + w.h - borderWidth, 0xFF8B8B8B);
+
+        Identifier location = resolveIcon.resolve(w);
+        if (location == null) {
+            return;
+        }
+        int iconX = x + borderWidth;
+        int iconY = y + borderWidth;
+        int iconW = w.w - borderWidth * 2;
+        int iconH = w.h - borderWidth * 2;
+        graphics.blit(RenderPipelines.GUI_TEXTURED, location, iconX, iconY, 0f, 0f, iconW, iconH, iconW, iconH);
     }
 
     /** Maps an {@code icon} widget's {@code icon} id to a texture location; mirrors each screen's overridable {@code resolveIcon}. */

@@ -30,6 +30,10 @@ final class SpecWidgetRenderer {
     private final Map<String, String> boundText = new HashMap<>();
     // subclass-driven text overrides - NOT cleared each frame; take priority over boundText
     private final Map<String, String> pinnedText = new HashMap<>();
+    // resolved bound value for progress widgets - cleared and recomputed each frame
+    private final Map<String, Double> boundValue = new HashMap<>();
+    // subclass-driven value overrides - NOT cleared each frame; take priority over boundValue
+    private final Map<String, Double> pinnedValue = new HashMap<>();
     // src path → Identifier cache for sprite widgets - avoids allocation on every render frame
     private final Map<String, Identifier> spriteTexCache = new HashMap<>();
 
@@ -40,6 +44,11 @@ final class SpecWidgetRenderer {
     /** See {@code SpecScreen#bindText} / {@code SpecContainerScreen#bindText}. */
     void bindText(String widgetId, String text) {
         pinnedText.put(widgetId, text);
+    }
+
+    /** See {@code SpecScreen#bindValue} / {@code SpecContainerScreen#bindValue}. */
+    void bindValue(String widgetId, double value) {
+        pinnedValue.put(widgetId, value);
     }
 
     /**
@@ -55,25 +64,46 @@ final class SpecWidgetRenderer {
     }
 
     /**
-     * Recomputes {@link #boundText} from every widget's declared {@code text} binding. Call once
-     * per frame before rendering labels/icons. Only the {@code text} target is handled here -
-     * {@code enabled}/{@code visible} bindings apply to a live {@code AbstractWidget} and stay the
-     * host screen's responsibility, since {@code SpecContainerScreen} doesn't build interactive
-     * widgets of its own the way {@code SpecScreen} does.
+     * Recomputes {@link #boundText} and {@link #boundValue} from every widget's declared {@code
+     * text}/{@code value} bindings. Call once per frame before rendering labels/icons/progress
+     * bars. Only those two targets are handled here - {@code enabled}/{@code visible} bindings
+     * apply to a live {@code AbstractWidget} and stay the host screen's responsibility, since
+     * {@code SpecContainerScreen} doesn't build interactive widgets of its own the way {@code
+     * SpecScreen} does.
      */
-    void refreshBoundText() {
+    void refreshBindings() {
         boundText.clear();
+        boundValue.clear();
         for (WidgetSpec w : spec.widgets) {
-            String localPath = w.bindings.get("text");
-            if (localPath == null) continue;
-            String value = DataRegistry.resolve(qualify(spec.modId, localPath));
-            if (value != null) boundText.put(w.id, value);
+            String textPath = w.bindings.get("text");
+            if (textPath != null) {
+                String value = DataRegistry.resolve(qualify(spec.modId, textPath));
+                if (value != null) boundText.put(w.id, value);
+            }
+            String valuePath = w.bindings.get("value");
+            if (valuePath != null) {
+                String value = DataRegistry.resolve(qualify(spec.modId, valuePath));
+                if (value != null) {
+                    try {
+                        boundValue.put(w.id, Double.parseDouble(value));
+                    } catch (NumberFormatException ignored) {
+                        // leave unbound - falls back to the widget's static/pinned value
+                    }
+                }
+            }
         }
     }
 
     /** Resolves a label/icon widget's display text: pinned override, then binding, then the spec's static {@code text}. */
     String resolveText(WidgetSpec w) {
         return pinnedText.getOrDefault(w.id, boundText.getOrDefault(w.id, w.text));
+    }
+
+    /** Resolves a progress widget's numeric value: pinned override, then binding, then {@code fallback}. */
+    double resolveValue(WidgetSpec w, double fallback) {
+        Double pinned = pinnedValue.get(w.id);
+        if (pinned != null) return pinned;
+        return boundValue.getOrDefault(w.id, fallback);
     }
 
     /**
@@ -329,6 +359,57 @@ final class SpecWidgetRenderer {
         } else {
             // Treat the texture as a 1×1 atlas so UV spans 0..1 = full texture, stretched to widget bounds.
             ninePatch(graphics, tex, x, y, 0, 0, 1, 1, w.w, w.h, 1, 1);
+        }
+    }
+
+    // Solid-fill look ported from mine-now's InhabitantScreen need bars (drawNeedBar) - no texture
+    // atlas, just flat graphics.fill() rects: a dark track, a 1px border, and a fill rect whose
+    // width is round(w.w * clamp(fraction, 0, 1)). "color" props are stored as plain RGB ints (see
+    // PropertyPanel's argbIntToHex, which masks to the low 24 bits) so the alpha byte is forced to
+    // opaque (0xFF000000) here rather than trusted from the stored value.
+    private static final int PROGRESS_TRACK_COLOR = 0xFF2B2B2B;
+    private static final int PROGRESS_BORDER_COLOR = 0xFF1A1A1A;
+    private static final int PROGRESS_THRESHOLD_HIGH = 0xFF3CB043;
+    private static final int PROGRESS_THRESHOLD_MID = 0xFFD9A400;
+    private static final int PROGRESS_THRESHOLD_LOW = 0xFFCC3333;
+
+    private static int progressFillColor(WidgetSpec w, double frac) {
+        if ("solid".equals(w.prop("style", "threshold"))) {
+            return w.propInt("color", 0x3CB043) | 0xFF000000;
+        }
+        if (frac >= 0.66) return PROGRESS_THRESHOLD_HIGH;
+        if (frac >= 0.33) return PROGRESS_THRESHOLD_MID;
+        return PROGRESS_THRESHOLD_LOW;
+    }
+
+    /**
+     * Draws a {@code progress} widget at {@code (x, y)} in screen space: a solid-fill horizontal
+     * bar (fills left-to-right) with an optional centered {@code min}/{@code max}/{@code value}
+     * percentage label. {@code value} comes from this widget's {@code value} binding/pin if set
+     * (see {@link #resolveValue}), otherwise its static {@code value} prop.
+     */
+    void renderProgress(GuiGraphics graphics, Font font, WidgetSpec w, int x, int y) {
+        double min = w.propDouble("min", 0);
+        double max = w.propDouble("max", 100);
+        double value = resolveValue(w, w.propDouble("value", min));
+        double frac = max > min ? Math.max(0.0, Math.min(1.0, (value - min) / (max - min))) : 0.0;
+        int filled = Math.round((float) (w.w * frac));
+
+        graphics.fill(x, y, x + w.w, y + w.h, PROGRESS_TRACK_COLOR);
+        if (filled > 0) {
+            graphics.fill(x, y, x + filled, y + w.h, progressFillColor(w, frac));
+        }
+        graphics.fill(x,               y,             x + w.w, y + 1,   PROGRESS_BORDER_COLOR);
+        graphics.fill(x,               y + w.h - 1,   x + w.w, y + w.h, PROGRESS_BORDER_COLOR);
+        graphics.fill(x,               y,             x + 1,   y + w.h, PROGRESS_BORDER_COLOR);
+        graphics.fill(x + w.w - 1,     y,             x + w.w, y + w.h, PROGRESS_BORDER_COLOR);
+
+        if (w.propBoolean("show_label", true)) {
+            String template = w.text.isEmpty() ? "%s%%" : w.text;
+            String text = template.replace("%s", String.valueOf(Math.round(frac * 100)));
+            int textX = x + (w.w - font.width(text)) / 2;
+            int textY = y + (w.h - font.lineHeight) / 2 + 1;
+            graphics.drawString(font, text, textX, textY, 0xFFFFFFFF, false);
         }
     }
 

@@ -133,6 +133,14 @@ public class SpecScreen extends Screen implements ActionHost {
         renderer.bindText(widgetId, text);
     }
 
+    /**
+     * Sets a progress widget's numeric value, overriding its static {@code value} prop. Safe to
+     * call from {@link #render} each frame for live data.
+     */
+    protected void bindValue(String widgetId, double value) {
+        renderer.bindValue(widgetId, value);
+    }
+
     /** Called for any {@code WidgetSpec.type} with no registered {@link WidgetFactory} and that isn't panel/label/icon/tabs/tab. */
     protected void onUnknownWidgetType(WidgetSpec spec) {
     }
@@ -229,7 +237,7 @@ public class SpecScreen extends Screen implements ActionHost {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         applyBindings();
-        renderer.refreshBoundText();
+        renderer.refreshBindings();
         renderBackground(graphics, mouseX, mouseY, partialTick);
         for (WidgetSpec w : spec.widgets) {
             if (!w.type.equals("tabs")) continue;
@@ -240,8 +248,9 @@ public class SpecScreen extends Screen implements ActionHost {
             renderTabBody(graphics, w);
         }
         for (WidgetSpec w : builder().visibleWidgets()) {
-            if (w.type.equals("panel"))       renderPanel(graphics, w);
-            else if (w.type.equals("sprite")) renderSprite(graphics, w);
+            if (w.type.equals("panel"))          renderPanel(graphics, w);
+            else if (w.type.equals("sprite"))    renderSprite(graphics, w);
+            else if (w.type.equals("progress"))  renderProgress(graphics, w);
         }
         super.render(graphics, mouseX, mouseY, partialTick);
         for (WidgetSpec w : builder().visibleWidgets()) {
@@ -262,7 +271,7 @@ public class SpecScreen extends Screen implements ActionHost {
     }
 
     private void applyBindings() {
-        renderer.refreshBoundText();
+        renderer.refreshBindings();
         for (WidgetSpec w : builder().visibleWidgets()) {
             if (w.bindings.isEmpty()) continue;
             AbstractWidget widget = builder().getWidget(w.id);
@@ -309,6 +318,14 @@ public class SpecScreen extends Screen implements ActionHost {
     protected void renderSprite(GuiGraphics graphics, WidgetSpec w) {
         int[] origin = builder().originOf(w);
         renderer.renderSprite(graphics, w, origin[0], origin[1]);
+    }
+
+    /**
+     * Draws a {@code progress} widget as a solid-fill bar. Override for custom styling.
+     */
+    protected void renderProgress(GuiGraphics graphics, WidgetSpec w) {
+        int[] origin = builder().originOf(w);
+        renderer.renderProgress(graphics, this.font, w, origin[0], origin[1]);
     }
 
     /**

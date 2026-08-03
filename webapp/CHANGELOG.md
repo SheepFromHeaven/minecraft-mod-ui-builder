@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.6.0...webapp-v0.7.0) (2026-08-03)
+
+
+### Features
+
+* add progress widget ([#33](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/issues/33)) ([bfddc21](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/bfddc214c55b8926dc0933129ad9bf05c3dd5783))
+* add requirement widget type ([#36](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/issues/36)) ([29242c9](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/29242c95c5056364b043cbe925e99865e599aa0c))
+
 ## [0.6.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.5.0...webapp-v0.6.0) (2026-08-02)
 
 

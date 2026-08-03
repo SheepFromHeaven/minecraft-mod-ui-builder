@@ -25,12 +25,14 @@ const BINDING_TARGETS: Record<string, string[]> = {
   slider:        ["enabled", "visible"],
   label:         ["text", "visible"],
   panel:         ["visible"],
+  progress:      ["value", "visible"],
 };
 
 const BINDING_TARGET_TYPES: Record<string, BindingType> = {
   text:    "string",
   enabled: "boolean",
   visible: "boolean",
+  value:   "number",
 };
 
 function argbIntToHex(val: number): string {
@@ -434,8 +436,8 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
       }`}
     >
       <span
-        className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${
-          checked ? "translate-x-3.5" : "translate-x-0.5"
+        className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${
+          checked ? "translate-x-3" : "translate-x-0"
         }`}
       />
     </button>

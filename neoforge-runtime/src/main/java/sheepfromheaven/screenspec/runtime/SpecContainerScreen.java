@@ -79,6 +79,14 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
         renderer.bindText(widgetId, text);
     }
 
+    /**
+     * Sets a progress widget's numeric value, overriding its static {@code value} prop. Safe to
+     * call from {@link #render} each frame for live data.
+     */
+    protected void bindValue(String widgetId, double value) {
+        renderer.bindValue(widgetId, value);
+    }
+
     // --- ActionHost implementation ---
 
     @Override
@@ -197,8 +205,9 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
         }
         for (WidgetSpec w : this.spec.widgets) {
             if (!builder().isVisible(w)) continue;
-            if (w.type.equals("panel"))        renderPanel(graphics, w);
-            else if (w.type.equals("sprite"))  renderSprite(graphics, w);
+            if (w.type.equals("panel"))          renderPanel(graphics, w);
+            else if (w.type.equals("sprite"))    renderSprite(graphics, w);
+            else if (w.type.equals("progress"))  renderProgress(graphics, w);
         }
         for (SlotAreaSpec area : this.containerSpec.slots) {
             if (isAreaVisible(area.id)) drawSlotGrid(graphics, area);
@@ -220,7 +229,7 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
      */
     @Override
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
-        renderer.refreshBoundText();
+        renderer.refreshBindings();
         for (WidgetSpec w : builder().visibleWidgets()) {
             int[] o = builder().originOf(w);
             int rx = o[0] - this.leftPos;
@@ -289,6 +298,12 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
     protected void renderSprite(GuiGraphics graphics, WidgetSpec w) {
         int[] o = builder().originOf(w);
         renderer.renderSprite(graphics, w, o[0], o[1]);
+    }
+
+    /** Draws a {@code progress} widget as a solid-fill bar. Override for custom styling. */
+    protected void renderProgress(GuiGraphics graphics, WidgetSpec w) {
+        int[] o = builder().originOf(w);
+        renderer.renderProgress(graphics, this.font, w, o[0], o[1]);
     }
 
     protected void renderLabel(GuiGraphics graphics, WidgetSpec w) {

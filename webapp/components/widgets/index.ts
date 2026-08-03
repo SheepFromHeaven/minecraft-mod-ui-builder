@@ -10,6 +10,7 @@ import LabelVisual from "./label/LabelVisual";
 import GroupVisual from "./group/GroupVisual";
 import ListVisual from "./list/ListVisual";
 import SpriteVisual from "./sprite/SpriteVisual";
+import ProgressVisual from "./progress/ProgressVisual";
 import InventoryAreaVisual from "./inventory_area/InventoryAreaVisual";
 import ScrollbarWidgetVisual from "./scrollbar/ScrollbarVisual";
 /** widget.type -> its Visual component. One folder per widget type — see components/widgets/<type>/. */
@@ -24,6 +25,7 @@ export const WIDGET_VISUAL_REGISTRY: Record<string, ComponentType<VisualProps>> 
   group: GroupVisual,
   list: ListVisual,
   sprite: SpriteVisual,
+  progress: ProgressVisual,
   inventory_area: InventoryAreaVisual,
   scrollbar: ScrollbarWidgetVisual,
 };

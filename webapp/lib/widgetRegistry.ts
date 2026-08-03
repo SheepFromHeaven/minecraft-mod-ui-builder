@@ -151,6 +151,24 @@ const WIDGET_REGISTRY: WidgetDef[] = [
     ],
   },
   {
+    type: "progress",
+    label: "Progress Bar",
+    defaultWidget: {
+      type: "progress",
+      x: 8, y: 8, w: 160, h: 10,
+      text: "", icon: null,
+      props: { min: "0", max: "100", value: "50", style: "threshold", color: "3958339", show_label: "true" },
+    },
+    propSchema: [
+      { key: "min", label: "Min", type: "number", defaultValue: "0" },
+      { key: "max", label: "Max", type: "number", defaultValue: "100" },
+      { key: "value", label: "Default Value", type: "number", defaultValue: "50" },
+      { key: "style", label: "Style", type: "select", options: ["threshold", "solid"], defaultValue: "threshold" },
+      { key: "color", label: "Color", type: "number", defaultValue: "3958339" },
+      { key: "show_label", label: "Show %", type: "boolean", defaultValue: "true" },
+    ],
+  },
+  {
     type: "list",
     label: "List",
     defaultWidget: {

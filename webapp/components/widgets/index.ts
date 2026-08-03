@@ -14,6 +14,7 @@ import ProgressVisual from "./progress/ProgressVisual";
 import InventoryAreaVisual from "./inventory_area/InventoryAreaVisual";
 import ScrollbarWidgetVisual from "./scrollbar/ScrollbarVisual";
 import RequirementVisual from "./requirement/RequirementVisual";
+import CustomVisual from "./custom/CustomVisual";
 /** widget.type -> its Visual component. One folder per widget type — see components/widgets/<type>/. */
 export const WIDGET_VISUAL_REGISTRY: Record<string, ComponentType<VisualProps>> = {
   panel: PanelVisual,
@@ -30,6 +31,7 @@ export const WIDGET_VISUAL_REGISTRY: Record<string, ComponentType<VisualProps>> 
   inventory_area: InventoryAreaVisual,
   scrollbar: ScrollbarWidgetVisual,
   requirement: RequirementVisual,
+  custom: CustomVisual,
 };
 
 export { ScrollbarVisual, SCROLLBAR_THUMB_LEN, SCROLLBAR_BORDER_PX } from "./scrollbar/ScrollbarVisual";

@@ -184,6 +184,14 @@ const WIDGET_REGISTRY: WidgetDef[] = [
     ],
   },
   {
+    type: "custom",
+    label: "Custom",
+    defaultWidget: { type: "custom", x: 8, y: 8, w: 64, h: 32, text: "", icon: null, props: { customType: "" } },
+    propSchema: [
+      { key: "customType", label: "Custom Type", type: "text", defaultValue: "" },
+    ],
+  },
+  {
     type: "list",
     label: "List",
     defaultWidget: {

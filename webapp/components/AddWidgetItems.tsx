@@ -3,7 +3,7 @@
 import {
   Square, MousePointerClick, ToggleLeft, TextCursorInput,
   SlidersHorizontal, Type, Image, List, ScrollText, Folder, HelpCircle,
-  PanelTop, RectangleHorizontal, Gauge,
+  PanelTop, RectangleHorizontal, Gauge, Puzzle,
 } from "lucide-react";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import WIDGET_REGISTRY from "@/lib/widgetRegistry";
@@ -22,6 +22,7 @@ export const WIDGET_ICONS: Record<string, React.ElementType> = {
   list:          List,
   tabs:          PanelTop,
   tab:           RectangleHorizontal,
+  custom:        Puzzle,
 };
 
 export function AddWidgetItems({ onAdd }: { onAdd: (type: string) => void }) {

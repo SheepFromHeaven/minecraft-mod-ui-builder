@@ -456,6 +456,32 @@ final class SpecWidgetRenderer {
         }
     }
 
+    private static final int CUSTOM_PLACEHOLDER_BG = 0xFF2B2B2B;
+    private static final int CUSTOM_PLACEHOLDER_BORDER = 0xFF8B8B8B;
+
+    /**
+     * Draws a {@code custom} widget at {@code (x, y)} in screen space: delegates to whatever
+     * {@link CustomWidgetRenderer} is registered under this widget's {@code customType} prop, or
+     * falls back to the same labeled placeholder box the designer shows if none is registered yet.
+     */
+    void renderCustom(GuiGraphics graphics, Font font, WidgetSpec w, int x, int y) {
+        String customType = w.prop("customType", "");
+        CustomWidgetRenderer renderer = CustomWidgetRegistry.get(customType);
+        if (renderer != null) {
+            renderer.render(graphics, w, x, y);
+            return;
+        }
+        graphics.fill(x, y, x + w.w, y + w.h, CUSTOM_PLACEHOLDER_BG);
+        graphics.fill(x,             y,             x + w.w, y + 1,   CUSTOM_PLACEHOLDER_BORDER);
+        graphics.fill(x,             y + w.h - 1,   x + w.w, y + w.h, CUSTOM_PLACEHOLDER_BORDER);
+        graphics.fill(x,             y,             x + 1,   y + w.h, CUSTOM_PLACEHOLDER_BORDER);
+        graphics.fill(x + w.w - 1,   y,             x + w.w, y + w.h, CUSTOM_PLACEHOLDER_BORDER);
+        String label = customType.isEmpty() ? "custom" : customType;
+        int textX = x + (w.w - font.width(label)) / 2;
+        int textY = y + (w.h - font.lineHeight) / 2;
+        graphics.drawString(font, label, textX, textY, 0xFFFFFFFF, false);
+    }
+
     /** Blits one nine-slice piece: a {@code srcW x srcH} source region (from a {@code texW x texH} texture) stretched to {@code destW x destH}. */
     private void ninePatch(GuiGraphics graphics, Identifier tex, int x, int y, int u, int v, int srcW, int srcH, int destW, int destH, int texW, int texH) {
         if (destW <= 0 || destH <= 0) return;

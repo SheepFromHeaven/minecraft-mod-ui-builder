@@ -238,7 +238,6 @@ public class SpecScreen extends Screen implements ActionHost {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         applyBindings();
         renderer.refreshBindings();
-        renderBackground(graphics, mouseX, mouseY, partialTick);
         for (WidgetSpec w : spec.widgets) {
             if (!w.type.equals("tabs")) continue;
             // Inactive tabs render beneath the body panel (see SpecContainerScreen.renderBg).

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.10.0...neoforge-runtime-v0.11.0) (2026-08-03)
+
+
+### Features
+
+* add custom widget type ([#37](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/issues/37)) ([42121de](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/42121deeb6b4336fcec22c4f45bfa4247decc0da))
+
 ## [0.10.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.9.0...neoforge-runtime-v0.10.0) (2026-08-03)
 
 

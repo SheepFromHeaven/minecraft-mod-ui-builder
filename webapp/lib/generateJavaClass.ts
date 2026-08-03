@@ -32,6 +32,8 @@ export function generateJavaClass(screen: ScreenSpec): string {
 
   const textBindings = collectTextBindingPaths(screen.bindingsSchema ?? {});
 
+  const customWidgets = screen.widgets.filter((w) => w.type === "custom");
+
   const lines: string[] = [];
 
   if (textBindings.length > 0) lines.push(`import net.minecraft.client.gui.GuiGraphics;`);
@@ -39,6 +41,7 @@ export function generateJavaClass(screen: ScreenSpec): string {
   if (hasContainer) lines.push(`import net.minecraft.world.entity.player.Inventory;`);
   if (!hasContainer) lines.push(`import sheepfromheaven.screenspec.runtime.ScreenSpecLoader;`);
   if (switchCases.length > 0) lines.push(`import sheepfromheaven.screenspec.runtime.WidgetSpec;`);
+  if (customWidgets.length > 0) lines.push(`import sheepfromheaven.screenspec.runtime.CustomWidgetRegistry;`);
   lines.push(`import ${importBase};`);
   lines.push(``);
   lines.push(`public class ${className} extends ${baseClass} {`);
@@ -47,12 +50,20 @@ export function generateJavaClass(screen: ScreenSpec): string {
   if (hasContainer) {
     lines.push(`    public ${className}(YourContainerMenu menu, Inventory playerInventory, Component title) {`);
     lines.push(`        super(menu, playerInventory, title, "${modId}", "${screen.id}");`);
+    for (const w of customWidgets) {
+      const customType = w.props?.customType || `${modId}:${w.id}`;
+      lines.push(`        CustomWidgetRegistry.register("${customType}", (graphics, widget, x, y) -> { /* TODO: render "${w.id}" */ });`);
+    }
     lines.push(`    }`);
   } else {
     lines.push(`    public ${className}() {`);
     lines.push(`        super(Component.translatable("screen.${modId}.${screen.id}"),`);
     lines.push(`              ScreenSpecLoader.fromResource(net.minecraft.client.Minecraft.getInstance().getResourceManager(),`);
     lines.push(`                  "${modId}", "${screen.id}"));`);
+    for (const w of customWidgets) {
+      const customType = w.props?.customType || `${modId}:${w.id}`;
+      lines.push(`        CustomWidgetRegistry.register("${customType}", (graphics, widget, x, y) -> { /* TODO: render "${w.id}" */ });`);
+    }
     lines.push(`    }`);
   }
 

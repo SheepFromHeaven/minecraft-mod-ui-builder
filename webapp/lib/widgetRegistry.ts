@@ -169,6 +169,21 @@ const WIDGET_REGISTRY: WidgetDef[] = [
     ],
   },
   {
+    type: "requirement",
+    label: "Requirement",
+    defaultWidget: {
+      type: "requirement",
+      x: 8, y: 8, w: 18, h: 18,
+      text: "", icon: null,
+      props: { color_met: "65280", color_unmet: "16711680", border_width: "2" },
+    },
+    propSchema: [
+      { key: "color_met", label: "Color (Met)", type: "number", defaultValue: "65280" },
+      { key: "color_unmet", label: "Color (Unmet)", type: "number", defaultValue: "16711680" },
+      { key: "border_width", label: "Border Width", type: "number", defaultValue: "2" },
+    ],
+  },
+  {
     type: "list",
     label: "List",
     defaultWidget: {

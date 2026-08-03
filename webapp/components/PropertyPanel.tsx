@@ -26,13 +26,15 @@ const BINDING_TARGETS: Record<string, string[]> = {
   label:         ["text", "visible"],
   panel:         ["visible"],
   progress:      ["value", "visible"],
+  requirement:   ["satisfied", "visible"],
 };
 
 const BINDING_TARGET_TYPES: Record<string, BindingType> = {
-  text:    "string",
-  enabled: "boolean",
-  visible: "boolean",
-  value:   "number",
+  text:      "string",
+  enabled:   "boolean",
+  visible:   "boolean",
+  value:     "number",
+  satisfied: "boolean",
 };
 
 function argbIntToHex(val: number): string {
@@ -127,6 +129,43 @@ export default function PropertyPanel({ widget, onUpdate, bindingsSchema, action
             disabled={!!bindings.text}
             onChange={(e) => set({ text: e.target.value })}
           />
+        </Field>
+      )}
+
+      {widget.type === "requirement" && (
+        <Field label="Icon">
+          {Object.keys(packTextures).length === 0 ? (
+            <p className="text-xs text-muted-foreground italic">Extract a resource pack first</p>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <button
+                title="Change icon"
+                onClick={() => setTexPickerOpen(true)}
+                className="w-full rounded border border-input hover:border-ring overflow-hidden transition-colors cursor-pointer"
+                style={{ background: "#555", aspectRatio: widget.icon && packTextures[widget.icon] ? undefined : "16/9" }}
+              >
+                {widget.icon && packTextures[widget.icon] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={packTextures[widget.icon]}
+                    alt=""
+                    draggable={false}
+                    style={{ width: "100%", height: "100%", objectFit: "contain", imageRendering: "pixelated", display: "block" }}
+                  />
+                ) : (
+                  <span className="flex items-center justify-center py-4 text-xs text-muted-foreground">Pick icon…</span>
+                )}
+              </button>
+              {widget.icon && <p className="text-[10px] text-muted-foreground truncate">{widget.icon}</p>}
+              <TexturePickerModal
+                open={texPickerOpen}
+                packTextures={packTextures}
+                current={widget.icon ?? ""}
+                onSelect={(k) => { set({ icon: k }); setTexPickerOpen(false); }}
+                onClose={() => setTexPickerOpen(false)}
+              />
+            </div>
+          )}
         </Field>
       )}
 
@@ -235,7 +274,7 @@ export default function PropertyPanel({ widget, onUpdate, bindingsSchema, action
               }
 
               // Color picker
-              if (field.key === "color") {
+              if (field.key === "color" || field.key === "color_met" || field.key === "color_unmet") {
                 const colorInt = parseInt(currentValue, 10) || 0;
                 return (
                   <Field key={field.key} label={field.label}>

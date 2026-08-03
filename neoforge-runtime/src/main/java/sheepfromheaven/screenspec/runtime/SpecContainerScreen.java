@@ -236,6 +236,7 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
             int ry = o[1] - this.topPos;
             if (w.type.equals("label"))     renderer.renderLabel(graphics, this.font, w, rx, ry);
             else if (w.type.equals("icon")) renderer.renderIcon(graphics, w, rx, ry, this::resolveIcon);
+            else if (w.type.equals("requirement")) renderer.renderRequirement(graphics, w, rx, ry, this::resolveIcon);
         }
     }
 

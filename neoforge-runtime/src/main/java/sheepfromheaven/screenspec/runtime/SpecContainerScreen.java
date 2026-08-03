@@ -208,6 +208,7 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
             if (w.type.equals("panel"))          renderPanel(graphics, w);
             else if (w.type.equals("sprite"))    renderSprite(graphics, w);
             else if (w.type.equals("progress"))  renderProgress(graphics, w);
+            else if (w.type.equals("custom"))    renderCustom(graphics, w);
         }
         for (SlotAreaSpec area : this.containerSpec.slots) {
             if (isAreaVisible(area.id)) drawSlotGrid(graphics, area);
@@ -320,5 +321,14 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
     /** Resolves an {@code icon} widget's {@code icon} id to a texture location. Returns {@code null} (no-op) by default. */
     protected Identifier resolveIcon(WidgetSpec w) {
         return null;
+    }
+
+    /**
+     * Draws a {@code custom} widget by delegating to its registered {@link CustomWidgetRenderer},
+     * or a labeled placeholder if none is registered for its {@code customType}.
+     */
+    protected void renderCustom(GuiGraphics graphics, WidgetSpec w) {
+        int[] o = builder().originOf(w);
+        renderer.renderCustom(graphics, this.font, w, o[0], o[1]);
     }
 }

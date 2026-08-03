@@ -175,7 +175,8 @@ final class SpecWidgetBuilder {
 
     private void buildWidget(WidgetSpec w) {
         if ("panel".equals(w.type) || "label".equals(w.type) || "icon".equals(w.type)
-                || "tab".equals(w.type) || "inventory_area".equals(w.type) || "scrollbar".equals(w.type)) {
+                || "tab".equals(w.type) || "inventory_area".equals(w.type) || "scrollbar".equals(w.type)
+                || "custom".equals(w.type)) {
             return;
         }
         if ("tabs".equals(w.type)) {

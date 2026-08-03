@@ -251,6 +251,7 @@ public class SpecScreen extends Screen implements ActionHost {
             if (w.type.equals("panel"))          renderPanel(graphics, w);
             else if (w.type.equals("sprite"))    renderSprite(graphics, w);
             else if (w.type.equals("progress"))  renderProgress(graphics, w);
+            else if (w.type.equals("custom"))    renderCustom(graphics, w);
         }
         super.render(graphics, mouseX, mouseY, partialTick);
         for (WidgetSpec w : builder().visibleWidgets()) {
@@ -350,5 +351,14 @@ public class SpecScreen extends Screen implements ActionHost {
     protected void renderRequirement(GuiGraphics graphics, WidgetSpec w) {
         int[] origin = builder().originOf(w);
         renderer.renderRequirement(graphics, w, origin[0], origin[1], this::resolveIcon);
+    }
+
+    /**
+     * Draws a {@code custom} widget by delegating to its registered {@link CustomWidgetRenderer},
+     * or a labeled placeholder if none is registered for its {@code customType}.
+     */
+    protected void renderCustom(GuiGraphics graphics, WidgetSpec w) {
+        int[] origin = builder().originOf(w);
+        renderer.renderCustom(graphics, this.font, w, origin[0], origin[1]);
     }
 }

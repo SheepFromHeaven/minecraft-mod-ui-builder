@@ -7,6 +7,7 @@ import SetupScreen from "@/components/SetupScreen";
 import { useTextures } from "@/lib/TextureContext";
 import type { ScreenSpec } from "@/lib/types";
 import type { ProjectSummary } from "@/components/WelcomeScreen";
+import { migrateProjectJson, migrateScreenJson } from "@/lib/migrations";
 
 const PROJECTS_KEY = "mc-ui-builder-projects";
 const LEGACY_KEY = "mc-ui-builder-session";
@@ -116,6 +117,36 @@ export default function ProjectsPage() {
     });
   }, []);
 
+  const handleLoadProject = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        interface ProjectFile { screens: ScreenSpec[]; }
+        const migrated = migrateProjectJson(JSON.parse(ev.target?.result as string) as Record<string, unknown>) as unknown as ProjectFile;
+        if (!Array.isArray(migrated.screens) || migrated.screens.length === 0) throw new Error("Invalid project file");
+        const screens = migrated.screens
+          .map((s) => migrateScreenJson(s as unknown as Record<string, unknown>))
+          .map((s) => ({ ...s, widgets: s.widgets.map((w) => ({ ...w, props: w.props ?? {} })) }));
+        for (const s of screens) {
+          if (!s.id || !Array.isArray(s.widgets)) throw new Error("Invalid ScreenSpec in project");
+        }
+        const key = `project_${Date.now()}`;
+        const session: SavedSession = {
+          history: [{ screens, activeIdx: 0 }],
+          cursor: 0, gridSize: 4, showGrid: true, scale: 3,
+        };
+        const newProject = { key, session, updatedAt: Date.now() };
+        const current = loadProjects();
+        saveProjects([...current, newProject]);
+        setProjects((prev) => [...prev, newProject]);
+        router.push(`/editor/${key}`);
+      } catch {
+        alert("Failed to load project: invalid or corrupt JSON.");
+      }
+    };
+    reader.readAsText(file);
+  }, [router]);
+
   const handleEditTestScreen = useCallback(async () => {
     try {
       const res = await fetch("/api/dev/test-screen");
@@ -140,7 +171,7 @@ export default function ProjectsPage() {
     }
   }, [router]);
 
-  if (!initialized || !projectsLoaded) {
+  if (!projectsLoaded) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-200">
         <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-400 border-t-transparent" />
@@ -148,7 +179,7 @@ export default function ProjectsPage() {
     );
   }
 
-  if (setupRequired && !ready) {
+  if (initialized && setupRequired && !ready) {
     return <SetupScreen />;
   }
 
@@ -157,6 +188,7 @@ export default function ProjectsPage() {
       projects={toSummaries(projects)}
       onOpenProject={handleOpenProject}
       onCreateProject={handleCreateProject}
+      onLoadProject={handleLoadProject}
       onDeleteProject={handleDeleteProject}
       onEditTestScreen={handleEditTestScreen}
     />

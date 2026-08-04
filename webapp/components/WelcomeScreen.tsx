@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Trash2 } from "lucide-react";
+import { Trash2, FolderOpen } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,7 @@ interface Props {
   projects: ProjectSummary[];
   onOpenProject: (key: string) => void;
   onCreateProject: (modId: string, screenId: string) => void;
+  onLoadProject?: (file: File) => void;
   onDeleteProject?: (key: string) => void;
   onEditTestScreen?: () => void;
 }
@@ -37,11 +38,12 @@ function relativeTime(ts: number): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-export default function WelcomeScreen({ projects, onOpenProject, onCreateProject, onDeleteProject, onEditTestScreen }: Props) {
+export default function WelcomeScreen({ projects, onOpenProject, onCreateProject, onLoadProject, onDeleteProject, onEditTestScreen }: Props) {
   const [open, setOpen] = useState(false);
   const [modId, setModId] = useState("");
   const [screenId, setScreenId] = useState("main");
   const [pendingDelete, setPendingDelete] = useState<ProjectSummary | null>(null);
+  const loadInputRef = useRef<HTMLInputElement>(null);
 
   const canCreate = modId.trim().length > 0;
 
@@ -102,6 +104,29 @@ export default function WelcomeScreen({ projects, onOpenProject, onCreateProject
         )}
 
         <Button className="w-full" onClick={() => setOpen(true)}>+ New Project</Button>
+        {onLoadProject && (
+          <>
+            <Button
+              className="w-full"
+              variant="outline"
+              onClick={() => loadInputRef.current?.click()}
+            >
+              <FolderOpen className="mr-2 size-4" />
+              Load Project
+            </Button>
+            <input
+              ref={loadInputRef}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) onLoadProject(file);
+                e.target.value = "";
+              }}
+            />
+          </>
+        )}
         {process.env.NODE_ENV === "development" && onEditTestScreen && (
           <Button className="w-full" variant="outline" onClick={onEditTestScreen}>
             Edit test screen

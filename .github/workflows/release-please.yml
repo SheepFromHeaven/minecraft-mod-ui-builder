@@ -3,6 +3,7 @@ name: release-please
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -28,9 +29,10 @@ jobs:
   # .release-please-manifest.json (it was written when the sibling was at an older
   # version). Release-please sees the generated content as identical to what is
   # already in that PR and skips updating it, leaving the conflict permanently.
-  # Fix: close every remaining open release-please PR so release-please regenerates
-  # it fresh — with the current manifest — on the very next run (which is this same
-  # push, since release-please runs once for releases and once for PR creation).
+  # Fix: close every remaining open release-please PR, then re-trigger this workflow
+  # via workflow_dispatch so release-please regenerates them fresh with the current
+  # manifest. (Closing + re-creation cannot happen in a single run — the dispatch
+  # fires a new run on the same SHA.)
   refresh-stale-release-prs:
     needs: release-please
     runs-on: ubuntu-latest
@@ -47,11 +49,20 @@ jobs:
             --label "autorelease: pending" \
             --json number \
             --jq '.[].number')
+          closed=0
           for pr in $prs; do
             gh pr close "$pr" \
               --repo "${{ github.repository }}" \
-              --comment "Closed automatically: sibling package released and manifest is now stale. Release-please will reopen this PR with an updated manifest on the next push."
+              --comment "Closed automatically: sibling package released and manifest is now stale. Release-please will reopen with an updated manifest."
+            closed=$((closed + 1))
           done
+          # Re-trigger release-please so it recreates the PR immediately on the
+          # current SHA rather than waiting for the next push.
+          if [ "$closed" -gt 0 ]; then
+            gh workflow run release-please.yml \
+              --repo "${{ github.repository }}" \
+              --ref "${{ github.ref_name }}"
+          fi
 
   release-neoforge:
     needs: release-please

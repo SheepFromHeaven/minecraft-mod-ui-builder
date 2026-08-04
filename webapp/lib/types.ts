@@ -61,4 +61,6 @@ export interface ScreenSpec {
   container?: ContainerSpec | null;
   bindingsSchema?: BindingsSchema;
   actions?: string[];
+  /** Webapp version that produced this exported JSON — used to pick migrations on import. See webapp/lib/migrations.ts. */
+  appVersion?: string;
 }

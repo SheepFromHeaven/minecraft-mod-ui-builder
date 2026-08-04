@@ -119,3 +119,5 @@ jobs:
           tag_name: ${{ needs.release-please.outputs.neoforge--tag_name }}
           files: |
             neoforge-runtime/build/libs/*.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}

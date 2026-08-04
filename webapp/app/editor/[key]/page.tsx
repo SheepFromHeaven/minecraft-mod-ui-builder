@@ -14,6 +14,7 @@ import { getWidgetDef } from "@/lib/widgetRegistry";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { buildContainerSpec, excludeFromExportedWidgets } from "@/components/widgets/inventory_area/inventoryAreaExport";
 import { computeInitialSize } from "@/lib/widgetBounds";
+import { APP_VERSION, migrateScreenJson, migrateProjectJson } from "@/lib/migrations";
 
 function newId(type: string, existing: WidgetSpec[]): string {
   const used = new Set(existing.map(w => w.id));
@@ -26,7 +27,13 @@ function newId(type: string, existing: WidgetSpec[]): string {
 function buildExportedScreen(screen: ScreenSpec): ScreenSpec {
   const widgets = excludeFromExportedWidgets(screen.widgets);
   const container = buildContainerSpec(screen.widgets);
-  return { ...screen, widgets, ...(container ? { container } : {}) };
+  return { ...screen, widgets, ...(container ? { container } : {}), appVersion: APP_VERSION };
+}
+
+interface ProjectFile {
+  name: string;
+  screens: ScreenSpec[];
+  appVersion: string;
 }
 
 const MAX_HISTORY = 100;
@@ -132,6 +139,7 @@ export default function EditorPage() {
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
   const clipboardRef = useRef<WidgetSpec | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
+  const importProjectRef = useRef<HTMLInputElement>(null);
 
   // Redirect to setup if textures aren't ready after init.
   useEffect(() => {
@@ -496,12 +504,58 @@ export default function EditorPage() {
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
-        const parsed = normalizeScreen(JSON.parse(ev.target?.result as string) as ScreenSpec);
+        const migrated = migrateScreenJson(JSON.parse(ev.target?.result as string) as Record<string, unknown>);
+        const parsed = normalizeScreen(migrated);
         if (!parsed.id || !Array.isArray(parsed.widgets)) throw new Error("Invalid ScreenSpec");
         commitScreen(parsed);
         setSelectedId(null);
       } catch {
         alert("Failed to parse ScreenSpec JSON.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
+  const handleExportProject = useCallback(() => {
+    try {
+      const project: ProjectFile = {
+        name: projectKey,
+        screens: screens.map(buildExportedScreen),
+        appVersion: APP_VERSION,
+      };
+      const json = JSON.stringify(project, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${projectKey}.project.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert(`Could not export project: ${e instanceof Error ? e.message : e}`);
+    }
+  }, [projectKey, screens]);
+
+  const handleImportProjectClick = () => importProjectRef.current?.click();
+  const handleImportProjectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const migrated = migrateProjectJson(JSON.parse(ev.target?.result as string) as Record<string, unknown>) as unknown as ProjectFile;
+        if (!Array.isArray(migrated.screens) || migrated.screens.length === 0) throw new Error("Invalid project file");
+        const importedScreens = migrated.screens
+          .map((s) => migrateScreenJson(s as unknown as Record<string, unknown>))
+          .map(normalizeScreen);
+        for (const s of importedScreens) {
+          if (!s.id || !Array.isArray(s.widgets)) throw new Error("Invalid ScreenSpec in project");
+        }
+        commit({ screens: importedScreens, activeIdx: 0 });
+        setSelectedId(null);
+      } catch {
+        alert("Failed to parse project JSON.");
       }
     };
     reader.readAsText(file);
@@ -578,6 +632,8 @@ export default function EditorPage() {
             onScreenChange={(patch) => commitScreen({ ...screen, ...patch })}
             onExport={handleExport}
             onImport={handleImportClick}
+            onExportProject={handleExportProject}
+            onImportProject={handleImportProjectClick}
             onCopyJava={handleCopyJava}
             onResetTextures={handleResetTextures}
             onViewTextures={() => setShowTextureDebug(true)}
@@ -653,6 +709,13 @@ export default function EditorPage() {
           accept=".json,application/json"
           className="hidden"
           onChange={handleImportFile}
+        />
+        <input
+          ref={importProjectRef}
+          type="file"
+          accept=".json,application/json"
+          className="hidden"
+          onChange={handleImportProjectFile}
         />
       </SidebarProvider>
     </>

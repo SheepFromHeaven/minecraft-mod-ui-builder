@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Upload, BookOpen, Clipboard } from "lucide-react";
+import { Download, Upload, FolderDown, FolderUp, BookOpen, Clipboard } from "lucide-react";
 import Link from "next/link";
 import type { ScreenSpec, BindingsSchema } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,8 @@ interface Props {
   onScreenChange: (patch: Partial<ScreenSpec>) => void;
   onExport: () => void;
   onImport: () => void;
+  onExportProject: () => void;
+  onImportProject: () => void;
   onCopyJava: () => void;
   onResetTextures: () => Promise<void>;
   onViewTextures: () => void;
@@ -44,7 +46,7 @@ interface Props {
 export default function Toolbar({
   screen, gridSize, showGrid, canUndo, canRedo, tryMode,
   onUndo, onRedo, onGridSizeChange, onToggleGrid, onToggleTryMode,
-  onScreenChange, onExport, onImport, onCopyJava, onResetTextures, onViewTextures, onExtractPack,
+  onScreenChange, onExport, onImport, onExportProject, onImportProject, onCopyJava, onResetTextures, onViewTextures, onExtractPack,
   scale, onZoomIn, onZoomOut, onZoomReset, onSaveToTestMod,
   bindingsSchema, onUpdateBindingsSchema, actions, onUpdateActions, modId,
 }: Props) {
@@ -127,14 +129,21 @@ export default function Toolbar({
             <Separator orientation="vertical" className="h-5" />
           </>
         )}
-        <Button variant="ghost" size="sm" className="h-8 w-8 px-0" onClick={onImport} title="Import JSON">
+        <Button variant="ghost" size="sm" className="h-8 w-8 px-0" onClick={onImport} title="Import screen JSON">
           <Upload className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm" className="h-8 w-8 px-0" onClick={onExport} title="Export JSON">
+        <Button variant="ghost" size="sm" className="h-8 w-8 px-0" onClick={onExport} title="Export screen JSON">
           <Download className="h-4 w-4" />
         </Button>
         <Button variant="ghost" size="sm" className="h-8 w-8 px-0" onClick={onCopyJava} title="Copy Java class definition">
           <Clipboard className="h-4 w-4" />
+        </Button>
+        <Separator orientation="vertical" className="h-5" />
+        <Button variant="ghost" size="sm" className="h-8 w-8 px-0" onClick={onImportProject} title="Import project (all screens)">
+          <FolderUp className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="sm" className="h-8 w-8 px-0" onClick={onExportProject} title="Export project (all screens)">
+          <FolderDown className="h-4 w-4" />
         </Button>
         <Separator orientation="vertical" className="h-5" />
         <BindingsModal

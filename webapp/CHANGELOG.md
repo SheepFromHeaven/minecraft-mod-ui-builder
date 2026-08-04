@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.7.0...webapp-v0.8.0) (2026-08-04)
+
+
+### Features
+
+* **webapp:** add project-level export/import with format migrations ([#49](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/issues/49)) ([0dce10e](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/0dce10e809486128c3ac0f94991655590a8882c9))
+
 ## [0.7.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.6.0...webapp-v0.7.0) (2026-08-04)
 
 

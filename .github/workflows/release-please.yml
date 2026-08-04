@@ -108,7 +108,16 @@ jobs:
           RELEASE_NOTES: ${{ steps.notes.outputs.body }}
 
       - name: Publish to GitHub Packages
-        run: ./gradlew publishAllPublicationsToGitHubPackagesRepository -Pmod_version=${{ steps.version.outputs.version }}
+        # GitHub Packages rejects re-publishing the same version with 409; skip if already present.
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://maven.pkg.github.com/SheepFromHeaven/minecraft-mod-ui-builder/sheepfromheaven/screenspec/screenspec-neoforge/${{ steps.version.outputs.version }}/screenspec-neoforge-${{ steps.version.outputs.version }}.jar")
+          if [ "$status" = "200" ]; then
+            echo "Version ${{ steps.version.outputs.version }} already published to GitHub Packages, skipping."
+          else
+            ./gradlew publishAllPublicationsToGitHubPackagesRepository -Pmod_version=${{ steps.version.outputs.version }}
+          fi
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

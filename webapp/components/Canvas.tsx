@@ -527,6 +527,9 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSi
   const altResizeRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
   // The wrapper's CSS translate at resize-start, in MC pixel space (inner canvas coords).
   const resizeInitTransformRef = useRef<{ x: number; y: number } | null>(null);
+  // Ref to the Rnd instance so we can repair its internal offsetFromParent after alt resize.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rndRef = useRef<any>(null);
 
   // Tab drag — handled via useEffect (started from resize/move handle's onMouseDown)
   React.useEffect(() => {
@@ -589,6 +592,7 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSi
 
   return (
     <Rnd
+      ref={rndRef}
       scale={scale}
       position={{ x: liveX, y: liveY }}
       size={{
@@ -615,7 +619,7 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSi
         altResizeRef.current = null;
         resizeInitTransformRef.current = null; // captured on first onResize
       }}
-      onResize={(e, _dir, ref, delta, position) => {
+      onResize={(e, dir, ref, delta, position) => {
         if (!resizeStartRef.current) return;
         // react-draggable applies its transform directly on `ref` via React.cloneElement —
         // there is no separate wrapper div. Capture the transform from ref itself.
@@ -627,27 +631,36 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSi
             : { x: 0, y: 0 };
         }
         const initT = resizeInitTransformRef.current;
+        const start = resizeStartRef.current;
+        // re-resizable's resizeGrid snaps the element's absolute size to grid multiples even on
+        // the axis that isn't being dragged, so delta for the cross-axis is non-zero. Clamp it.
+        const dw = (dir === "top" || dir === "bottom") ? 0 : delta.width;
+        const dh = (dir === "left" || dir === "right") ? 0 : delta.height;
         if ((e as MouseEvent).altKey) {
           // Alt: resize symmetrically from the original center.
           // delta.{width,height} is the one-sided MC pixel change from react-rnd (already divided by scale).
           // We double it so both sides expand equally; shift the element by one
           // delta in MC pixel space so the center stays fixed.
-          const start = resizeStartRef.current;
-          const altW = Math.max(1, start.w + 2 * delta.width);
-          const altH = Math.max(1, start.h + 2 * delta.height);
-          const altTX = initT.x - delta.width;
-          const altTY = initT.y - delta.height;
+          const altW = Math.max(1, start.w + 2 * dw);
+          const altH = Math.max(1, start.h + 2 * dh);
+          const altTX = initT.x - dw;
+          const altTY = initT.y - dh;
           ref.style.width     = `${altW}px`;
           ref.style.height    = `${altH}px`;
           ref.style.transform = `translate(${altTX}px, ${altTY}px)`;
-          const altVals = {
-            x: Math.max(0, Math.round(widget.x - delta.width)),
-            y: Math.max(0, Math.round(widget.y - delta.height)),
+          altResizeRef.current = {
+            x: Math.max(0, Math.round(start.x - dw)),
+            y: Math.max(0, Math.round(start.y - dh)),
             w: Math.max(1, Math.round(altW)),
             h: Math.max(1, Math.round(altH)),
           };
-          altResizeRef.current = altVals;
-          setDraggingSize({ id: widget.id, ...altVals });
+          // Update w/h so Rnd's controlled size prop stays in sync — re-resizable resets to
+          // props.size on mouseUp, so without this the widget snaps back to its original size.
+          // We keep x/y at widget.x/y (original position) to avoid touching the draggable's
+          // position tracking; the visual position shift is handled by ref.style.transform above.
+          // (delta is computed from original.width captured at onResizeStart, not from the
+          // controlled size, so updating the size prop here does not corrupt delta accumulation.)
+          setDraggingSize({ id: widget.id, x: widget.x, y: widget.y, w: altResizeRef.current.w, h: altResizeRef.current.h });
         } else {
           if (altResizeRef.current !== null) {
             // Alt released mid-drag: restore ref to the resize-start transform so the
@@ -655,36 +668,55 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSi
             ref.style.transform = `translate(${initT.x}px, ${initT.y}px)`;
             altResizeRef.current = null;
           }
+          // Use start + clamped delta instead of ref.style to avoid resizeGrid snapping the
+          // cross-axis dimension (e.g. height snapping to grid when only width is resized).
           setDraggingSize({
             id: widget.id,
             x: Math.max(0, Math.round(position.x)),
             y: Math.max(0, Math.round(position.y)),
-            w: Math.max(1, Math.round(parseInt(ref.style.width))),
-            h: Math.max(1, Math.round(parseInt(ref.style.height))),
+            w: Math.max(1, start.w + dw),
+            h: Math.max(1, start.h + dh),
           });
         }
       }}
-      onResizeStop={(_e, _dir, ref, _delta, position) => {
+      onResizeStop={(_e, dir, ref, delta, position) => {
         setDraggingSize(null);
+        const start = resizeStartRef.current;
+        const dw = (dir === "top" || dir === "bottom") ? 0 : delta.width;
+        const dh = (dir === "left" || dir === "right") ? 0 : delta.height;
         let x: number;
         let y: number;
         let w: number;
         let h: number;
         if (altResizeRef.current) {
-          // Use the alt-adjusted values from the last onResize call
+          // Use the alt-adjusted values from the last onResize call.
           ({ x, y, w, h } = altResizeRef.current);
+          // Repair react-rnd's internal offsetFromParent, which was corrupted by our
+          // ref.style.transform overrides during the alt resize preview. At this point
+          // ref.style.transform = translate(x, y) (set in the final onResize call), so
+          // resetting offsetFromParent to zero is correct: the element is visually at x/y,
+          // and draggable.state still holds the original position, so resetting the offset
+          // makes the controlled position prop (liveX=x after commit) map directly to the
+          // draggable position without any phantom shift.
+          if (rndRef.current) {
+            rndRef.current.offsetFromParent = { left: 0, top: 0 };
+          }
         } else {
-          // position.x/y and ref.style.width/height are already in MC pixels
-          // (Rnd has scale={scale}, so react-rnd divided mouse deltas by scale internally)
+          // position.x/y is from react-rnd (already in MC pixels with scale applied).
+          // Use start + clamped delta for w/h to avoid resizeGrid snapping the cross-axis.
           x = Math.max(0, Math.round(position.x));
           y = Math.max(0, Math.round(position.y));
-          w = Math.max(1, Math.round(parseInt(ref.style.width)));
-          h = Math.max(1, Math.round(parseInt(ref.style.height)));
+          w = start ? Math.max(1, start.w + dw) : Math.max(1, Math.round(parseInt(ref.style.width)));
+          h = start ? Math.max(1, start.h + dh) : Math.max(1, Math.round(parseInt(ref.style.height)));
         }
-        // Clamp to parent container's content area
+        // Clamp to parent container's content area.
+        // Re-anchor to the committed (x, y): alt resize and left/top handle resizes shift the
+        // widget's position, so the precomputed bounds (based on widget.x/y) are too narrow.
         if (resizeBounds) {
-          w = Math.min(w, resizeBounds.maxW);
-          h = Math.min(h, resizeBounds.maxH);
+          const parentW = resizeBounds.maxW + widget.x;
+          const parentH = resizeBounds.maxH + widget.y;
+          w = Math.min(w, parentW - x);
+          h = Math.min(h, parentH - y);
         }
         // Scrollbar: lock the cross-axis to the handle texture width (12px + 2px bevel = 14)
         if (widget.type === "scrollbar") {

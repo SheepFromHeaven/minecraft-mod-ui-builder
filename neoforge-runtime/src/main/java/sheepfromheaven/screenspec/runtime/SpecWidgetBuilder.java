@@ -104,10 +104,13 @@ final class SpecWidgetBuilder {
     }
 
     /**
-     * Whether {@code w} is visible given the current tab state — {@code false} if any ancestor is
-     * a {@code tab} that isn't the currently active child of its parent {@code tabs} widget.
+     * Whether {@code w} is visible given the current tab state and its own/ancestors' {@code
+     * visible} bindings — {@code false} if any ancestor is a {@code tab} that isn't the currently
+     * active child of its parent {@code tabs} widget, or if {@code w} or any ancestor has a
+     * {@code visible} binding that currently resolves to {@code false}.
      */
     boolean isVisible(WidgetSpec w) {
+        if (!isBindingVisible(w)) return false;
         WidgetSpec cur = w;
         while (cur.parentId != null) {
             WidgetSpec parent = byId.get(cur.parentId);
@@ -116,9 +119,21 @@ final class SpecWidgetBuilder {
                 String active = activeTabByTabsWidget.get(parent.id);
                 if (active != null && !active.equals(cur.id)) return false;
             }
+            if (!isBindingVisible(parent)) return false;
             cur = parent;
         }
         return true;
+    }
+
+    /**
+     * Whether {@code w}'s own {@code visible} binding (if declared) currently resolves to {@code
+     * true} — {@code true} when there's no such binding, or no provider is registered for it yet.
+     */
+    private boolean isBindingVisible(WidgetSpec w) {
+        String path = w.bindings.get("visible");
+        if (path == null) return true;
+        String value = DataRegistry.resolve(SpecWidgetRenderer.qualify(spec.modId, path));
+        return value == null || !"false".equalsIgnoreCase(value);
     }
 
     /** Handles a toggle-group selection: marks only {@code selectedId} as active in its group. */
@@ -149,7 +164,7 @@ final class SpecWidgetBuilder {
         for (WidgetSpec w : spec.widgets) {
             if (!"tabs".equals(w.type) || activeTabByTabsWidget.containsKey(w.id)) continue;
             for (WidgetSpec child : childrenByParent.getOrDefault(w.id, List.of())) {
-                if ("tab".equals(child.type)) {
+                if ("tab".equals(child.type) && isBindingVisible(child)) {
                     activeTabByTabsWidget.put(w.id, child.id);
                     break;
                 }
@@ -224,7 +239,7 @@ final class SpecWidgetBuilder {
     void forEachTab(WidgetSpec tabsWidget, TabVisitor visitor) {
         List<WidgetSpec> tabs = new ArrayList<>();
         for (WidgetSpec c : childrenByParent.getOrDefault(tabsWidget.id, List.of())) {
-            if ("tab".equals(c.type)) tabs.add(c);
+            if ("tab".equals(c.type) && isBindingVisible(c)) tabs.add(c);
         }
         if (tabs.isEmpty()) return;
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.11.2...neoforge-runtime-v0.12.0) (2026-08-04)
+
+
+### Features
+
+* conditional widget rendering via visible bindings ([#45](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/issues/45)) ([5f3631a](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/5f3631a2b19cbff4b0257a915ca2002ad0a4b0d2))
+
 ## [0.11.2](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.11.1...neoforge-runtime-v0.11.2) (2026-08-03)
 
 

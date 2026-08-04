@@ -79,16 +79,24 @@ interface Props {
   onAddWidget?: (type: string, x: number, y: number) => void;
 }
 
+// Whether `widget`'s "visible" binding (if any) currently resolves to true, using the
+// bindings schema's previewValue as a stand-in for the live runtime value. Widgets with no
+// "visible" binding are always visible.
+function isConditionallyVisible(widget: WidgetSpec, schema: BindingsSchema): boolean {
+  const path = widget.bindings?.visible;
+  if (!path) return true;
+  return getBindingNode(schema, path)?.previewValue !== false;
+}
+
 function applyBindingPreviews(widget: WidgetSpec, schema: BindingsSchema): { widget: WidgetSpec; hidden: boolean } {
   if (!widget.bindings || Object.keys(widget.bindings).length === 0) return { widget, hidden: false };
   let w = widget;
-  let hidden = false;
+  const hidden = !isConditionallyVisible(widget, schema);
   for (const [target, path] of Object.entries(widget.bindings)) {
     const node = getBindingNode(schema, path);
     if (!node) continue;
     const val = node.previewValue;
     if (target === "text" && typeof val === "string") w = { ...w, text: val };
-    else if (target === "visible" && val === false) hidden = true;
     else if (target === "enabled" && val === false) w = { ...w, props: { ...w.props, _disabled: "1" } };
   }
   return { widget: w, hidden };
@@ -358,12 +366,12 @@ export default function Canvas({
 
         <SelectionChangedCtx.Provider value={selectionChangedRef}>
         <ActiveTabCtx.Provider value={React.useMemo(() => ({ activeTabIds, setActiveTab }), [activeTabIds, setActiveTab])}>
+        <BindingsCtx.Provider value={bindingsSchema}>
         {tryMode && <ScrollCtx.Provider value={scrollCtxVal}>
           {rootWidgets.map((widget, idx) =>
             <TryWidgetRoot key={widget.id} widget={widget} scale={scale} childMap={childMap} zBase={idx + 2} allWidgets={widgets} scrollListeners={scrollListeners.current} />
           )}
         </ScrollCtx.Provider>}
-        <BindingsCtx.Provider value={bindingsSchema}>
           <AllWidgetsCtx.Provider value={widgets}>
           <UpdateWidgetsCtx.Provider value={onUpdateWidgets}>
           <UpdateWidgetCtx.Provider value={onUpdateWidget}>
@@ -448,7 +456,7 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSi
   // Preview-only: which of this `tabs` widget's `tab` children is shown on the canvas right now.
   // Not persisted — a designer convenience for previewing content that's otherwise hidden,
   // mirroring how SpecScreen picks a default active tab at runtime.
-  const tabChildren = isTabs ? children.filter((c) => c.type === "tab") : [];
+  const tabChildren = isTabs ? children.filter((c) => c.type === "tab" && isConditionallyVisible(c, bindingsSchema)) : [];
   const tabHeaderHeight = isTabs ? parseInt(widget.props.tab_height ?? "20", 10) : 0;
   const { activeTabIds, setActiveTab } = useContext(ActiveTabCtx);
   const storedTabId = isTabs ? (activeTabIds.get(widget.id) ?? null) : null;
@@ -846,6 +854,7 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSi
 function TryWidgetRoot(props: { widget: WidgetSpec; scale: number; childMap: Map<string, WidgetSpec[]>; zBase: number; allWidgets: WidgetSpec[]; scrollListeners: Map<string, Set<() => void>> }) {
   const { textures } = useTextures();
   const { widget, scale, zBase, allWidgets } = props;
+  const bindingsSchema = useContext(BindingsCtx);
 
   // Wire up scroll listeners to context so TryScrollbar re-renders when inventory scrolls
   const scrollCtx = React.useContext(ScrollCtx);
@@ -859,6 +868,10 @@ function TryWidgetRoot(props: { widget: WidgetSpec; scale: number; childMap: Map
       ctx._listeners?.get(id)?.forEach(fn => fn());
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Not rendered at all when conditionally invisible — mirrors the runtime's SpecWidgetBuilder,
+  // which excludes such widgets from the actual added-widget list (e.g. reclaiming a hidden tab's space).
+  if (widget.hidden || !isConditionallyVisible(widget, bindingsSchema)) return null;
 
   const extScrollbarY = allWidgets.find(w => w.type === "scrollbar" && w.props.target === widget.id && (w.props.axis ?? "y") === "y");
   const extScrollbarX = allWidgets.find(w => w.type === "scrollbar" && w.props.target === widget.id && w.props.axis === "x");
@@ -898,7 +911,8 @@ function TryWidget({ widget, scale, childMap, zBase, allWidgets }: {
   const children = isContainer ? (childMap.get(widget.id) ?? []) : [];
   const clips = false;
   const isTabs = widget.type === "tabs";
-  const tabChildren = isTabs ? children.filter((c) => c.type === "tab") : [];
+  const bindingsSchema = useContext(BindingsCtx);
+  const tabChildren = isTabs ? children.filter((c) => c.type === "tab" && !c.hidden && isConditionallyVisible(c, bindingsSchema)) : [];
   const tabHeaderHeight = isTabs ? parseInt(widget.props.tab_height ?? "20", 10) : 0;
   const { activeTabIds, setActiveTab } = useContext(ActiveTabCtx);
   const storedTryTabId = isTabs ? (activeTabIds.get(widget.id) ?? null) : null;

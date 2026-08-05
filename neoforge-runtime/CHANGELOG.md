@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.12.0...neoforge-runtime-v0.12.1) (2026-08-05)
+
+
+### Bug Fixes
+
+* **neoforge-runtime:** fix SpecListWidget API compat with NeoForge 21.11.45 ([26ed745](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/26ed74580d5bd31a2f9c3d13efa371e7895e700c))
+
 ## [0.12.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.11.2...neoforge-runtime-v0.12.0) (2026-08-04)
 
 

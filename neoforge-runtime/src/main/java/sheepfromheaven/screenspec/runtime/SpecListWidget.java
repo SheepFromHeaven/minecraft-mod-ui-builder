@@ -45,7 +45,8 @@ public class SpecListWidget extends ObjectSelectionList<SpecListWidget.Row> {
         this.spec = spec;
         this.screen = screen;
         this.selectionListener = selectionListener;
-        this.updateSizeAndPosition(spec.x, spec.y, spec.w, spec.h);
+        // updateSizeAndPosition(x, y, w, h) was removed in NeoForge 21.11.45;
+        // position is passed to the super constructor above.
     }
 
     /**
@@ -73,6 +74,15 @@ public class SpecListWidget extends ObjectSelectionList<SpecListWidget.Row> {
     public Map<String, String> getSelectedItem() {
         Row selected = getSelected();
         return selected != null ? selected.data : Collections.emptyMap();
+    }
+
+    /**
+     * Makes getRowLeft() return a position inside this widget's bounds.
+     * The default (220) ignores the actual widget width and causes text clipping.
+     */
+    @Override
+    public int getRowWidth() {
+        return this.getWidth();
     }
 
     @Override
@@ -106,7 +116,9 @@ public class SpecListWidget extends ObjectSelectionList<SpecListWidget.Row> {
         }
 
         @Override
-        public void renderContent(GuiGraphics guiGraphics, int top, int left, boolean hovered, float partialTick) {
+        public void renderContent(GuiGraphics guiGraphics, int mouseX, int mouseY, boolean hovered, float partialTick) {
+            int left = SpecListWidget.this.getRowLeft();
+            int top  = SpecListWidget.this.getRowTop(index);
             for (WidgetSpec template : spec.item_template) {
                 String value = data.getOrDefault(template.id, template.text);
                 renderTemplateWidget(guiGraphics, template, left + template.x, top + template.y, value);

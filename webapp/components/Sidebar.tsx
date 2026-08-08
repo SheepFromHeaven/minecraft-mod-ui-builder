@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, type ReactNode } from "react";
-import { Plus, Pencil, Trash2, GripVertical, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
+import { Plus, Pencil, Trash2, GripVertical, ChevronDown, ChevronRight, ChevronLeft, Upload, Download } from "lucide-react";
 import {
   DndContext, PointerSensor, useSensor, useSensors, closestCenter,
   type DragEndEvent,
@@ -39,6 +39,8 @@ interface Props {
   onRemoveScreen: (idx: number) => void;
   onRenameScreen: (idx: number, name: string) => void;
   onMoveScreen: (fromIdx: number, toIdx: number) => void;
+  onImportScreen: () => void;
+  onExportScreen: (idx: number) => void;
   onAddWidget: (type: string, parentId?: string) => void;
   onSelectWidget: (id: string, shiftKey: boolean, modKey: boolean) => void;
   onDeleteWidget: (id: string) => void;
@@ -70,7 +72,7 @@ function SortableScreenItem({ id, children }: { id: string; children: ReactNode 
 
 export default function AppSidebar({
   screens, activeIdx, modId, widgets, selectedId, selectedIds,
-  onGoHome, onSelectScreen, onAddScreen, onRemoveScreen, onRenameScreen, onMoveScreen,
+  onGoHome, onSelectScreen, onAddScreen, onRemoveScreen, onRenameScreen, onMoveScreen, onImportScreen, onExportScreen,
   onAddWidget, onSelectWidget, onDeleteWidget, onToggleHiddenWidget, onReparentWidget, onReorderWidget,
 }: Props) {
   const [screensOpen, setScreensOpen] = useState(true);
@@ -134,6 +136,9 @@ export default function AppSidebar({
             Screens
           </SidebarGroupLabel>
 
+          <SidebarGroupAction title="Import screen JSON" onClick={onImportScreen} className="right-8">
+            <Upload />
+          </SidebarGroupAction>
           <SidebarGroupAction title="Add screen" onClick={onAddScreen}>
             <Plus />
           </SidebarGroupAction>
@@ -165,12 +170,20 @@ export default function AppSidebar({
                               size="sm"
                               isActive={idx === activeIdx}
                               onClick={() => onSelectScreen(idx)}
-                              className="pl-5 pr-12"
+                              onDoubleClick={() => startRename(idx)}
+                              className="pl-5 pr-16"
                             >
                               <span className="truncate">{s.id || "(unnamed)"}</span>
                             </SidebarMenuButton>
-                            {/* Hover actions — two buttons in a row, absolutely positioned */}
+                            {/* Hover actions — three buttons in a row, absolutely positioned */}
                             <div className="absolute right-1 top-1.5 hidden items-center gap-0.5 group-hover/menu-item:flex">
+                              <button
+                                title="Export screen JSON"
+                                onClick={e => { e.stopPropagation(); onExportScreen(idx); }}
+                                className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-sidebar-accent [&>svg]:size-3.5"
+                              >
+                                <Download />
+                              </button>
                               <button
                                 title="Rename"
                                 onClick={e => { e.stopPropagation(); startRename(idx); }}

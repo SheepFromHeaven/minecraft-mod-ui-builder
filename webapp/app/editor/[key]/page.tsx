@@ -523,21 +523,22 @@ export default function EditorPage() {
     return () => window.removeEventListener("keydown", handler);
   }, [undo, redo, copyWidget, pasteWidget, duplicateWidget, deleteWidget, nudgeWidget, gridSize, tryMode, zoomIn, zoomOut, zoomReset]);
 
-  const handleExport = useCallback(() => {
+  const handleExportScreen = useCallback((idx: number) => {
     try {
-      const exported = buildExportedScreen(screen);
+      const target = screens[idx];
+      const exported = buildExportedScreen(target);
       const json = JSON.stringify(exported, null, 2);
       const blob = new Blob([json], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${screen.id}.json`;
+      a.download = `${target.id}.json`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
       alert(`Could not export: ${e instanceof Error ? e.message : e}`);
     }
-  }, [screen]);
+  }, [screens]);
 
   const handleCopyJava = useCallback(async () => {
     try {
@@ -558,7 +559,12 @@ export default function EditorPage() {
         const migrated = migrateScreenJson(JSON.parse(ev.target?.result as string) as Record<string, unknown>);
         const parsed = normalizeScreen(migrated);
         if (!parsed.id || !Array.isArray(parsed.widgets)) throw new Error("Invalid ScreenSpec");
-        commitScreen(parsed);
+        const existingIds = new Set(screens.map((s) => s.id));
+        let id = parsed.id;
+        let suffix = 2;
+        while (existingIds.has(id)) id = `${parsed.id}_${suffix++}`;
+        const newScreen: ScreenSpec = { ...parsed, id };
+        commit({ screens: [...screens, newScreen], activeIdx: screens.length });
         setSelectedId(null);
       } catch {
         alert("Failed to parse ScreenSpec JSON.");
@@ -659,6 +665,8 @@ export default function EditorPage() {
             onRemoveScreen={removeScreen}
             onRenameScreen={renameScreen}
             onMoveScreen={moveScreen}
+            onImportScreen={handleImportClick}
+            onExportScreen={handleExportScreen}
             onAddWidget={addWidget}
             onSelectWidget={selectWidgetInTree}
             onDeleteWidget={deleteWidget}
@@ -686,8 +694,6 @@ export default function EditorPage() {
             onToggleSnapToSiblings={() => setSnapToSiblings((v) => !v)}
             onToggleTryMode={() => { setTryMode((v) => { if (!v) setSelectedId(null); return !v; }); }}
             onScreenChange={(patch) => commitScreen({ ...screen, ...patch })}
-            onExport={handleExport}
-            onImport={handleImportClick}
             onExportProject={handleExportProject}
             onImportProject={handleImportProjectClick}
             onCopyJava={handleCopyJava}

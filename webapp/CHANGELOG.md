@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.1](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.9.0...webapp-v0.9.1) (2026-08-08)
+
+
+### Bug Fixes
+
+* **webapp:** keep widget selected while editing its ID field ([#54](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/issues/54)) ([6256f70](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/6256f708e14e836c3dfc445fcc6e57b2a3200187))
+
 ## [0.9.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.8.0...webapp-v0.9.0) (2026-08-08)
 
 

@@ -284,7 +284,11 @@ export default function EditorPage() {
   const redo = useCallback(() => { setCursor((c) => Math.min(history.length - 1, c + 1)); setSelectedId(null); }, [history.length]);
 
   const updateWidget = useCallback((updated: WidgetSpec) => {
-    commitScreen({ ...screen, widgets: screen.widgets.map((w) => (w.id === selectedId ? updated : w)) });
+    // Most callers (drag/resize/nudge) update a widget in place with its id unchanged, so
+    // matching on updated.id finds it. Renaming a widget's id (PropertyPanel's ID field) is the
+    // one case where updated.id is the new, not-yet-present id — fall back to selectedId then.
+    const matchId = screen.widgets.some((w) => w.id === updated.id) ? updated.id : selectedId;
+    commitScreen({ ...screen, widgets: screen.widgets.map((w) => (w.id === matchId ? updated : w)) });
     if (updated.id !== selectedId) setSelectedId(updated.id);
   }, [screen, commitScreen, selectedId]);
 

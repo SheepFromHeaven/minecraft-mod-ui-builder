@@ -1,7 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
+import { Plus, Pencil, Trash2, GripVertical, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
+import {
+  DndContext, PointerSensor, useSensor, useSensors, closestCenter,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   Sidebar,
   SidebarContent,
@@ -32,6 +38,7 @@ interface Props {
   onAddScreen: () => void;
   onRemoveScreen: (idx: number) => void;
   onRenameScreen: (idx: number, name: string) => void;
+  onMoveScreen: (fromIdx: number, toIdx: number) => void;
   onAddWidget: (type: string, parentId?: string) => void;
   onSelectWidget: (id: string, shiftKey: boolean, modKey: boolean) => void;
   onDeleteWidget: (id: string) => void;
@@ -40,9 +47,30 @@ interface Props {
   onReorderWidget: (draggedIds: string[], overId: string, placement: "before" | "after" | "inside") => void;
 }
 
+function SortableScreenItem({ id, children }: { id: string; children: ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <SidebarMenuItem
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={isDragging ? "opacity-50" : undefined}
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        title="Drag to reorder"
+        className="absolute left-0.5 top-1.5 flex h-5 w-4 cursor-grab items-center justify-center text-muted-foreground hover:text-foreground [&>svg]:size-3.5"
+      >
+        <GripVertical />
+      </button>
+      {children}
+    </SidebarMenuItem>
+  );
+}
+
 export default function AppSidebar({
   screens, activeIdx, modId, widgets, selectedId, selectedIds,
-  onGoHome, onSelectScreen, onAddScreen, onRemoveScreen, onRenameScreen,
+  onGoHome, onSelectScreen, onAddScreen, onRemoveScreen, onRenameScreen, onMoveScreen,
   onAddWidget, onSelectWidget, onDeleteWidget, onToggleHiddenWidget, onReparentWidget, onReorderWidget,
 }: Props) {
   const [screensOpen, setScreensOpen] = useState(true);
@@ -50,6 +78,20 @@ export default function AppSidebar({
   const [renamingIdx, setRenamingIdx] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const renameRef = useRef<HTMLInputElement>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+  const screenIds = screens.map(s => s.id);
+
+  const handleScreenDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const fromIdx = screens.findIndex(s => s.id === active.id);
+    const toIdx = screens.findIndex(s => s.id === over.id);
+    if (fromIdx === -1 || toIdx === -1) return;
+    onMoveScreen(fromIdx, toIdx);
+  };
 
   useEffect(() => {
     if (renamingIdx !== null) renameRef.current?.focus();
@@ -98,56 +140,60 @@ export default function AppSidebar({
 
           {screensOpen && (
             <SidebarGroupContent>
-              <SidebarMenu>
-                {screens.map((s, idx) => (
-                  <SidebarMenuItem key={idx}>
-                    {renamingIdx === idx ? (
-                      <div className="px-2 py-0.5">
-                        <Input
-                          ref={renameRef}
-                          className="h-6 text-xs"
-                          value={renameValue}
-                          onChange={e => setRenameValue(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === "Enter") commitRename();
-                            if (e.key === "Escape") setRenamingIdx(null);
-                          }}
-                          onBlur={commitRename}
-                        />
-                      </div>
-                    ) : (
-                      <>
-                        <SidebarMenuButton
-                          size="sm"
-                          isActive={idx === activeIdx}
-                          onClick={() => onSelectScreen(idx)}
-                          className="pr-12"
-                        >
-                          <span className="truncate">{s.id || "(unnamed)"}</span>
-                        </SidebarMenuButton>
-                        {/* Hover actions — two buttons in a row, absolutely positioned */}
-                        <div className="absolute right-1 top-1.5 hidden items-center gap-0.5 group-hover/menu-item:flex">
-                          <button
-                            title="Rename"
-                            onClick={e => { e.stopPropagation(); startRename(idx); }}
-                            className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-sidebar-accent [&>svg]:size-3.5"
-                          >
-                            <Pencil />
-                          </button>
-                          <button
-                            title="Delete"
-                            disabled={screens.length <= 1}
-                            onClick={e => { e.stopPropagation(); onRemoveScreen(idx); }}
-                            className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-sidebar-accent disabled:pointer-events-none disabled:opacity-30 [&>svg]:size-3.5"
-                          >
-                            <Trash2 />
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleScreenDragEnd}>
+                <SortableContext items={screenIds} strategy={verticalListSortingStrategy}>
+                  <SidebarMenu>
+                    {screens.map((s, idx) => (
+                      <SortableScreenItem key={s.id} id={s.id}>
+                        {renamingIdx === idx ? (
+                          <div className="px-2 py-0.5">
+                            <Input
+                              ref={renameRef}
+                              className="h-6 text-xs"
+                              value={renameValue}
+                              onChange={e => setRenameValue(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === "Enter") commitRename();
+                                if (e.key === "Escape") setRenamingIdx(null);
+                              }}
+                              onBlur={commitRename}
+                            />
+                          </div>
+                        ) : (
+                          <>
+                            <SidebarMenuButton
+                              size="sm"
+                              isActive={idx === activeIdx}
+                              onClick={() => onSelectScreen(idx)}
+                              className="pl-5 pr-12"
+                            >
+                              <span className="truncate">{s.id || "(unnamed)"}</span>
+                            </SidebarMenuButton>
+                            {/* Hover actions — two buttons in a row, absolutely positioned */}
+                            <div className="absolute right-1 top-1.5 hidden items-center gap-0.5 group-hover/menu-item:flex">
+                              <button
+                                title="Rename"
+                                onClick={e => { e.stopPropagation(); startRename(idx); }}
+                                className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-sidebar-accent [&>svg]:size-3.5"
+                              >
+                                <Pencil />
+                              </button>
+                              <button
+                                title="Delete"
+                                disabled={screens.length <= 1}
+                                onClick={e => { e.stopPropagation(); onRemoveScreen(idx); }}
+                                className="flex h-5 w-5 items-center justify-center rounded-md hover:bg-sidebar-accent disabled:pointer-events-none disabled:opacity-30 [&>svg]:size-3.5"
+                              >
+                                <Trash2 />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </SortableScreenItem>
+                    ))}
+                  </SidebarMenu>
+                </SortableContext>
+              </DndContext>
             </SidebarGroupContent>
           )}
         </SidebarGroup>

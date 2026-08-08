@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.9.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.8.0...webapp-v0.9.0) (2026-08-08)
+
+
+### Features
+
+* **webapp:** add load-project from JSON on home screen; fix Turbopack sandbox crash ([951beac](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/951beace402771f7e7eb7f469ae701bb5df44588))
+
+
+### Bug Fixes
+
+* **webapp:** fix alt+resize bugs — cross-axis snap, position jump, and parent bounds clamp ([9775c51](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/9775c5112d9756830b975dd870d931d9e30eab35))
+
 ## [0.8.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.7.0...webapp-v0.8.0) (2026-08-04)
 
 

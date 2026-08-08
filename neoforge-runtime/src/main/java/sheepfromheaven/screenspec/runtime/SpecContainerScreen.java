@@ -2,6 +2,7 @@ package sheepfromheaven.screenspec.runtime;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -85,6 +86,16 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
      */
     protected void bindValue(String widgetId, double value) {
         renderer.bindValue(widgetId, value);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T2 extends AbstractWidget> T2 getWidget(String id) {
+        return builder().getWidget(id);
+    }
+
+    /** The id of the currently active child of a {@code tabs} widget, or {@code null} if unknown. */
+    public String activeTab(String tabsWidgetId) {
+        return builder().activeTab(tabsWidgetId);
     }
 
     // --- ActionHost implementation ---

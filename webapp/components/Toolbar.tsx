@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Upload, FolderDown, FolderUp, BookOpen, Clipboard, Grid3x3 } from "lucide-react";
+import { FolderDown, FolderUp, BookOpen, Clipboard, Grid3x3 } from "lucide-react";
 import Link from "next/link";
 import type { ScreenSpec, BindingsSchema } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -32,8 +32,6 @@ interface Props {
   onToggleSnapToSiblings: () => void;
   onToggleTryMode: () => void;
   onScreenChange: (patch: Partial<ScreenSpec>) => void;
-  onExport: () => void;
-  onImport: () => void;
   onExportProject: () => void;
   onImportProject: () => void;
   onCopyJava: () => void;
@@ -51,7 +49,7 @@ interface Props {
 export default function Toolbar({
   screen, gridSize, showGrid, snapToParent, snapToSiblings, canUndo, canRedo, tryMode,
   onUndo, onRedo, onGridSizeChange, onToggleGrid, onToggleSnapToParent, onToggleSnapToSiblings, onToggleTryMode,
-  onScreenChange, onExport, onImport, onExportProject, onImportProject, onCopyJava, onResetTextures, onViewTextures, onExtractPack,
+  onScreenChange, onExportProject, onImportProject, onCopyJava, onResetTextures, onViewTextures, onExtractPack,
   scale, onZoomIn, onZoomOut, onZoomReset, onSaveToTestMod,
   bindingsSchema, onUpdateBindingsSchema, actions, onUpdateActions, modId,
 }: Props) {
@@ -153,12 +151,6 @@ export default function Toolbar({
             <Separator orientation="vertical" className="h-5" />
           </>
         )}
-        <Button variant="ghost" size="sm" className="h-8 w-8 px-0" onClick={onImport} title="Import screen JSON">
-          <Upload className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="sm" className="h-8 w-8 px-0" onClick={onExport} title="Export screen JSON">
-          <Download className="h-4 w-4" />
-        </Button>
         <Button variant="ghost" size="sm" className="h-8 w-8 px-0" onClick={onCopyJava} title="Copy Java class definition">
           <Clipboard className="h-4 w-4" />
         </Button>

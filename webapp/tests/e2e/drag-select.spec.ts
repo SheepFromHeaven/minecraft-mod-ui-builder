@@ -14,7 +14,7 @@ test("shift+drag locks movement to a single axis", async ({ page }) => {
   await seedProject(page, {
     id: "main", width: 320, height: 180,
     widgets: [
-      { id: "label_a", type: "label", x: 40, y: 40, w: 30, h: 10, text: "A", icon: null, props: {} },
+      { id: "label_a", type: "label", x: 40, y: 40, w: 30, h: 20, text: "A", icon: null, props: {} },
     ],
   });
   await openEditor(page);
@@ -80,8 +80,8 @@ test("dragging near a sibling's left edge snaps into alignment", async ({ page }
   await seedProject(page, {
     id: "main", width: 320, height: 180,
     widgets: [
-      { id: "label_a", type: "label", x: 50, y: 20, w: 40, h: 10, text: "A", icon: null, props: {} },
-      { id: "label_b", type: "label", x: 200, y: 100, w: 40, h: 10, text: "B", icon: null, props: {} },
+      { id: "label_a", type: "label", x: 50, y: 20, w: 40, h: 20, text: "A", icon: null, props: {} },
+      { id: "label_b", type: "label", x: 200, y: 100, w: 40, h: 20, text: "B", icon: null, props: {} },
     ],
   });
   await openEditor(page);
@@ -115,7 +115,7 @@ test("enabling Grid in the snapping menu snaps drags to the grid step", async ({
   await seedProject(page, {
     id: "main", width: 320, height: 180,
     widgets: [
-      { id: "label_a", type: "label", x: 41, y: 41, w: 30, h: 10, text: "A", icon: null, props: {} },
+      { id: "label_a", type: "label", x: 41, y: 41, w: 30, h: 20, text: "A", icon: null, props: {} },
     ],
   });
   await openEditor(page);
@@ -147,7 +147,7 @@ test("disabling Grid allows free (non-grid-aligned) pixel movement", async ({ pa
   await seedProject(page, {
     id: "main", width: 320, height: 180,
     widgets: [
-      { id: "label_a", type: "label", x: 41, y: 41, w: 30, h: 10, text: "A", icon: null, props: {} },
+      { id: "label_a", type: "label", x: 41, y: 41, w: 30, h: 20, text: "A", icon: null, props: {} },
     ],
   });
   await openEditor(page); // session seeds showGrid: false already
@@ -210,8 +210,8 @@ test("ctrl/cmd+click adds a sibling to the selection and drags both together", a
   await seedProject(page, {
     id: "main", width: 320, height: 180,
     widgets: [
-      { id: "label_a", type: "label", x: 40, y: 40, w: 30, h: 10, text: "A", icon: null, props: {} },
-      { id: "label_b", type: "label", x: 120, y: 90, w: 30, h: 10, text: "B", icon: null, props: {} },
+      { id: "label_a", type: "label", x: 40, y: 40, w: 30, h: 20, text: "A", icon: null, props: {} },
+      { id: "label_b", type: "label", x: 120, y: 90, w: 30, h: 20, text: "B", icon: null, props: {} },
     ],
   });
   await openEditor(page);
@@ -252,8 +252,8 @@ test("ctrl/cmd+click again removes a widget from the selection", async ({ page }
   await seedProject(page, {
     id: "main", width: 320, height: 180,
     widgets: [
-      { id: "label_a", type: "label", x: 40, y: 40, w: 30, h: 10, text: "A", icon: null, props: {} },
-      { id: "label_b", type: "label", x: 120, y: 90, w: 30, h: 10, text: "B", icon: null, props: {} },
+      { id: "label_a", type: "label", x: 40, y: 40, w: 30, h: 20, text: "A", icon: null, props: {} },
+      { id: "label_b", type: "label", x: 120, y: 90, w: 30, h: 20, text: "B", icon: null, props: {} },
     ],
   });
   await openEditor(page);
@@ -299,8 +299,8 @@ test("ctrl/cmd+click on a nested widget selects that widget, not its ancestor pa
     id: "main", width: 320, height: 180,
     widgets: [
       { id: "panel_main", type: "panel", x: 0, y: 0, w: 220, h: 175, text: "", icon: null, props: { style: "default" } },
-      { id: "label_a", type: "label", x: 10, y: 10, w: 30, h: 10, text: "A", icon: null, props: {}, parentId: "panel_main" },
-      { id: "label_b", type: "label", x: 60, y: 60, w: 30, h: 10, text: "B", icon: null, props: {}, parentId: "panel_main" },
+      { id: "label_a", type: "label", x: 10, y: 10, w: 30, h: 20, text: "A", icon: null, props: {}, parentId: "panel_main" },
+      { id: "label_b", type: "label", x: 60, y: 60, w: 30, h: 20, text: "B", icon: null, props: {}, parentId: "panel_main" },
     ],
   });
   await openEditor(page);

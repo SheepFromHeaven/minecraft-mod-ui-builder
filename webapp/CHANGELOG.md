@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.11.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.10.0...webapp-v0.11.0) (2026-08-08)
+
+
+### Features
+
+* **webapp:** move screen import/export into sidebar ([#59](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/issues/59)) ([2bbe6e2](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/2bbe6e27c64029fe41e4327efdffa763838161b7))
+
+
+### Bug Fixes
+
+* correct top-row texture sampling for inactive nested tabs ([#61](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/issues/61)) ([a00f0b6](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/a00f0b61d19e92d9274b5c1f8e3aa871edad44ec))
+* round alignment coordinates and expose SpecContainerScreen accessors ([#62](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/issues/62)) ([a4befaf](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/a4befafd98d8488119f6fdfbea8275a4ecd8fd37))
+
 ## [0.10.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.9.1...webapp-v0.10.0) (2026-08-08)
 
 

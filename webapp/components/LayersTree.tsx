@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, use, useState, useRef } from "react";
+import { createContext, use, useState, useRef, useEffect } from "react";
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   closestCenter,
@@ -9,7 +9,7 @@ import {
 import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
-  ChevronDown, ChevronRight, Plus, Trash2, HelpCircle, Eye, EyeOff,
+  ChevronDown, ChevronRight, Plus, Trash2, HelpCircle, Eye, EyeOff, Pencil,
 } from "lucide-react";
 import {
   SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarGroupAction,
@@ -17,6 +17,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import WIDGET_REGISTRY from "@/lib/widgetRegistry";
 import { WIDGET_ICONS, AddWidgetItems } from "@/components/AddWidgetItems";
 import type { WidgetSpec } from "@/lib/types";
@@ -87,12 +88,13 @@ export interface LayersTreeProps {
   onDelete: (id: string) => void;
   onToggleHidden: (id: string) => void;
   onReorder: (draggedIds: string[], overId: string, placement: Placement) => void;
+  onRename: (id: string, name: string) => void;
 }
 
 // ── main component ─────────────────────────────────────────────────────────────
 
 export default function LayersTree({
-  widgets, selectedId, selectedIds, onSelect, onAdd, onDelete, onToggleHidden, onReorder,
+  widgets, selectedId, selectedIds, onSelect, onAdd, onDelete, onToggleHidden, onReorder, onRename,
 }: LayersTreeProps) {
   const [expanded, setExpanded] = useState<Set<string>>(() =>
     new Set(widgets.filter(w => CONTAINER_TYPES.has(w.type)).map(w => w.id)),
@@ -100,6 +102,24 @@ export default function LayersTree({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<DragOverState>(null);
   const pointerY = useRef(0);
+
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const renameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (renamingId !== null) renameRef.current?.focus();
+  }, [renamingId]);
+
+  const startRename = (id: string) => {
+    setRenamingId(id);
+    setRenameValue(id);
+  };
+
+  const commitRename = () => {
+    if (renamingId !== null && renameValue.trim()) onRename(renamingId, renameValue.trim());
+    setRenamingId(null);
+  };
 
   const toggle = (id: string) => setExpanded(prev => {
     const next = new Set(prev);
@@ -190,6 +210,13 @@ export default function LayersTree({
                 onDelete={onDelete}
                 onToggleHidden={onToggleHidden}
                 onToggle={() => toggle(item.id)}
+                isRenaming={renamingId === item.id}
+                renameValue={renameValue}
+                onRenameValueChange={setRenameValue}
+                onStartRename={() => startRename(item.id)}
+                onCommitRename={commitRename}
+                onCancelRename={() => setRenamingId(null)}
+                renameRef={renameRef}
               />
             );
           })}
@@ -215,7 +242,10 @@ export default function LayersTree({
 
 // ── unified tree node (all depths) ────────────────────────────────────────────
 
-function TreeNode({ widget, depth, isOpen, hasChildren, selectedId, isMultiSelected, dragOver, onSelect, onAdd, onDelete, onToggleHidden, onToggle }: {
+function TreeNode({
+  widget, depth, isOpen, hasChildren, selectedId, isMultiSelected, dragOver, onSelect, onAdd, onDelete, onToggleHidden, onToggle,
+  isRenaming, renameValue, onRenameValueChange, onStartRename, onCommitRename, onCancelRename, renameRef,
+}: {
   widget: WidgetSpec;
   depth: number;
   isOpen: boolean;
@@ -228,6 +258,13 @@ function TreeNode({ widget, depth, isOpen, hasChildren, selectedId, isMultiSelec
   onDelete: (id: string) => void;
   onToggleHidden: (id: string) => void;
   onToggle: () => void;
+  isRenaming: boolean;
+  renameValue: string;
+  onRenameValueChange: (v: string) => void;
+  onStartRename: () => void;
+  onCommitRename: () => void;
+  onCancelRename: () => void;
+  renameRef: React.RefObject<HTMLInputElement | null>;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: widget.id });
@@ -245,65 +282,91 @@ function TreeNode({ widget, depth, isOpen, hasChildren, selectedId, isMultiSelec
     >
       <DropLine placement={dropIndicator} depth={depth} />
 
-      <SidebarMenuButton
-        isActive={widget.id === selectedId}
-        onClick={(e) => onSelect(widget.id, e.shiftKey, e.metaKey || e.ctrlKey)}
-        className={`${isDragging ? "cursor-grabbing" : "cursor-default"} pr-20`}
-        style={{
-          paddingLeft: BASE_PL + depth * INDENT,
-          ...(isMultiSelected && widget.id !== selectedId ? { background: "hsl(217 91% 60% / 0.15)" } : {}),
-          ...(insideHighlight ? { outline: "2px solid hsl(217 91% 60%)", outlineOffset: "-2px", borderRadius: "4px" } : {}),
-        }}
-        {...attributes}
-        {...listeners}
-      >
-        {isContainer && hasChildren ? (
-          <span
-            role="button"
-            tabIndex={0}
-            className="mr-0.5 size-3 shrink-0 flex items-center justify-center opacity-60 hover:opacity-100"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => { e.stopPropagation(); onToggle(); }}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onToggle(); } }}
+      {isRenaming ? (
+        <div className="py-0.5" style={{ paddingLeft: BASE_PL + depth * INDENT, paddingRight: 8 }}>
+          <Input
+            ref={renameRef}
+            className="h-6 text-xs"
+            value={renameValue}
+            onChange={e => onRenameValueChange(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === "Enter") onCommitRename();
+              if (e.key === "Escape") onCancelRename();
+            }}
+            onBlur={onCommitRename}
+          />
+        </div>
+      ) : (
+        <>
+          <SidebarMenuButton
+            isActive={widget.id === selectedId}
+            onClick={(e) => onSelect(widget.id, e.shiftKey, e.metaKey || e.ctrlKey)}
+            onDoubleClick={() => onStartRename()}
+            className={`${isDragging ? "cursor-grabbing" : "cursor-default"} pr-24`}
+            style={{
+              paddingLeft: BASE_PL + depth * INDENT,
+              ...(isMultiSelected && widget.id !== selectedId ? { background: "hsl(217 91% 60% / 0.15)" } : {}),
+              ...(insideHighlight ? { outline: "2px solid hsl(217 91% 60%)", outlineOffset: "-2px", borderRadius: "4px" } : {}),
+            }}
+            {...attributes}
+            {...listeners}
           >
-            {isOpen ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
-          </span>
-        ) : (
-          <span className="mr-0.5 size-3 shrink-0 inline-block" />
-        )}
-        <Icon className={`size-3.5 shrink-0 ${widget.hidden ? "opacity-40" : ""}`} />
-        <span className={`truncate text-xs ${widget.hidden ? "opacity-40" : ""}`}>{widget.id}</span>
-      </SidebarMenuButton>
+            {isContainer && hasChildren ? (
+              <span
+                role="button"
+                tabIndex={0}
+                className="mr-0.5 size-3 shrink-0 flex items-center justify-center opacity-60 hover:opacity-100"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); onToggle(); }}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onToggle(); } }}
+              >
+                {isOpen ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+              </span>
+            ) : (
+              <span className="mr-0.5 size-3 shrink-0 inline-block" />
+            )}
+            <Icon className={`size-3.5 shrink-0 ${widget.hidden ? "opacity-40" : ""}`} />
+            <span className={`truncate text-xs ${widget.hidden ? "opacity-40" : ""}`}>{widget.id}</span>
+          </SidebarMenuButton>
 
-      {/* Eye toggle — always visible so position never shifts on hover */}
-      <button
-        className="absolute right-1 top-1.5 flex size-5 items-center justify-center rounded hover:bg-sidebar-accent opacity-40 hover:opacity-100"
-        title={widget.hidden ? "Show" : "Hide"}
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={(e) => { e.stopPropagation(); onToggleHidden(widget.id); }}
-      >
-        {widget.hidden ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
-      </button>
-
-      <NodeActionBar>
-        {widget.type === "tabs" && (
+          {/* Eye toggle — always visible so position never shifts on hover */}
           <button
-            className="flex size-5 items-center justify-center rounded hover:bg-sidebar-accent"
-            title="Add tab"
-            onClick={(e) => { e.stopPropagation(); onAdd("tab"); }}
+            className="absolute right-1 top-1.5 flex size-5 items-center justify-center rounded hover:bg-sidebar-accent opacity-40 hover:opacity-100"
+            title={widget.hidden ? "Show" : "Hide"}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); onToggleHidden(widget.id); }}
           >
-            <Plus className="size-3" />
+            {widget.hidden ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
           </button>
-        )}
-        {isContainer && widget.type !== "tabs" && <AddWidgetButton onAdd={onAdd} />}
-        <button
-          className="flex size-5 items-center justify-center rounded hover:bg-sidebar-accent"
-          title="Delete"
-          onClick={(e) => { e.stopPropagation(); onDelete(widget.id); }}
-        >
-          <Trash2 className="size-3" />
-        </button>
-      </NodeActionBar>
+
+          <NodeActionBar>
+            {widget.type === "tabs" && (
+              <button
+                className="flex size-5 items-center justify-center rounded hover:bg-sidebar-accent"
+                title="Add tab"
+                onClick={(e) => { e.stopPropagation(); onAdd("tab"); }}
+              >
+                <Plus className="size-3" />
+              </button>
+            )}
+            {isContainer && widget.type !== "tabs" && <AddWidgetButton onAdd={onAdd} />}
+            <button
+              className="flex size-5 items-center justify-center rounded hover:bg-sidebar-accent"
+              title="Rename"
+              onClick={(e) => { e.stopPropagation(); onStartRename(); }}
+            >
+              <Pencil className="size-3" />
+            </button>
+            <button
+              className="flex size-5 items-center justify-center rounded hover:bg-sidebar-accent"
+              title="Delete"
+              onClick={(e) => { e.stopPropagation(); onDelete(widget.id); }}
+            >
+              <Trash2 className="size-3" />
+            </button>
+          </NodeActionBar>
+        </>
+      )}
     </SidebarMenuItem>
   );
 }

@@ -335,6 +335,12 @@ export default function EditorPage() {
     commitScreen({ ...screen, widgets: screen.widgets.map(w => w.id === id ? { ...w, hidden: !w.hidden } : w) });
   }, [screen, commitScreen]);
 
+  const renameWidget = useCallback((id: string, name: string) => {
+    const widget = screen.widgets.find(w => w.id === id);
+    if (!widget) return;
+    updateWidget({ ...widget, id: name });
+  }, [screen, updateWidget]);
+
   const deleteWidget = useCallback((id = selectedId) => {
     if (!id) return;
     const target = screen.widgets.find(w => w.id === id);
@@ -671,6 +677,7 @@ export default function EditorPage() {
             onSelectWidget={selectWidgetInTree}
             onDeleteWidget={deleteWidget}
             onToggleHiddenWidget={toggleHiddenWidget}
+            onRenameWidget={renameWidget}
             onReparentWidget={reparentWidget}
             onReorderWidget={reorderWidget}
           />

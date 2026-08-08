@@ -45,6 +45,7 @@ interface Props {
   onSelectWidget: (id: string, shiftKey: boolean, modKey: boolean) => void;
   onDeleteWidget: (id: string) => void;
   onToggleHiddenWidget: (id: string) => void;
+  onRenameWidget: (id: string, name: string) => void;
   onReparentWidget: (id: string, newParentId: string | null) => void;
   onReorderWidget: (draggedIds: string[], overId: string, placement: "before" | "after" | "inside") => void;
 }
@@ -73,7 +74,7 @@ function SortableScreenItem({ id, children }: { id: string; children: ReactNode 
 export default function AppSidebar({
   screens, activeIdx, modId, widgets, selectedId, selectedIds,
   onGoHome, onSelectScreen, onAddScreen, onRemoveScreen, onRenameScreen, onMoveScreen, onImportScreen, onExportScreen,
-  onAddWidget, onSelectWidget, onDeleteWidget, onToggleHiddenWidget, onReparentWidget, onReorderWidget,
+  onAddWidget, onSelectWidget, onDeleteWidget, onToggleHiddenWidget, onRenameWidget, onReparentWidget, onReorderWidget,
 }: Props) {
   const [screensOpen, setScreensOpen] = useState(true);
   const [layersOpen, setLayersOpen] = useState(true);
@@ -235,6 +236,7 @@ export default function AppSidebar({
                 onAdd={onAddWidget}
                 onDelete={onDeleteWidget}
                 onToggleHidden={onToggleHiddenWidget}
+                onRename={onRenameWidget}
                 onReorder={onReorderWidget}
               />
             </SidebarGroupContent>

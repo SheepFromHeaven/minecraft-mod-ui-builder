@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { arrayMove } from "@dnd-kit/sortable";
 import Canvas from "@/components/Canvas";
 import PropertyPanel from "@/components/PropertyPanel";
 import AppSidebar from "@/components/Sidebar";
@@ -444,6 +445,16 @@ export default function EditorPage() {
     commit({ screens: screens.map((s, i) => i === idx ? { ...s, id: name } : s), activeIdx });
   }, [screens, activeIdx, commit]);
 
+  const moveScreen = useCallback((fromIdx: number, toIdx: number) => {
+    if (fromIdx === toIdx) return;
+    const next = arrayMove(screens, fromIdx, toIdx);
+    const newActiveIdx = fromIdx === activeIdx ? toIdx
+      : fromIdx < activeIdx && toIdx >= activeIdx ? activeIdx - 1
+      : fromIdx > activeIdx && toIdx <= activeIdx ? activeIdx + 1
+      : activeIdx;
+    commit({ screens: next, activeIdx: newActiveIdx });
+  }, [screens, activeIdx, commit]);
+
   const switchScreen = useCallback((idx: number) => {
     setHistory(h => h.map((e, i) => i === cursor ? { ...e, activeIdx: idx } : e));
     setSelectedId(null);
@@ -611,6 +622,7 @@ export default function EditorPage() {
             onAddScreen={addScreen}
             onRemoveScreen={removeScreen}
             onRenameScreen={renameScreen}
+            onMoveScreen={moveScreen}
             onAddWidget={addWidget}
             onSelectWidget={selectWidgetInTree}
             onDeleteWidget={deleteWidget}

@@ -24,6 +24,7 @@ interface SliceTask {
   contentH?: number;
   midCol?: number;
   midRow?: number;
+  topOffset?: number;
 }
 
 function rawUrl(assetPath: string): string {
@@ -56,16 +57,16 @@ function sample9slice(src: RawImage, task: SliceTask): RawImage {
   const midCol = task.midCol ?? (s + Math.floor((cw - 2 * s) / 2));
   const midRow = task.midRow ?? (s + Math.floor((ch - 2 * s) / 2));
 
-  const buildAxis = (slicePx: number, total: number, mid: number): number[] => {
+  const buildAxis = (slicePx: number, total: number, mid: number, leadingOffset = 0): number[] => {
     const a: number[] = [];
-    for (let i = 0; i < slicePx; i++) a.push(i);
+    for (let i = 0; i < slicePx; i++) a.push(i + leadingOffset);
     a.push(mid);
     for (let i = slicePx - 1; i >= 0; i--) a.push(total - 1 - i);
     return a;
   };
 
   const cols = buildAxis(s, cw, midCol);
-  const rows = buildAxis(s, ch, midRow);
+  const rows = buildAxis(s, ch, midRow, task.topOffset ?? 0);
   const outSize = s * 2 + 1;
   const outData = new Uint8Array(outSize * outSize * 4);
 
@@ -113,7 +114,7 @@ async function main(): Promise<void> {
     { name: "mc_slider_handle_slice.png", path: "assets/minecraft/textures/gui/sprites/widget/slider_handle.png",      slice: 2 },
     { name: "mc_panel_slice.png",         path: "assets/minecraft/textures/gui/container/inventory.png",               slice: 3, contentW: 176, contentH: 166, midCol: 88, midRow: 10 },
     { name: "widget_tab_selected.png",    path: "assets/minecraft/textures/gui/sprites/widget/tab_selected.png",       slice: 3 },
-    { name: "widget_tab_unselected.png",  path: "assets/minecraft/textures/gui/sprites/widget/tab.png",                slice: 3 },
+    { name: "widget_tab_unselected.png",  path: "assets/minecraft/textures/gui/sprites/widget/tab.png",                slice: 3, topOffset: 4 },
   ];
   for (const task of TASKS_9SLICE) {
     const src = await fetchPng(task.path);

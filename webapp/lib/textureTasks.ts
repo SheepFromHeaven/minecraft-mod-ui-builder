@@ -13,6 +13,14 @@ export interface Task9Slice {
   contentH?: number;
   midCol?: number;
   midRow?: number;
+  /**
+   * Row offset applied only to the top-edge corner sampling, not to the
+   * middle or bottom rows. widget/tab.png (the unselected nested-tab sprite)
+   * pads its real border art 4px below the canvas's top row — vanilla draws
+   * unselected tabs without the raised lip selected tabs have — so sampling
+   * row 0 straight grabs transparent padding instead of the actual border.
+   */
+  topOffset?: number;
 }
 
 export interface TaskCrop {
@@ -77,7 +85,7 @@ export const TAB_SPRITES: { name: string; path: string }[] = [
 // Nested tab sprites from the widget folder — 9-sliced at 3px, single texture per state
 export const NESTED_TAB_TASKS: Task9Slice[] = [
   { name: "widget_tab_selected.png",   path: "assets/minecraft/textures/gui/sprites/widget/tab_selected.png", slice: 3 },
-  { name: "widget_tab_unselected.png", path: "assets/minecraft/textures/gui/sprites/widget/tab.png",          slice: 3 },
+  { name: "widget_tab_unselected.png", path: "assets/minecraft/textures/gui/sprites/widget/tab.png",          slice: 3, topOffset: 4 },
 ];
 
 // Slot tile: dedicated sprite (1.20.2+) preferred; atlas crop (with the 1px
@@ -123,16 +131,16 @@ export function sample9slice(
   const midCol = task.midCol ?? (s + Math.floor((cw - 2 * s) / 2));
   const midRow = task.midRow ?? (s + Math.floor((ch - 2 * s) / 2));
 
-  const buildAxis = (slicePx: number, total: number, mid: number): number[] => {
+  const buildAxis = (slicePx: number, total: number, mid: number, leadingOffset = 0): number[] => {
     const a: number[] = [];
-    for (let i = 0; i < slicePx; i++) a.push(i);
+    for (let i = 0; i < slicePx; i++) a.push(i + leadingOffset);
     a.push(mid);
     for (let i = slicePx - 1; i >= 0; i--) a.push(total - 1 - i);
     return a;
   };
 
   const cols = buildAxis(s, cw, midCol);
-  const rows = buildAxis(s, ch, midRow);
+  const rows = buildAxis(s, ch, midRow, task.topOffset ?? 0);
   const outSize = s * 2 + 1;
 
   const out = new ImageData(outSize, outSize);

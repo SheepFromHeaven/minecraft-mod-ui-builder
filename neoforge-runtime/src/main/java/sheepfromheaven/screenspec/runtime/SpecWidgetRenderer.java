@@ -280,12 +280,17 @@ final class SpecWidgetRenderer {
     private static final int TAB_SAFE_V = 16;
 
     // Nested tab sprites — vanilla widget/tab.png and widget/tab_selected.png (130×24), uniform 3px
-    // border on all sides, no left/middle/right variants.
+    // border on all sides, no left/middle/right variants. Unlike tab_selected.png, tab.png's real
+    // border art doesn't start until row 4 - rows 0-3 are fully transparent padding, since vanilla
+    // draws unselected tabs without the raised lip selected tabs have. Sampling row 0 straight (as if
+    // both textures were laid out identically) grabs that transparent padding instead of the border,
+    // which renders as the top of the tab going missing.
     private static final Identifier NESTED_TAB_SEL   = Identifier.withDefaultNamespace("textures/gui/sprites/widget/tab_selected.png");
     private static final Identifier NESTED_TAB_UNSEL = Identifier.withDefaultNamespace("textures/gui/sprites/widget/tab.png");
     private static final int NESTED_TAB_TEX_W  = 130;
     private static final int NESTED_TAB_TEX_H  = 24;
     private static final int NESTED_TAB_BORDER = 3;
+    private static final int NESTED_TAB_UNSELECTED_TOP_V = 4;
     private static final int NESTED_TAB_SAFE_U = 65;
     private static final int NESTED_TAB_SAFE_V = 12;
 
@@ -345,14 +350,15 @@ final class SpecWidgetRenderer {
     private void renderNestedTab(GuiGraphics graphics, boolean active, int x, int y, int w, int h) {
         Identifier tex    = active ? NESTED_TAB_SEL : NESTED_TAB_UNSEL;
         int b             = NESTED_TAB_BORDER;
+        int topV          = active ? 0 : NESTED_TAB_UNSELECTED_TOP_V;
         int rightU        = NESTED_TAB_TEX_W - b;
         int bottomV       = NESTED_TAB_TEX_H - b;
         int destFillW     = Math.max(0, w - b * 2);
         int destFillH     = Math.max(0, h - b * 2);
 
-        ninePatch(graphics, tex, x,         y, 0,                   0,                   b, b, b,         b,         NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
-        ninePatch(graphics, tex, x + b,     y, NESTED_TAB_SAFE_U,   0,                   1, b, destFillW, b,         NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
-        ninePatch(graphics, tex, x + w - b, y, rightU,              0,                   b, b, b,         b,         NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
+        ninePatch(graphics, tex, x,         y, 0,                   topV,                b, b, b,         b,         NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
+        ninePatch(graphics, tex, x + b,     y, NESTED_TAB_SAFE_U,   topV,                1, b, destFillW, b,         NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
+        ninePatch(graphics, tex, x + w - b, y, rightU,              topV,                b, b, b,         b,         NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
 
         if (destFillH > 0) {
             int fillY = y + b;

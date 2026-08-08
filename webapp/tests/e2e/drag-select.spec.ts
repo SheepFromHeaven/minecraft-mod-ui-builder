@@ -128,6 +128,9 @@ test("enabling Grid in the snapping menu snaps drags to the grid step", async ({
   await widget.click();
   const box = await widget.boundingBox();
   if (!box) throw new Error("widget not found");
+  const canvas = page.locator("[data-canvas]");
+  const canvasBox = await canvas.boundingBox();
+  if (!canvasBox) throw new Error("canvas not found");
 
   // Move diagonally by a non-multiple-of-4 amount, far from any center/sibling
   // snap zone, so grid-snap is the only thing that can explain the result.
@@ -138,8 +141,11 @@ test("enabling Grid in the snapping menu snaps drags to the grid step", async ({
 
   const after = await widget.boundingBox();
   if (!after) throw new Error("widget missing after drag");
-  expect(Math.round(after.x - box.x) % 4).toBe(0);
-  expect(Math.round(after.y - box.y) % 4).toBe(0);
+  // Grid-snap rounds the widget's ABSOLUTE position to the nearest multiple of
+  // the grid step — not the drag delta, which needn't be a multiple of 4 when
+  // (as here) the widget didn't start on the grid (x=41, not a multiple of 4).
+  expect(Math.round(after.x - canvasBox.x) % 4).toBe(0);
+  expect(Math.round(after.y - canvasBox.y) % 4).toBe(0);
 });
 
 test("disabling Grid allows free (non-grid-aligned) pixel movement", async ({ page }) => {

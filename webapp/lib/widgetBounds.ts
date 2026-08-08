@@ -37,7 +37,7 @@ export function findAxisAlignment(
         const dist = Math.abs(targetEdges[ti] - sEdge);
         if (dist > threshold) continue;
         if (best && rank(dist, ti) >= rank(best.dist, best.ti)) continue;
-        const value = sEdge - (ti === 0 ? 0 : ti === 1 ? size / 2 : size);
+        const value = Math.round(sEdge - (ti === 0 ? 0 : ti === 1 ? size / 2 : size));
         best = {
           dist,
           ti,

@@ -168,6 +168,15 @@ describe("findAxisAlignment", () => {
     expect(result?.guideTo).toBe(50);
   });
 
+  it("rounds center-alignment values to whole pixels for odd-sized widgets", () => {
+    // sibling center = 100 + 15/2 = 107.5; candidate size 20 → center offset 10.
+    // value = 107.5 - 10 = 97.5, which must be rounded so exported x stays an integer.
+    const sibling = { x: 100, y: 0, w: 15, h: 10 };
+    const result = findAxisAlignment(97, 20, 0, 10, [sibling], "x", 4);
+    expect(result?.value).toBe(98);
+    expect(Number.isInteger(result!.value)).toBe(true);
+  });
+
   it("picks the closest match across multiple siblings", () => {
     // Both siblings are huge so only their left edges can possibly match —
     // isolates which sibling's left edge is closer without cross-edge noise.

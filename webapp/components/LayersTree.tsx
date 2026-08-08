@@ -82,7 +82,7 @@ export interface LayersTreeProps {
   widgets: WidgetSpec[];
   selectedId: string | null;
   selectedIds?: string[];
-  onSelect: (id: string, shiftKey: boolean) => void;
+  onSelect: (id: string, shiftKey: boolean, modKey: boolean) => void;
   onAdd: (type: string, parentId?: string) => void;
   onDelete: (id: string) => void;
   onToggleHidden: (id: string) => void;
@@ -223,7 +223,7 @@ function TreeNode({ widget, depth, isOpen, hasChildren, selectedId, isMultiSelec
   selectedId: string | null;
   isMultiSelected: boolean;
   dragOver: DragOverState;
-  onSelect: (id: string, shiftKey: boolean) => void;
+  onSelect: (id: string, shiftKey: boolean, modKey: boolean) => void;
   onAdd: (type: string) => void;
   onDelete: (id: string) => void;
   onToggleHidden: (id: string) => void;
@@ -247,7 +247,7 @@ function TreeNode({ widget, depth, isOpen, hasChildren, selectedId, isMultiSelec
 
       <SidebarMenuButton
         isActive={widget.id === selectedId}
-        onClick={(e) => onSelect(widget.id, e.shiftKey)}
+        onClick={(e) => onSelect(widget.id, e.shiftKey, e.metaKey || e.ctrlKey)}
         className={`${isDragging ? "cursor-grabbing" : "cursor-default"} pr-20`}
         style={{
           paddingLeft: BASE_PL + depth * INDENT,

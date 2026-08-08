@@ -33,7 +33,7 @@ interface Props {
   onRemoveScreen: (idx: number) => void;
   onRenameScreen: (idx: number, name: string) => void;
   onAddWidget: (type: string, parentId?: string) => void;
-  onSelectWidget: (id: string, shiftKey: boolean) => void;
+  onSelectWidget: (id: string, shiftKey: boolean, modKey: boolean) => void;
   onDeleteWidget: (id: string) => void;
   onToggleHiddenWidget: (id: string) => void;
   onReparentWidget: (id: string, newParentId: string | null) => void;

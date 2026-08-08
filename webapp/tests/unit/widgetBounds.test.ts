@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { tabContentArea, computeDragBounds, computeResizeBounds, computeInitialSize } from "@/lib/widgetBounds";
+import { tabContentArea, computeDragBounds, computeResizeBounds, computeInitialSize, findAxisAlignment } from "@/lib/widgetBounds";
 import { makeWidget } from "./fixtures";
 
 // ── tabContentArea ─────────────────────────────────────────────────────────────
@@ -117,5 +117,63 @@ describe("computeResizeBounds", () => {
   it("returns null when parentId present but parent not found", () => {
     const btn = makeWidget({ id: "btn", type: "button", parentId: "ghost" });
     expect(computeResizeBounds(btn, [btn])).toBeNull();
+  });
+});
+
+// ── findAxisAlignment ──────────────────────────────────────────────────────────
+
+describe("findAxisAlignment", () => {
+  it("returns null when no sibling edge is within the threshold", () => {
+    const sibling = { x: 100, y: 0, w: 20, h: 10 };
+    expect(findAxisAlignment(0, 10, 0, 10, [sibling], "x", 4)).toBeNull();
+  });
+
+  it("matches a closer edge over a farther center", () => {
+    // Sibling is huge so its center/right edges are far away — only its left
+    // edge (100) can possibly match, isolating the left-edge comparison.
+    // candidate x=99, size=10 → left edge 99, distance 1 from sibling's 100.
+    const sibling = { x: 100, y: 0, w: 1000, h: 10 };
+    const result = findAxisAlignment(99, 10, 0, 10, [sibling], "x", 1);
+    expect(result?.value).toBe(100); // snapped so candidate's left edge lands on 100
+    expect(result?.guidePos).toBe(100);
+  });
+
+  it("prefers a close center match over a farther-but-still-in-threshold edge match", () => {
+    // sibling edges: left=100, center=110, right=120.
+    // candidate x=104, size=10 → candidate edges: left=104, center=109, right=114.
+    // left-left distance = 4 (passes threshold); center-center = 1 (closer, and biased).
+    const sibling = { x: 100, y: 0, w: 20, h: 10 };
+    const result = findAxisAlignment(104, 10, 0, 10, [sibling], "x", 4);
+    // Snapped so candidate's center lands on sibling's center (110): value = 110 - size/2.
+    expect(result?.value).toBe(105);
+    expect(result?.guidePos).toBe(110);
+  });
+
+  it("prefers center alignment over top/bottom on an exact tie (equal-height siblings)", () => {
+    // Equal-height sibling: top/center/bottom of the candidate are all the same
+    // distance from the sibling's top/center/bottom — center must win the tie
+    // rather than whichever edge happens to be checked first.
+    const sibling = { x: 0, y: 50, w: 10, h: 20 }; // edges: top=50, center=60, bottom=70
+    const result = findAxisAlignment(53, 20, 0, 10, [sibling], "y", 4); // candidate edges: 53, 63, 73
+    // Snapped so candidate's center lands on sibling's center (60): value = 60 - size/2.
+    expect(result?.value).toBe(50);
+    expect(result?.guidePos).toBe(60);
+  });
+
+  it("computes the guide span as the union of both widgets' extent on the other axis", () => {
+    const sibling = { x: 100, y: 30, w: 20, h: 5 }; // other-axis (y) extent: 30..35
+    // candidate's other-axis (y) extent: otherStart=40, otherSize=10 → 40..50
+    const result = findAxisAlignment(97, 10, 40, 10, [sibling], "x", 4);
+    expect(result?.guideFrom).toBe(30);
+    expect(result?.guideTo).toBe(50);
+  });
+
+  it("picks the closest match across multiple siblings", () => {
+    // Both siblings are huge so only their left edges can possibly match —
+    // isolates which sibling's left edge is closer without cross-edge noise.
+    const near = { x: 1, y: 0, w: 1000, h: 10 };    // left edge 1, distance 1
+    const far = { x: 1000, y: 0, w: 1000, h: 10 };  // left edge 1000, far outside threshold
+    const result = findAxisAlignment(0, 10, 0, 10, [far, near], "x", 1);
+    expect(result?.value).toBe(1);
   });
 });

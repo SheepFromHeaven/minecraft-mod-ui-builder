@@ -5,15 +5,20 @@ import type { WidgetSpec } from "@/lib/types";
 import { NESTED_TAB_SLICE, NESTED_TAB_GAP, computeTabLayout, reflowTabsForWidth } from "../tabLayout";
 import { SelectionOverlay } from "@/components/SelectionOverlay";
 import { TabBackground, TabLabel } from "../TabParts";
+import { GuideLines, type DragGuidesInfo } from "@/components/DragGuides";
+import { GroupSelectionOverlay, type GroupDragInfo } from "@/components/GroupSelectionOverlay";
 
 interface EditWidgetProps {
   widget: WidgetSpec;
   scale: number;
   selectedId: string | null;
+  selectedIds: string[];
   snapPx: number;
   draggingPos: { id: string; x: number; y: number } | null;
   draggingSize: { id: string; w: number; h: number; x: number; y: number } | null;
   setDraggingSize: (v: { id: string; w: number; h: number; x: number; y: number } | null) => void;
+  dragGuides: DragGuidesInfo | null;
+  groupDrag: GroupDragInfo | null;
   onResizeCommit: (widget: WidgetSpec) => void;
   childMap: Map<string, WidgetSpec[]>;
   zBase: number;
@@ -22,7 +27,7 @@ interface EditWidgetProps {
 export function TabsNestedEditHeader({
   widget, tabChildren, tex, activeTabId, inlineEdit, setInlineEdit,
   inlineInputRef, commitInlineEdit, setPreviewTabId, tabHeaderHeight,
-  scale, selectedId, selectionChangedRef, snapPx, draggingPos, draggingSize, setDraggingSize, onResizeCommit, childMap, activeTabChildren, EditWidget,
+  scale, selectedId, selectedIds, selectionChangedRef, snapPx, draggingPos, draggingSize, setDraggingSize, dragGuides, groupDrag, onResizeCommit, childMap, activeTabChildren, EditWidget,
 }: {
   widget: WidgetSpec;
   tabChildren: WidgetSpec[];
@@ -36,10 +41,13 @@ export function TabsNestedEditHeader({
   tabHeaderHeight: number;
   scale: number;
   selectedId: string | null;
+  selectedIds: string[];
   snapPx: number;
   draggingPos: { id: string; x: number; y: number } | null;
   draggingSize: { id: string; w: number; h: number; x: number; y: number } | null;
   setDraggingSize: (v: { id: string; w: number; h: number; x: number; y: number } | null) => void;
+  dragGuides: DragGuidesInfo | null;
+  groupDrag: GroupDragInfo | null;
   onResizeCommit: (widget: WidgetSpec) => void;
   childMap: Map<string, WidgetSpec[]>;
   activeTabChildren: WidgetSpec[];
@@ -117,10 +125,12 @@ export function TabsNestedEditHeader({
         height: (draggingSize?.id === widget.id ? draggingSize.h : widget.h) - tabHeaderHeight,
         overflow: "hidden", zIndex: 1,
       }}>
+        {dragGuides && dragGuides.parentId === activeTabId && <GuideLines {...dragGuides} />}
+        <GroupSelectionOverlay widgets={activeTabChildren} selectedIds={selectedIds} groupDrag={groupDrag} />
         {!tabChildren.find(t => t.id === activeTabId)?.hidden && activeTabChildren.map((child, idx) => (
-          <EditWidget key={child.id} widget={child} scale={scale} selectedId={selectedId}
+          <EditWidget key={child.id} widget={child} scale={scale} selectedId={selectedId} selectedIds={selectedIds}
             snapPx={snapPx} draggingPos={draggingPos} draggingSize={draggingSize}
-            setDraggingSize={setDraggingSize} onResizeCommit={onResizeCommit}
+            setDraggingSize={setDraggingSize} dragGuides={dragGuides} groupDrag={groupDrag} onResizeCommit={onResizeCommit}
             childMap={childMap} zBase={idx + 1} />
         ))}
       </div>

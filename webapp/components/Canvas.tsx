@@ -22,7 +22,9 @@ import { tabsMinWidth, reflowTabsForWidth, computeTabLayout, TAB_GAP, NESTED_TAB
 import { TabsTopTryHeader } from "@/components/widgets/tabs/top/TabsTopTryHeader";
 import { TabsNestedEditHeader } from "@/components/widgets/tabs/nested/TabsNestedEditHeader";
 import { TabsNestedTryHeader } from "@/components/widgets/tabs/nested/TabsNestedTryHeader";
-import { computeDragBounds, computeResizeBounds } from "@/lib/widgetBounds";
+import { computeDragBounds, computeResizeBounds, findAxisAlignment } from "@/lib/widgetBounds";
+import { GuideLines, type DragGuidesInfo, type AlignmentLine } from "@/components/DragGuides";
+import { GroupSelectionOverlay, type GroupDragInfo } from "@/components/GroupSelectionOverlay";
 
 const BindingsCtx = createContext<BindingsSchema>({});
 const UpdateWidgetCtx = React.createContext<(w: WidgetSpec) => void>(() => {});
@@ -48,6 +50,7 @@ const CONTAINER_TYPES = new Set(
   WIDGET_REGISTRY.filter(d => d.isContainer).map(d => d.type),
 );
 
+
 // Resize handle visuals — the hit area is provided by re-resizable; we render
 // a centered square inside it so the handle looks like standard design tools.
 // Left/right handles cap their height so they don't consume the full widget
@@ -69,11 +72,15 @@ interface Props {
   scale: number;
   widgets: WidgetSpec[];
   selectedId: string | null;
+  selectedIds: string[];
   gridSize: number;
   showGrid: boolean;
+  snapToParent: boolean;
+  snapToSiblings: boolean;
   tryMode: boolean;
   bindingsSchema: BindingsSchema;
   onSelect: (id: string | null) => void;
+  onToggleSelect: (id: string) => void;
   onUpdateWidget: (widget: WidgetSpec) => void;
   onUpdateWidgets: (widgets: WidgetSpec[]) => void;
   onAddWidget?: (type: string, x: number, y: number) => void;
@@ -103,12 +110,13 @@ function applyBindingPreviews(widget: WidgetSpec, schema: BindingsSchema): { wid
 }
 
 export default function Canvas({
-  width, height, scale, widgets, selectedId, gridSize, showGrid, tryMode, bindingsSchema, onSelect, onUpdateWidget, onUpdateWidgets, onAddWidget,
+  width, height, scale, widgets, selectedId, selectedIds, gridSize, showGrid, snapToParent, snapToSiblings, tryMode, bindingsSchema, onSelect, onToggleSelect, onUpdateWidget, onUpdateWidgets, onAddWidget,
 }: Props) {
   const cssWidth = width * scale;
   const cssHeight = height * scale;
-  // snapPx is in MC pixel units (1px = 1 MC px inside the inner canvas)
-  const snapPx = gridSize;
+  // snapPx is in MC pixel units (1px = 1 MC px inside the inner canvas).
+  // The grid checkbox also gates snap-to-px: unchecked, drags/resizes move freely.
+  const snapPx = showGrid ? gridSize : 1;
   const gridDataUrl = showGrid && !tryMode ? buildGridDataUrl(snapPx) : undefined;
 
   const childMap = buildChildMap(widgets);
@@ -163,6 +171,16 @@ export default function Canvas({
   // before the drag commits.
   const [draggingPos, setDraggingPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const [draggingSize, setDraggingSize] = useState<{ id: string; w: number; h: number; x: number; y: number } | null>(null);
+  // Alignment guides shown while dragging: center-snap lines (when the widget is
+  // within snapping distance of its container's center) and the shift-lock axis
+  // line (the line the widget is constrained to move along while shift is held).
+  // `parentId` (null for root widgets) says which container's coordinate space
+  // the guide lines are drawn in, matching where the dragged widget itself lives.
+  const [dragGuides, setDragGuides] = useState<DragGuidesInfo | null>(null);
+  // Live per-axis offset while a multi-selected group is being dragged together —
+  // one shared delta applied to every member, analogous to `draggingPos` for a
+  // single widget (see GroupSelectionOverlay / EditWidget's liveX/liveY).
+  const [groupDrag, setGroupDrag] = useState<GroupDragInfo | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null); // canvas-unit coords
   // canvasRef points to the outer wrapper div so getBoundingClientRect returns the visual bounding box
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -257,12 +275,29 @@ export default function Canvas({
     if (!el) { onSelect(null); return; }
     const clickedId = el.getAttribute("data-widget-id")!;
 
+    // Cmd/Ctrl-click: add/remove exactly the widget under the cursor from the
+    // multi-selection instead of starting a drag. Deliberately does NOT use
+    // resolveDragTargetId's ancestor-drill-down resolution — that logic picks
+    // the outermost container on a first click, which would silently toggle
+    // the wrong (parent) widget for anything nested.
+    if (e.metaKey || e.ctrlKey) {
+      selectionChangedRef.current = true;
+      onToggleSelect(clickedId);
+      return;
+    }
+
     // Selection depends on whether this gesture turns out to be a plain
     // click or an actual drag — decided once, below, never both, to avoid
     // flashing one selection before the other overrides it.
-    const targetId = resolveDragTargetId(clickedId);
+    // Clicking directly on a member of the active multi-selection drags the
+    // whole group, bypassing the single-widget ancestor-resolution below
+    // (which has no notion of "drag everyone else currently selected too").
+    const isGroupMemberClick = selectedIds.length > 1 && selectedIds.includes(clickedId);
+    const targetId = isGroupMemberClick ? clickedId : resolveDragTargetId(clickedId);
     const target = getWidget(targetId);
     if (!target) return;
+    const groupMembers = isGroupMemberClick ? widgets.filter(w => selectedIds.includes(w.id)) : [target];
+    const isGroupDrag = groupMembers.length > 1;
 
     // Tab header buttons manage their own drag (move/resize). Canvas must not
     // move the widget, but should still handle click drill-down selection.
@@ -270,16 +305,75 @@ export default function Canvas({
 
     const startClientX = e.clientX;
     const startClientY = e.clientY;
-    const origX = target.x;
-    const origY = target.y;
+    // The dragged extent: the group's combined bounding box, or just the
+    // single widget's own box — all the snap/bounds math below treats this
+    // like one widget being moved.
+    const bboxX = Math.min(...groupMembers.map(w => w.x));
+    const bboxY = Math.min(...groupMembers.map(w => w.y));
+    const bboxW = Math.max(...groupMembers.map(w => w.x + w.w)) - bboxX;
+    const bboxH = Math.max(...groupMembers.map(w => w.y + w.h)) - bboxY;
     let moved = false;
 
-    const snapToGrid = (v: number) => Math.round(v / gridSize) * gridSize;
-    const dragBounds = computeDragBounds(target, widgets, width, height);
+    const snapToGrid = (v: number) => Math.round(v / snapPx) * snapPx;
+    const dragBounds = computeDragBounds({ ...target, x: bboxX, y: bboxY, w: bboxW, h: bboxH }, widgets, width, height);
     const clamp = (nx: number, ny: number) => ({
       x: Math.max(0, Math.min(dragBounds.maxX, nx)),
       y: Math.max(0, Math.min(dragBounds.maxY, ny)),
     });
+    // Center-snap: while dragging, a widget (or group) that lands close to
+    // horizontally or vertically centered within its parent (or the canvas,
+    // for roots) snaps exactly onto that center — independently per axis.
+    // dragBounds.maxX/maxY is (container size - box size), so half of it
+    // is exactly the x/y at which the box sits centered in its container.
+    const centerX = Math.round(dragBounds.maxX / 2);
+    const centerY = Math.round(dragBounds.maxY / 2);
+    const SNAP_THRESHOLD_PX = 4;
+    // Fixed coordinate of the shift-lock axis line — the box's own center on
+    // whichever axis ends up pinned, which never moves during a locked drag.
+    const shiftLineX = bboxX + bboxW / 2;
+    const shiftLineY = bboxY + bboxH / 2;
+    const containerW = dragBounds.maxX + bboxW;
+    const containerH = dragBounds.maxY + bboxH;
+    // Sibling alignment: snap to other widgets under the same parent (excluding
+    // the dragged group itself), matching left/center/right edges (x) and
+    // top/center/bottom edges (y) independently.
+    const groupIds = new Set(groupMembers.map(w => w.id));
+    const siblings = snapToSiblings ? widgets.filter(w => w.parentId === target.parentId && !groupIds.has(w.id)) : [];
+    // Shift: lock movement to whichever axis has moved further, keeping the
+    // other axis pinned to its original value (as in most design tools).
+    const resolveTarget = (ev: MouseEvent) => {
+      let rawDx = ev.clientX - startClientX;
+      let rawDy = ev.clientY - startClientY;
+      let shiftAxis: "horizontal" | "vertical" | null = null;
+      if (ev.shiftKey) {
+        if (Math.abs(rawDx) >= Math.abs(rawDy)) { rawDy = 0; shiftAxis = "horizontal"; }
+        else { rawDx = 0; shiftAxis = "vertical"; }
+      }
+      let nx = snapToGrid(bboxX + rawDx / scale);
+      let ny = snapToGrid(bboxY + rawDy / scale);
+      const siblingLines: AlignmentLine[] = [];
+      // Sibling edge/center alignment takes priority over parent-center snap,
+      // since it's the more specific match; each axis resolves independently.
+      const xAlign = findAxisAlignment(nx, bboxW, ny, bboxH, siblings, "x", SNAP_THRESHOLD_PX);
+      const yAlign = findAxisAlignment(ny, bboxH, nx, bboxW, siblings, "y", SNAP_THRESHOLD_PX);
+      let vCenter = false;
+      let hCenter = false;
+      if (xAlign) {
+        nx = xAlign.value;
+        siblingLines.push({ axis: "v", pos: xAlign.guidePos, from: xAlign.guideFrom, to: xAlign.guideTo });
+      } else if (snapToParent) {
+        vCenter = Math.abs(nx - centerX) <= SNAP_THRESHOLD_PX;
+        if (vCenter) nx = centerX;
+      }
+      if (yAlign) {
+        ny = yAlign.value;
+        siblingLines.push({ axis: "h", pos: yAlign.guidePos, from: yAlign.guideFrom, to: yAlign.guideTo });
+      } else if (snapToParent) {
+        hCenter = Math.abs(ny - centerY) <= SNAP_THRESHOLD_PX;
+        if (hCenter) ny = centerY;
+      }
+      return { dx: nx - bboxX, dy: ny - bboxY, vCenter, hCenter, shiftAxis, siblingLines };
+    };
     const onMove = (ev: MouseEvent) => {
       if (inTabHeader) {
         // Track movement so a drag doesn't trigger click-selection on mouseup,
@@ -287,23 +381,40 @@ export default function Canvas({
         if (Math.abs(ev.clientX - startClientX) > 2 || Math.abs(ev.clientY - startClientY) > 2) moved = true;
         return;
       }
-      const dx = snapToGrid(origX + (ev.clientX - startClientX) / scale) - origX;
-      const dy = snapToGrid(origY + (ev.clientY - startClientY) / scale) - origY;
-      if (dx === 0 && dy === 0) return;
+      const { dx, dy, vCenter, hCenter, shiftAxis, siblingLines } = resolveTarget(ev);
+      if (dx === 0 && dy === 0 && !shiftAxis) return;
       if (!moved) {
         moved = true;
         // An actual drag unambiguously identifies its target.
         onSelect(targetId);
       }
-      setDraggingPos({ id: targetId, ...clamp(origX + dx, origY + dy) });
+      const clamped = clamp(bboxX + dx, bboxY + dy);
+      if (isGroupDrag) {
+        setGroupDrag({ ids: groupMembers.map(w => w.id), dx: clamped.x - bboxX, dy: clamped.y - bboxY });
+      } else {
+        setDraggingPos({ id: targetId, ...clamped });
+      }
+      setDragGuides({
+        parentId: target.parentId ?? null,
+        containerW, containerH,
+        vCenter, hCenter, shiftAxis,
+        shiftX: shiftLineX, shiftY: shiftLineY,
+        siblingLines,
+      });
     };
     const onUp = (ev: MouseEvent) => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
       if (moved && !inTabHeader) {
-        const dx = snapToGrid(origX + (ev.clientX - startClientX) / scale) - origX;
-        const dy = snapToGrid(origY + (ev.clientY - startClientY) / scale) - origY;
-        onUpdateWidget({ ...target, ...clamp(origX + dx, origY + dy) });
+        const { dx, dy } = resolveTarget(ev);
+        const clamped = clamp(bboxX + dx, bboxY + dy);
+        if (isGroupDrag) {
+          const finalDx = clamped.x - bboxX;
+          const finalDy = clamped.y - bboxY;
+          onUpdateWidgets(groupMembers.map(w => ({ ...w, x: w.x + finalDx, y: w.y + finalDy })));
+        } else {
+          onUpdateWidget({ ...target, ...clamped });
+        }
       } else if (!moved) {
         if (inTabHeader) {
           // Tab header buttons map 1:1 to tab widgets — select directly, no drill-down.
@@ -316,6 +427,8 @@ export default function Canvas({
       }
       // inTabHeader && moved: tab drag handled its own commit, nothing to do here.
       setDraggingPos(null);
+      setDragGuides(null);
+      setGroupDrag(null);
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
@@ -364,6 +477,9 @@ export default function Canvas({
           }} />
         )}
 
+        {dragGuides && dragGuides.parentId === null && <GuideLines {...dragGuides} />}
+        {!tryMode && <GroupSelectionOverlay widgets={rootWidgets} selectedIds={selectedIds} groupDrag={groupDrag} />}
+
         <SelectionChangedCtx.Provider value={selectionChangedRef}>
         <ActiveTabCtx.Provider value={React.useMemo(() => ({ activeTabIds, setActiveTab }), [activeTabIds, setActiveTab])}>
         <BindingsCtx.Provider value={bindingsSchema}>
@@ -383,10 +499,13 @@ export default function Canvas({
                     widget={widget}
                     scale={scale}
                     selectedId={selectedId}
+                    selectedIds={selectedIds}
                     snapPx={snapPx}
                     draggingPos={draggingPos}
                     draggingSize={draggingSize}
                     setDraggingSize={setDraggingSize}
+                    dragGuides={dragGuides}
+                    groupDrag={groupDrag}
                     onResizeCommit={onUpdateWidget}
                     childMap={childMap}
                     zBase={idx + 2}
@@ -428,14 +547,17 @@ function buildChildMap(widgets: WidgetSpec[]): Map<string, WidgetSpec[]> {
 
 // ── Edit mode widget ──────────────────────────────────────────────────────────
 
-function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSize, setDraggingSize, onResizeCommit, childMap, zBase }: {
+function EditWidget({ widget, scale, selectedId, selectedIds, snapPx, draggingPos, draggingSize, setDraggingSize, dragGuides, groupDrag, onResizeCommit, childMap, zBase }: {
   widget: WidgetSpec;
   scale: number;
   selectedId: string | null;
+  selectedIds: string[];
   snapPx: number;
   draggingPos: { id: string; x: number; y: number } | null;
   draggingSize: { id: string; w: number; h: number; x: number; y: number } | null;
   setDraggingSize: (v: { id: string; w: number; h: number; x: number; y: number } | null) => void;
+  dragGuides: DragGuidesInfo | null;
+  groupDrag: GroupDragInfo | null;
   onResizeCommit: (widget: WidgetSpec) => void;
   childMap: Map<string, WidgetSpec[]>;
   zBase: number;
@@ -446,7 +568,10 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSi
   const { textures: editTextures } = useTextures();
   const tex = (name: string) => (editTextures as Record<string, string>)[name];
   const { widget: previewWidget, hidden } = applyBindingPreviews(widget, bindingsSchema);
-  const isSelected = widget.id === selectedId;
+  // Part of an active multi-selection: suppress this widget's own outline/resize
+  // handles (see below) in favor of the single group bounding-box overlay.
+  const isGroupMember = selectedIds.length > 1 && selectedIds.includes(widget.id);
+  const isSelected = widget.id === selectedId && !isGroupMember;
   const isContainer = CONTAINER_TYPES.has(widget.type);
   const children = isContainer ? (childMap.get(widget.id) ?? []) : [];
   const clips = false;
@@ -575,8 +700,8 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSi
 
   // Live drag position substitution: this widget itself may be the current
   // drag target (position moves live before the drag commits)...
-  const liveX = draggingPos?.id === widget.id ? draggingPos.x : draggingSize?.id === widget.id ? draggingSize.x : widget.x;
-  const liveY = draggingPos?.id === widget.id ? draggingPos.y : draggingSize?.id === widget.id ? draggingSize.y : widget.y;
+  const liveX = draggingPos?.id === widget.id ? draggingPos.x : draggingSize?.id === widget.id ? draggingSize.x : groupDrag?.ids.includes(widget.id) ? widget.x + groupDrag.dx : widget.x;
+  const liveY = draggingPos?.id === widget.id ? draggingPos.y : draggingSize?.id === widget.id ? draggingSize.y : groupDrag?.ids.includes(widget.id) ? widget.y + groupDrag.dy : widget.y;
 
   // ...or, for groups, one of its children may be, which changes auto-size.
   const renderW = isGroup && children.length > 0
@@ -809,16 +934,21 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSi
           inset: 0,
           overflow: clips ? "hidden" : "visible",
         }}>
+          {dragGuides && dragGuides.parentId === widget.id && <GuideLines {...dragGuides} />}
+          <GroupSelectionOverlay widgets={children} selectedIds={selectedIds} groupDrag={groupDrag} />
           {children.map((child, idx) => (
             <EditWidget
               key={child.id}
               widget={child}
               scale={scale}
               selectedId={selectedId}
+              selectedIds={selectedIds}
               snapPx={snapPx}
               draggingPos={draggingPos}
               draggingSize={draggingSize}
               setDraggingSize={setDraggingSize}
+              dragGuides={dragGuides}
+              groupDrag={groupDrag}
               onResizeCommit={onResizeCommit}
               childMap={childMap}
               zBase={idx + 1}
@@ -843,11 +973,14 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSi
           tabHeaderHeight={tabHeaderHeight}
           scale={scale}
           selectedId={selectedId}
+          selectedIds={selectedIds}
           selectionChangedRef={selectionChangedRef}
           snapPx={snapPx}
           draggingPos={draggingPos}
           draggingSize={draggingSize}
           setDraggingSize={setDraggingSize}
+          dragGuides={dragGuides}
+          groupDrag={groupDrag}
           onResizeCommit={onResizeCommit}
           childMap={childMap}
           activeTabChildren={activeTabChildren}
@@ -868,11 +1001,14 @@ function EditWidget({ widget, scale, selectedId, snapPx, draggingPos, draggingSi
           tabHeaderHeight={tabHeaderHeight}
           scale={scale}
           selectedId={selectedId}
+          selectedIds={selectedIds}
           selectionChangedRef={selectionChangedRef}
           snapPx={snapPx}
           draggingPos={draggingPos}
           draggingSize={draggingSize}
           setDraggingSize={setDraggingSize}
+          dragGuides={dragGuides}
+          groupDrag={groupDrag}
           onResizeCommit={onResizeCommit}
           childMap={childMap}
           activeTabChildren={activeTabChildren}

@@ -1,5 +1,57 @@
 import type { WidgetSpec } from "./types";
 
+type Box = { x: number; y: number; w: number; h: number };
+
+/**
+ * Finds the closest sibling-edge/center alignment on one axis: checks the
+ * dragged widget's leading edge, center, and trailing edge against the same
+ * three points on each sibling, and returns the position that would make them
+ * coincide exactly, plus a guide line spanning just the two widgets' extent
+ * on the other axis. Returns null if no sibling is within `threshold`.
+ */
+export function findAxisAlignment(
+  candidate: number,
+  size: number,
+  otherStart: number,
+  otherSize: number,
+  siblings: Box[],
+  axis: "x" | "y",
+  threshold: number,
+): { value: number; guidePos: number; guideFrom: number; guideTo: number } | null {
+  const targetEdges = [candidate, candidate + size / 2, candidate + size];
+  // Centered alignment reads as more intentional than an edge coincidence, so it
+  // wins ties and near-ties (e.g. two widgets of equal height, whose top, center,
+  // and bottom would all match a sibling's at the exact same distance) rather than
+  // whichever edge happens to be checked first.
+  const CENTER_BIAS = threshold / 2;
+  const rank = (dist: number, ti: number) => dist - (ti === 1 ? CENTER_BIAS : 0);
+  let best: { dist: number; ti: number; value: number; guidePos: number; guideFrom: number; guideTo: number } | null = null;
+  for (const s of siblings) {
+    const sStart = axis === "x" ? s.x : s.y;
+    const sSize = axis === "x" ? s.w : s.h;
+    const sOtherStart = axis === "x" ? s.y : s.x;
+    const sOtherSize = axis === "x" ? s.h : s.w;
+    const siblingEdges = [sStart, sStart + sSize / 2, sStart + sSize];
+    for (let ti = 0; ti < targetEdges.length; ti++) {
+      for (const sEdge of siblingEdges) {
+        const dist = Math.abs(targetEdges[ti] - sEdge);
+        if (dist > threshold) continue;
+        if (best && rank(dist, ti) >= rank(best.dist, best.ti)) continue;
+        const value = sEdge - (ti === 0 ? 0 : ti === 1 ? size / 2 : size);
+        best = {
+          dist,
+          ti,
+          value,
+          guidePos: sEdge,
+          guideFrom: Math.min(otherStart, sOtherStart),
+          guideTo: Math.max(otherStart + otherSize, sOtherStart + sOtherSize),
+        };
+      }
+    }
+  }
+  return best;
+}
+
 /**
  * Returns the usable content area (width × height) of a `tabs` widget —
  * i.e. the full widget size minus the tab header strip.

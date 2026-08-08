@@ -131,6 +131,8 @@ export default function EditorPage() {
   const [multiSelect, setMultiSelect] = useState<{ ids: string[] } | null>(null);
   const [gridSize, setGridSize] = useState(EMPTY_SESSION.gridSize);
   const [showGrid, setShowGrid] = useState(EMPTY_SESSION.showGrid);
+  const [snapToParent, setSnapToParent] = useState(true);
+  const [snapToSiblings, setSnapToSiblings] = useState(true);
   const [scale, setScale] = useState(3);
   const [tryMode, setTryMode] = useState(false);
   const [panX, setPanX] = useState(0);
@@ -247,7 +249,41 @@ export default function EditorPage() {
     ? multiSelect.ids
     : selectedId ? [selectedId] : [];
 
-  const selectWidgetInTree = useCallback((id: string, shiftKey: boolean) => {
+  // Cmd/Ctrl-click (canvas or layers tree): add/remove one widget from the
+  // current multi-selection. Only allowed within the same parent as the
+  // existing selection — group drag/snap assumes all selected widgets are siblings.
+  const toggleSelectWidget = useCallback((id: string) => {
+    const widget = screen.widgets.find((w) => w.id === id);
+    if (!widget) return;
+    if (selectedIds.includes(id)) {
+      const next = selectedIds.filter((i) => i !== id);
+      if (next.length <= 1) {
+        setMultiSelect(null);
+        setSelectedId(next[0] ?? null);
+      } else {
+        setMultiSelect({ ids: next });
+        if (!next.includes(selectedId!)) setSelectedId(next[0]);
+      }
+      return;
+    }
+    const anchorParent = selectedIds.length > 0
+      ? screen.widgets.find((w) => w.id === selectedIds[0])?.parentId
+      : widget.parentId;
+    if (selectedIds.length > 0 && widget.parentId !== anchorParent) {
+      // Different parent than the current selection — start a fresh selection.
+      setMultiSelect(null);
+      setSelectedId(id);
+      return;
+    }
+    setMultiSelect({ ids: [...selectedIds, id] });
+    setSelectedId(id);
+  }, [screen.widgets, selectedId, selectedIds]);
+
+  const selectWidgetInTree = useCallback((id: string, shiftKey: boolean, modKey: boolean) => {
+    if (modKey) {
+      toggleSelectWidget(id);
+      return;
+    }
     if (shiftKey && selectedId) {
       const anchor = screen.widgets.find((w) => w.id === selectedId);
       const target = screen.widgets.find((w) => w.id === id);
@@ -263,7 +299,7 @@ export default function EditorPage() {
     }
     setMultiSelect(null);
     setSelectedId(id);
-  }, [screen.widgets, selectedId]);
+  }, [screen.widgets, selectedId, toggleSelectWidget]);
 
   const commit = useCallback((next: HistoryEntry) => {
     const c = cursorRef.current;
@@ -625,6 +661,8 @@ export default function EditorPage() {
             screen={screen}
             gridSize={gridSize}
             showGrid={showGrid}
+            snapToParent={snapToParent}
+            snapToSiblings={snapToSiblings}
             canUndo={cursor > 0}
             canRedo={cursor < history.length - 1}
             tryMode={tryMode}
@@ -632,6 +670,8 @@ export default function EditorPage() {
             onRedo={redo}
             onGridSizeChange={setGridSize}
             onToggleGrid={() => setShowGrid((v) => !v)}
+            onToggleSnapToParent={() => setSnapToParent((v) => !v)}
+            onToggleSnapToSiblings={() => setSnapToSiblings((v) => !v)}
             onToggleTryMode={() => { setTryMode((v) => { if (!v) setSelectedId(null); return !v; }); }}
             onScreenChange={(patch) => commitScreen({ ...screen, ...patch })}
             onExport={handleExport}
@@ -671,10 +711,14 @@ export default function EditorPage() {
                 scale={scale}
                 widgets={screen.widgets}
                 selectedId={selectedId}
+                selectedIds={selectedIds}
                 gridSize={gridSize}
                 showGrid={showGrid}
+                snapToParent={snapToParent}
+                snapToSiblings={snapToSiblings}
                 tryMode={tryMode}
                 onSelect={setSelectedId}
+                onToggleSelect={toggleSelectWidget}
                 onUpdateWidget={updateWidget}
                 onUpdateWidgets={(updated) => {
                   const updatedIds = new Set(updated.map(w => w.id));

@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Upload, FolderDown, FolderUp, BookOpen, Clipboard } from "lucide-react";
+import { Download, Upload, FolderDown, FolderUp, BookOpen, Clipboard, Grid3x3 } from "lucide-react";
 import Link from "next/link";
 import type { ScreenSpec, BindingsSchema } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -9,11 +9,14 @@ import { Separator } from "@/components/ui/separator";
 import SettingsDialog from "@/components/SettingsDialog";
 import BindingsModal from "@/components/BindingsModal";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
 interface Props {
   screen: ScreenSpec;
   gridSize: number;
   showGrid: boolean;
+  snapToParent: boolean;
+  snapToSiblings: boolean;
   canUndo: boolean;
   canRedo: boolean;
   tryMode: boolean;
@@ -25,6 +28,8 @@ interface Props {
   onRedo: () => void;
   onGridSizeChange: (v: number) => void;
   onToggleGrid: () => void;
+  onToggleSnapToParent: () => void;
+  onToggleSnapToSiblings: () => void;
   onToggleTryMode: () => void;
   onScreenChange: (patch: Partial<ScreenSpec>) => void;
   onExport: () => void;
@@ -44,8 +49,8 @@ interface Props {
 }
 
 export default function Toolbar({
-  screen, gridSize, showGrid, canUndo, canRedo, tryMode,
-  onUndo, onRedo, onGridSizeChange, onToggleGrid, onToggleTryMode,
+  screen, gridSize, showGrid, snapToParent, snapToSiblings, canUndo, canRedo, tryMode,
+  onUndo, onRedo, onGridSizeChange, onToggleGrid, onToggleSnapToParent, onToggleSnapToSiblings, onToggleTryMode,
   onScreenChange, onExport, onImport, onExportProject, onImportProject, onCopyJava, onResetTextures, onViewTextures, onExtractPack,
   scale, onZoomIn, onZoomOut, onZoomReset, onSaveToTestMod,
   bindingsSchema, onUpdateBindingsSchema, actions, onUpdateActions, modId,
@@ -81,19 +86,38 @@ export default function Toolbar({
 
       <Separator orientation="vertical" className="h-5" />
 
-      <label className="flex items-center gap-1.5 text-muted-foreground cursor-pointer">
-        <input type="checkbox" checked={showGrid} onChange={onToggleGrid} className="h-4 w-4" />
-        Grid
-      </label>
-
-      <div className="flex items-center gap-1.5 text-muted-foreground">
-        Snap:
-        <div className="flex items-center">
-          <Button variant="outline" size="sm" className="h-8 w-8 rounded-r-none border-r-0" onClick={() => onGridSizeChange(SNAP_STEPS[snapIdx - 1])} disabled={snapIdx <= 0}>−</Button>
-          <Button variant="outline" size="sm" className="h-8 min-w-14 rounded-none" onClick={() => onGridSizeChange(1)} title="Reset snap">{gridSize}px</Button>
-          <Button variant="outline" size="sm" className="h-8 w-8 rounded-l-none border-l-0" onClick={() => onGridSizeChange(SNAP_STEPS[snapIdx + 1])} disabled={snapIdx >= SNAP_STEPS.length - 1}>+</Button>
-        </div>
-      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          className="inline-flex h-8 w-8 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground data-[popup-open]:bg-muted data-[popup-open]:text-foreground"
+          title="Snapping settings"
+        >
+          <Grid3x3 className="h-4 w-4" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="bottom" align="start" className="min-w-56 p-2">
+          <div className="px-1.5 py-1 text-xs font-medium text-muted-foreground">Snapping</div>
+          <label className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-sm cursor-pointer hover:bg-accent">
+            <input type="checkbox" checked={showGrid} onChange={onToggleGrid} className="h-4 w-4" />
+            Grid
+          </label>
+          <div className="flex items-center gap-1.5 px-1.5 py-1 text-sm text-muted-foreground">
+            Snap size
+            <div className="ml-auto flex items-center">
+              <Button variant="outline" size="sm" className="h-7 w-7 rounded-r-none border-r-0" onClick={() => onGridSizeChange(SNAP_STEPS[snapIdx - 1])} disabled={snapIdx <= 0}>−</Button>
+              <Button variant="outline" size="sm" className="h-7 min-w-12 rounded-none" onClick={() => onGridSizeChange(1)} title="Reset snap">{gridSize}px</Button>
+              <Button variant="outline" size="sm" className="h-7 w-7 rounded-l-none border-l-0" onClick={() => onGridSizeChange(SNAP_STEPS[snapIdx + 1])} disabled={snapIdx >= SNAP_STEPS.length - 1}>+</Button>
+            </div>
+          </div>
+          <DropdownMenuSeparator />
+          <label className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-sm cursor-pointer hover:bg-accent">
+            <input type="checkbox" checked={snapToParent} onChange={onToggleSnapToParent} className="h-4 w-4" />
+            Snap to parent center
+          </label>
+          <label className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-sm cursor-pointer hover:bg-accent">
+            <input type="checkbox" checked={snapToSiblings} onChange={onToggleSnapToSiblings} className="h-4 w-4" />
+            Snap to siblings
+          </label>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <Separator orientation="vertical" className="h-5" />
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.9.1...webapp-v0.10.0) (2026-08-08)
+
+
+### Features
+
+* **webapp:** allow reordering screens via drag and drop ([#57](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/issues/57)) ([dab72d9](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/dab72d9e68cde40f8dbe68f575c7293e7fd005bf))
+* **webapp:** axis-lock drag, snap guides, and multi-select group drag ([#56](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/issues/56)) ([6cd4173](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/6cd4173402e0e620ca502c356040d83130f1fc95))
+
 ## [0.9.1](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.9.0...webapp-v0.9.1) (2026-08-08)
 
 

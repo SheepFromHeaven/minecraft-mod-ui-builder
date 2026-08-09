@@ -1,13 +1,12 @@
 package sheepfromheaven.screenspec.runtime;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -116,7 +115,7 @@ public class SpecListWidget extends ObjectSelectionList<SpecListWidget.Row> {
         }
 
         @Override
-        public void renderContent(GuiGraphics guiGraphics, int mouseX, int mouseY, boolean hovered, float partialTick) {
+        public void extractContent(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, boolean hovered, float partialTick) {
             int left = SpecListWidget.this.getRowLeft();
             int top  = SpecListWidget.this.getRowTop(index);
             for (WidgetSpec template : spec.item_template) {
@@ -125,11 +124,11 @@ public class SpecListWidget extends ObjectSelectionList<SpecListWidget.Row> {
             }
         }
 
-        private void renderTemplateWidget(GuiGraphics g, WidgetSpec t, int x, int y, String value) {
+        private void renderTemplateWidget(GuiGraphicsExtractor g, WidgetSpec t, int x, int y, String value) {
             if (t.type.equals("label")) {
                 int color = t.propInt("color", 0xFFFFFF);
                 boolean shadow = t.propBoolean("shadow", false);
-                g.drawString(screen.getFont(), value, x, y, color, shadow);
+                g.text(screen.getFont(), value, x, y, color, shadow);
             }
             // icon and other template widget types can be handled by overriding this class
         }

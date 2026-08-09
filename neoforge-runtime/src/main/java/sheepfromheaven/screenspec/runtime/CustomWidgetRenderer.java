@@ -1,6 +1,6 @@
 package sheepfromheaven.screenspec.runtime;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
  * Renders one mod-defined {@code custom} widget type at its reserved position/size. {@code x}/
@@ -9,5 +9,5 @@ import net.minecraft.client.gui.GuiGraphics;
  */
 @FunctionalInterface
 public interface CustomWidgetRenderer {
-    void render(GuiGraphics graphics, WidgetSpec widget, int x, int y);
+    void render(GuiGraphicsExtractor graphics, WidgetSpec widget, int x, int y);
 }

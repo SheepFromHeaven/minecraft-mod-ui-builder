@@ -1,7 +1,7 @@
 package sheepfromheaven.screenspec.runtime;
 
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -127,7 +127,7 @@ public class SpecScreen extends Screen implements ActionHost {
 
     /**
      * Sets the display text of a label widget, overriding the static {@code text}
-     * field from the spec. Safe to call from {@link #render} each frame for live data.
+     * field from the spec. Safe to call from {@link #extractRenderState} each frame for live data.
      */
     protected void bindText(String widgetId, String text) {
         renderer.bindText(widgetId, text);
@@ -135,7 +135,7 @@ public class SpecScreen extends Screen implements ActionHost {
 
     /**
      * Sets a progress widget's numeric value, overriding its static {@code value} prop. Safe to
-     * call from {@link #render} each frame for live data.
+     * call from {@link #extractRenderState} each frame for live data.
      */
     protected void bindValue(String widgetId, double value) {
         renderer.bindValue(widgetId, value);
@@ -235,7 +235,7 @@ public class SpecScreen extends Screen implements ActionHost {
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
         applyBindings();
         renderer.refreshBindings();
         for (WidgetSpec w : spec.widgets) {
@@ -253,7 +253,7 @@ public class SpecScreen extends Screen implements ActionHost {
             else if (w.type.equals("custom"))    renderCustom(graphics, w);
         }
         for (var renderable : renderables) {
-            renderable.render(graphics, mouseX, mouseY, partialTick);
+            renderable.extractRenderState(graphics, mouseX, mouseY, partialTicks);
         }
         for (WidgetSpec w : builder().visibleWidgets()) {
             if (w.type.equals("label"))     renderLabel(graphics, w);
@@ -267,7 +267,7 @@ public class SpecScreen extends Screen implements ActionHost {
      * Active tab buttons extend 3px into this body (see {@link SpecWidgetBuilder}) to cover the
      * panel's top bevel edge, visually connecting them — same as the webapp canvas.
      */
-    protected void renderTabBody(GuiGraphics graphics, WidgetSpec tabsWidget) {
+    protected void renderTabBody(GuiGraphicsExtractor graphics, WidgetSpec tabsWidget) {
         int[] origin = builder().originOf(tabsWidget);
         int tabHeight = tabsWidget.propInt("tab_height", 20);
         renderer.renderVanillaPanel(graphics, origin[0], origin[1] + tabHeight, tabsWidget.w, tabsWidget.h - tabHeight);
@@ -301,7 +301,7 @@ public class SpecScreen extends Screen implements ActionHost {
      * Draws a {@code panel} widget using the MC nine-slice sprite so it matches
      * the webapp's WYSIWYG preview. Override for custom textures per {@code style}.
      */
-    protected void renderPanel(GuiGraphics graphics, WidgetSpec w) {
+    protected void renderPanel(GuiGraphicsExtractor graphics, WidgetSpec w) {
         int[] origin = builder().originOf(w);
         renderer.renderPanel(graphics, w, origin[0], origin[1]);
     }
@@ -310,7 +310,7 @@ public class SpecScreen extends Screen implements ActionHost {
      * Draws a {@code label} widget's text, honoring the {@code color},
      * {@code shadow} and {@code align} props from the designer.
      */
-    protected void renderLabel(GuiGraphics graphics, WidgetSpec w) {
+    protected void renderLabel(GuiGraphicsExtractor graphics, WidgetSpec w) {
         int[] origin = builder().originOf(w);
         renderer.renderLabel(graphics, this.font, w, origin[0], origin[1]);
     }
@@ -318,7 +318,7 @@ public class SpecScreen extends Screen implements ActionHost {
     /**
      * Draws a {@code sprite} widget as a flat textured quad. Override for custom texture resolution.
      */
-    protected void renderSprite(GuiGraphics graphics, WidgetSpec w) {
+    protected void renderSprite(GuiGraphicsExtractor graphics, WidgetSpec w) {
         int[] origin = builder().originOf(w);
         renderer.renderSprite(graphics, w, origin[0], origin[1]);
     }
@@ -326,7 +326,7 @@ public class SpecScreen extends Screen implements ActionHost {
     /**
      * Draws a {@code progress} widget as a solid-fill bar. Override for custom styling.
      */
-    protected void renderProgress(GuiGraphics graphics, WidgetSpec w) {
+    protected void renderProgress(GuiGraphicsExtractor graphics, WidgetSpec w) {
         int[] origin = builder().originOf(w);
         renderer.renderProgress(graphics, this.font, w, origin[0], origin[1]);
     }
@@ -335,7 +335,7 @@ public class SpecScreen extends Screen implements ActionHost {
      * Draws an {@code icon} widget. No-op by default; override
      * {@link #resolveIcon} to map an icon id to your mod's texture.
      */
-    protected void renderIcon(GuiGraphics graphics, WidgetSpec w) {
+    protected void renderIcon(GuiGraphicsExtractor graphics, WidgetSpec w) {
         int[] origin = builder().originOf(w);
         renderer.renderIcon(graphics, w, origin[0], origin[1], this::resolveIcon);
     }
@@ -349,7 +349,7 @@ public class SpecScreen extends Screen implements ActionHost {
      * Draws a {@code requirement} widget: an item icon with a satisfied/unmet colored border.
      * Uses {@link #resolveIcon} to map the widget's {@code icon} id to a texture, same as {@code icon}.
      */
-    protected void renderRequirement(GuiGraphics graphics, WidgetSpec w) {
+    protected void renderRequirement(GuiGraphicsExtractor graphics, WidgetSpec w) {
         int[] origin = builder().originOf(w);
         renderer.renderRequirement(graphics, w, origin[0], origin[1], this::resolveIcon);
     }
@@ -358,7 +358,7 @@ public class SpecScreen extends Screen implements ActionHost {
      * Draws a {@code custom} widget by delegating to its registered {@link CustomWidgetRenderer},
      * or a labeled placeholder if none is registered for its {@code customType}.
      */
-    protected void renderCustom(GuiGraphics graphics, WidgetSpec w) {
+    protected void renderCustom(GuiGraphicsExtractor graphics, WidgetSpec w) {
         int[] origin = builder().originOf(w);
         renderer.renderCustom(graphics, this.font, w, origin[0], origin[1]);
     }

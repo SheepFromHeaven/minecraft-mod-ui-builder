@@ -1,6 +1,6 @@
 package sheepfromheaven.screenspec.runtime;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 
 /**
@@ -28,7 +28,7 @@ final class TabButtonWidget extends Button {
     }
 
     @Override
-    protected void renderContents(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         // Only the selected tab draws its sprite here, on top of the body panel (its bottom bevel
         // overlaps and hides the panel's top edge). Unselected tabs' sprites are drawn by the host
         // screen's background pass so the panel renders OVER their bottom edge — vanilla's
@@ -36,6 +36,6 @@ final class TabButtonWidget extends Button {
         if (selected) {
             renderer.renderTab(graphics, true, position, nested, getX(), getY(), getWidth(), getHeight());
         }
-        renderDefaultLabel(graphics.textRendererForWidget(this, GuiGraphics.HoveredTextEffects.NONE));
+        extractDefaultLabel(graphics.textRendererForWidget(this, GuiGraphicsExtractor.HoveredTextEffects.NONE));
     }
 }

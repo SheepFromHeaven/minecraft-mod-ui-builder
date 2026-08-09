@@ -1,6 +1,6 @@
 package sheepfromheaven.screenspec.runtime;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 
 /** A {@link Button} that additionally tracks a pressed/selected visual state. */
@@ -20,12 +20,12 @@ final class ToggleButtonWidget extends Button {
     }
 
     @Override
-    protected void renderContents(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        renderDefaultSprite(guiGraphics);
-        renderDefaultLabel(guiGraphics.textRendererForWidget(this, GuiGraphics.HoveredTextEffects.NONE));
+    protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
+        extractDefaultSprite(graphics);
+        extractDefaultLabel(graphics.textRendererForWidget(this, GuiGraphicsExtractor.HoveredTextEffects.NONE));
         if (selected) {
-            guiGraphics.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), 0x665CD9FF);
-            guiGraphics.renderOutline(getX(), getY(), getWidth(), getHeight(), 0xFF5CD9FF);
+            graphics.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), 0x665CD9FF);
+            graphics.outline(getX(), getY(), getWidth(), getHeight(), 0xFF5CD9FF);
         }
     }
 }

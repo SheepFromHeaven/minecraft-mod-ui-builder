@@ -1,6 +1,6 @@
 package sheepfromheaven.screenspec.runtime;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -112,7 +112,7 @@ final class SpecScrollbarWidget extends AbstractWidget {
     }
 
     @Override
-    protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
         // same bevel as a slot cell (matches webapp's mc_slot_tile.png border-image on the track)
         int x = getX(), y = getY(), r = x + getWidth(), b = y + getHeight();
         graphics.fill(x,     y,     r,     y + 1, 0xFF373737); // top dark

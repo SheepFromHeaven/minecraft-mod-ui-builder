@@ -1,0 +1,18 @@
+"use client";
+
+import { useEffect } from "react";
+import { initPostHog } from "@/lib/analytics";
+import { CookieConsentBanner } from "@/components/CookieConsentBanner";
+
+export function PostHogProvider({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    initPostHog();
+  }, []);
+
+  return (
+    <>
+      {children}
+      <CookieConsentBanner />
+    </>
+  );
+}

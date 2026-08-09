@@ -68,7 +68,9 @@ public final class SlotAreaVisibility {
                 Slot old = menuSlots.get(slotIndex);
                 int x = visible ? area.slotX(c) : ScrollableSlotArea.OFFSCREEN;
                 int y = visible ? area.slotY(r) : ScrollableSlotArea.OFFSCREEN;
-                menuSlots.set(slotIndex, new Slot(old.container, old.getContainerSlot(), x, y));
+                Slot replacement = new Slot(old.container, old.getContainerSlot(), x, y);
+                replacement.index = old.index;
+                menuSlots.set(slotIndex, replacement);
             }
         }
     }

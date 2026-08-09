@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.3](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.12.2...neoforge-runtime-v0.12.3) (2026-08-09)
+
+
+### Bug Fixes
+
+* **neoforge-runtime:** guard modrinth_project_id with findProperty to avoid build failure when property is absent ([cf4480a](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/cf4480a67a8e39915eb6f3956427fbaa72f860e9))
+* **neoforge-runtime:** preserve slot index when repositioning slot areas ([#70](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/issues/70)) ([fa8d8be](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/fa8d8be1f2a2ecb0eab60110206095733ab48815))
+
 ## [0.12.2](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.12.1...neoforge-runtime-v0.12.2) (2026-08-08)
 
 

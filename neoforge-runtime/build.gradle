@@ -42,7 +42,7 @@ java {
 
 modrinth {
     token = System.getenv("MODRINTH_TOKEN")
-    projectId = modrinth_project_id
+    projectId = project.findProperty("modrinth_project_id") ?: ""
     versionNumber = mod_version
     versionName = "ScreenSpec ${mod_version} for MC ${minecraft_version}"
     versionType = "release"

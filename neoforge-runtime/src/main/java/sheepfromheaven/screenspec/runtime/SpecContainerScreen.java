@@ -9,7 +9,10 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -38,6 +41,8 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
     private final Map<String, ScrollableSlotArea> scrollableAreas;
     private final SpecWidgetRenderer renderer;
     private SpecWidgetBuilder builder;
+    private final Map<String, List<ActionListener>> listeners = new HashMap<>();
+    private final List<ActionListener> globalListeners = new ArrayList<>();
 
     /**
      * Opens this screen by re-reading the spec JSON from disk on every open — use this constructor
@@ -60,6 +65,10 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
         this.imageWidth = spec.width;
         this.imageHeight = spec.height;
         this.inventoryLabelY = this.imageHeight - 94;
+    }
+
+    public ScreenSpec spec() {
+        return spec;
     }
 
     private SpecWidgetBuilder builder() {
@@ -100,9 +109,62 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
 
     // --- ActionHost implementation ---
 
+    private String qualify(String id) {
+        return SpecWidgetRenderer.qualify(spec.modId, id);
+    }
+
+    /**
+     * Registers a listener for a specific widget id or action id.
+     *
+     * @param key widget id (e.g. {@code "save_btn"}) or action id (e.g. {@code "my_mod:save"})
+     */
+    public SpecContainerScreen<T> on(String key, ActionListener listener) {
+        listeners.computeIfAbsent(Objects.requireNonNull(key), k -> new ArrayList<>()).add(listener);
+        return this;
+    }
+
+    /** Registers a listener that fires for every widget action on this screen. */
+    public SpecContainerScreen<T> onAny(ActionListener listener) {
+        globalListeners.add(listener);
+        return this;
+    }
+
+    /**
+     * Registers a validated listener for a declared action id. Throws
+     * {@link IllegalArgumentException} at startup time if {@code localAction}
+     * is not listed in {@link ScreenSpec#actions}.
+     */
+    public SpecContainerScreen<T> onDeclaredAction(String localAction, ActionListener listener) {
+        Set<String> known = spec.knownActions();
+        if (!known.isEmpty() && !known.contains(localAction)) {
+            throw new IllegalArgumentException(
+                "Action \"" + localAction + "\" is not declared in screen \""
+                + spec.id + "\". Known actions: " + known
+            );
+        }
+        return on(qualify(localAction), listener);
+    }
+
     @Override
     public void dispatchAction(String widgetId, WidgetSpec widgetSpec, Object value) {
-        onAction(widgetId, widgetSpec, value);
+        String action = qualify(widgetSpec.action);
+
+        if (action != null && !action.isEmpty()) {
+            List<ActionListener> byAction = listeners.get(action);
+            if (byAction != null) {
+                for (ActionListener l : byAction) l.on(widgetId, widgetSpec, value);
+            }
+        }
+
+        List<ActionListener> byId = listeners.get(widgetId);
+        if (byId != null) {
+            for (ActionListener l : byId) l.on(widgetId, widgetSpec, value);
+        }
+
+        for (ActionListener l : globalListeners) l.on(widgetId, widgetSpec, value);
+
+        String actionId = (action != null && !action.isEmpty()) ? action : widgetId;
+        onAction(actionId, widgetSpec, value);
     }
 
     @Override
@@ -118,8 +180,11 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
     /**
      * Called whenever a widget fires an action (button press, toggle, slider, input).
      * Override in subclasses to wire up behavior — mirrors {@link SpecScreen#onAction}.
+     *
+     * <p>{@code actionId} is the widget's qualified action id (e.g. {@code "my_mod.save"})
+     * when the widget has an {@code action} field set, or the widget id otherwise.
      */
-    protected void onAction(String widgetId, WidgetSpec widgetSpec, Object value) {
+    protected void onAction(String actionId, WidgetSpec widgetSpec, Object value) {
     }
 
     /** Switches a {@code tabs} widget to the given child tab and rebuilds interactive widgets. */
@@ -128,6 +193,15 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
         builder().setActiveTab(tabsWidgetId, tabId);
         this.clearWidgets();
         init();
+        onTabSwitch(tabsWidgetId, tabId);
+    }
+
+    /** Called after this screen switches a {@code tabs} widget to a different tab via {@link #switchTab}. */
+    protected void onTabSwitch(String tabsWidgetId, String tabId) {
+    }
+
+    /** Called for any {@code WidgetSpec.type} with no registered {@link WidgetFactory} and that isn't panel/label/icon/tabs/tab. */
+    protected void onUnknownWidgetType(WidgetSpec spec) {
     }
 
     @Override
@@ -195,6 +269,30 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
         return w == null || builder().isVisible(w);
     }
 
+    private void applyBindings() {
+        renderer.refreshBindings();
+        for (WidgetSpec w : builder().visibleWidgets()) {
+            if (w.bindings.isEmpty()) continue;
+            AbstractWidget widget = builder().getWidget(w.id);
+            if (widget == null) continue;
+            String enabled = w.bindings.get("enabled");
+            if (enabled != null) {
+                String value = DataRegistry.resolve(qualify(enabled));
+                if (value != null) widget.active = Boolean.parseBoolean(value);
+            }
+            String visible = w.bindings.get("visible");
+            if (visible != null) {
+                String value = DataRegistry.resolve(qualify(visible));
+                if (value != null) widget.visible = Boolean.parseBoolean(value);
+            }
+            String text = w.bindings.get("text");
+            if (text != null) {
+                String value = DataRegistry.resolve(qualify(text));
+                if (value != null) widget.setMessage(Component.literal(value));
+            }
+        }
+    }
+
     /**
      * Draws the screen background: vanilla panel texture covering the full spec area, then
      * the tab-body panel, then explicit {@code panel} widgets, then slot grid borders.
@@ -202,6 +300,7 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
      */
     @Override
     public void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
+        applyBindings();
         boolean hasTabs = this.spec.widgets.stream().anyMatch(w -> w.type.equals("tabs"));
         if (!hasTabs) renderer.renderVanillaPanel(graphics, leftPos, topPos, imageWidth, imageHeight);
         for (WidgetSpec w : this.spec.widgets) {

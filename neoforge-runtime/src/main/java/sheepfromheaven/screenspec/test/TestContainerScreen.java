@@ -1,7 +1,7 @@
 package sheepfromheaven.screenspec.test;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
@@ -34,7 +34,7 @@ public final class TestContainerScreen extends SpecContainerScreen<TestContainer
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null) {
             float health    = mc.player.getHealth();
@@ -45,7 +45,7 @@ public final class TestContainerScreen extends SpecContainerScreen<TestContainer
         if (area != null) {
             bindText("scroll_label", "Row: " + area.scrollRow());
         }
-        super.render(graphics, mouseX, mouseY, partialTick);
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
 
     @Override

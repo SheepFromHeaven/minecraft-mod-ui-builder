@@ -1,7 +1,7 @@
 package sheepfromheaven.screenspec.runtime;
 
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
@@ -47,18 +47,16 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
      * prefer the {@link #SpecContainerScreen(AbstractContainerMenu, Inventory, Component, ScreenSpec)}
      * overload with a {@code static final} spec.
      */
-    public SpecContainerScreen(T menu, Inventory playerInventory, Component title, String namespace, String specName) {
-        this(menu, playerInventory, title, ScreenSpecLoader.fromClasspath(namespace, specName));
+    public SpecContainerScreen(T menu, Inventory inventory, Component title, String namespace, String specName) {
+        this(menu, inventory, title, ScreenSpecLoader.fromClasspath(namespace, specName));
     }
 
-    public SpecContainerScreen(T menu, Inventory playerInventory, Component title, ScreenSpec spec) {
-        super(menu, playerInventory, title);
+    public SpecContainerScreen(T menu, Inventory inventory, Component title, ScreenSpec spec) {
+        super(menu, inventory, title, spec.width, spec.height);
         this.spec = spec;
         this.containerSpec = Objects.requireNonNull(spec.container, "spec.container is null - use SpecScreen for slotless screens");
         this.scrollableAreas = menu instanceof ScrollableAreaHost host ? host.scrollableAreas() : Map.of();
         this.renderer = new SpecWidgetRenderer(spec);
-        this.imageWidth = spec.width;
-        this.imageHeight = spec.height;
         this.inventoryLabelY = this.imageHeight - 94;
     }
 
@@ -74,7 +72,7 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
 
     /**
      * Sets the display text of a label widget, overriding the static {@code text} field from the
-     * spec. Safe to call from {@link #render} each frame for live data.
+     * spec. Safe to call from {@link #extractRenderState} each frame for live data.
      */
     protected void bindText(String widgetId, String text) {
         renderer.bindText(widgetId, text);
@@ -82,7 +80,7 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
 
     /**
      * Sets a progress widget's numeric value, overriding its static {@code value} prop. Safe to
-     * call from {@link #render} each frame for live data.
+     * call from {@link #extractRenderState} each frame for live data.
      */
     protected void bindValue(String widgetId, double value) {
         renderer.bindValue(widgetId, value);
@@ -201,7 +199,7 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
      * Called by the MC rendering pipeline before interactive widgets and labels.
      */
     @Override
-    public void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
+    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
         boolean hasTabs = this.spec.widgets.stream().anyMatch(w -> w.type.equals("tabs"));
         if (!hasTabs) renderer.renderVanillaPanel(graphics, leftPos, topPos, imageWidth, imageHeight);
         for (WidgetSpec w : this.spec.widgets) {
@@ -227,7 +225,7 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
     }
 
     /** Draws the raised-panel bevel for the body area below a {@code tabs} widget's header row. */
-    protected void renderTabBody(GuiGraphics graphics, WidgetSpec tabsWidget) {
+    protected void renderTabBody(GuiGraphicsExtractor graphics, WidgetSpec tabsWidget) {
         int[] origin = builder().originOf(tabsWidget);
         int tabHeight = tabsWidget.propInt("tab_height", 20);
         renderer.renderVanillaPanel(graphics, origin[0], origin[1] + tabHeight, tabsWidget.w, tabsWidget.h - tabHeight);
@@ -240,7 +238,7 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
      * screen-relative (0,0 = screen top-left corner).
      */
     @Override
-    protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
+    protected void extractLabels(GuiGraphicsExtractor graphics, int xm, int ym) {
         renderer.refreshBindings();
         for (WidgetSpec w : builder().visibleWidgets()) {
             int[] o = builder().originOf(w);
@@ -282,7 +280,7 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
      * Draws a vanilla-styled slot grid for {@code area}. Row count comes from
      * {@link ScrollableSlotArea#visibleRows()} when scrollable, otherwise {@code area.viewport_rows}.
      */
-    protected void drawSlotGrid(GuiGraphics graphics, SlotAreaSpec area) {
+    protected void drawSlotGrid(GuiGraphicsExtractor graphics, SlotAreaSpec area) {
         int x = leftPos + area.x;
         int y = topPos + area.y;
         ScrollableSlotArea scrollArea = scrollableAreas.get(area.id);
@@ -302,29 +300,29 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
         }
     }
 
-    protected void renderPanel(GuiGraphics graphics, WidgetSpec w) {
+    protected void renderPanel(GuiGraphicsExtractor graphics, WidgetSpec w) {
         int[] o = builder().originOf(w);
         renderer.renderPanel(graphics, w, o[0], o[1]);
     }
 
     /** Draws a {@code sprite} widget as a flat textured quad. Override for custom texture resolution. */
-    protected void renderSprite(GuiGraphics graphics, WidgetSpec w) {
+    protected void renderSprite(GuiGraphicsExtractor graphics, WidgetSpec w) {
         int[] o = builder().originOf(w);
         renderer.renderSprite(graphics, w, o[0], o[1]);
     }
 
     /** Draws a {@code progress} widget as a solid-fill bar. Override for custom styling. */
-    protected void renderProgress(GuiGraphics graphics, WidgetSpec w) {
+    protected void renderProgress(GuiGraphicsExtractor graphics, WidgetSpec w) {
         int[] o = builder().originOf(w);
         renderer.renderProgress(graphics, this.font, w, o[0], o[1]);
     }
 
-    protected void renderLabel(GuiGraphics graphics, WidgetSpec w) {
+    protected void renderLabel(GuiGraphicsExtractor graphics, WidgetSpec w) {
         int[] o = builder().originOf(w);
         renderer.renderLabel(graphics, this.font, w, o[0], o[1]);
     }
 
-    protected void renderIcon(GuiGraphics graphics, WidgetSpec w) {
+    protected void renderIcon(GuiGraphicsExtractor graphics, WidgetSpec w) {
         int[] o = builder().originOf(w);
         renderer.renderIcon(graphics, w, o[0], o[1], this::resolveIcon);
     }
@@ -338,7 +336,7 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
      * Draws a {@code custom} widget by delegating to its registered {@link CustomWidgetRenderer},
      * or a labeled placeholder if none is registered for its {@code customType}.
      */
-    protected void renderCustom(GuiGraphics graphics, WidgetSpec w) {
+    protected void renderCustom(GuiGraphicsExtractor graphics, WidgetSpec w) {
         int[] o = builder().originOf(w);
         renderer.renderCustom(graphics, this.font, w, o[0], o[1]);
     }

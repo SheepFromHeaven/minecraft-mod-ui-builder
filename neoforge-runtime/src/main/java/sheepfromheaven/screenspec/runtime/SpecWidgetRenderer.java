@@ -1,7 +1,7 @@
 package sheepfromheaven.screenspec.runtime;
 
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 
@@ -123,7 +123,7 @@ final class SpecWidgetRenderer {
      * Draws a {@code panel} widget using the MC nine-slice sprite, at {@code (x, y)} in screen
      * space (the caller has already added its own origin offset to {@code w.x}/{@code w.y}).
      */
-    void renderPanel(GuiGraphics graphics, WidgetSpec w, int x, int y) {
+    void renderPanel(GuiGraphicsExtractor graphics, WidgetSpec w, int x, int y) {
         String style = w.prop("style", "default");
         if (style.equals("transparent")) {
             return;
@@ -158,7 +158,7 @@ final class SpecWidgetRenderer {
      * body area, which needs the same "framed panel" look without being an actual {@code panel}
      * widget itself.
      */
-    void renderVanillaPanel(GuiGraphics graphics, int x, int y, int w, int h) {
+    void renderVanillaPanel(GuiGraphicsExtractor graphics, int x, int y, int w, int h) {
         int rightU  = PANEL_CONTENT_W - PANEL_BORDER;
         int bottomV = PANEL_CONTENT_H - PANEL_BORDER;
         int destFillW = Math.max(0, w - PANEL_BORDER * 2);
@@ -192,9 +192,9 @@ final class SpecWidgetRenderer {
      * resolved bound/pinned text (see {@link #resolveText}).
      *
      * <p>The default color 0xFF404040 matches vanilla's own container title color (-12566464), which
-     * includes full alpha — without the 0xFF alpha byte, drawString treats the text as transparent.
+     * includes full alpha — without the 0xFF alpha byte, text treats the text as transparent.
      */
-    void renderLabel(GuiGraphics graphics, Font font, WidgetSpec w, int x, int y) {
+    void renderLabel(GuiGraphicsExtractor graphics, Font font, WidgetSpec w, int x, int y) {
         int color = w.propInt("color", 0xFF404040);
         boolean shadow = w.propBoolean("shadow", false);
         String align = w.prop("align", "left");
@@ -205,11 +205,11 @@ final class SpecWidgetRenderer {
             case "right" -> x + w.w - textWidth;
             default -> x;
         };
-        graphics.drawString(font, text, alignedX, y, color, shadow);
+        graphics.text(font, text, alignedX, y, color, shadow);
     }
 
     /** Draws an {@code icon} widget at {@code (x, y)} in screen space. No-op if {@code resolveIcon} returns {@code null}. */
-    void renderIcon(GuiGraphics graphics, WidgetSpec w, int x, int y, IconResolver resolveIcon) {
+    void renderIcon(GuiGraphicsExtractor graphics, WidgetSpec w, int x, int y, IconResolver resolveIcon) {
         Identifier location = resolveIcon.resolve(w);
         if (location == null) {
             return;
@@ -227,7 +227,7 @@ final class SpecWidgetRenderer {
      * satisfied} binding - fulfilled requirements (green by default) vs. unmet ones (red by
      * default). Ported from mine-now's {@code StructureMarkerScreen#drawRequirementRow} slot look.
      */
-    void renderRequirement(GuiGraphics graphics, WidgetSpec w, int x, int y, IconResolver resolveIcon) {
+    void renderRequirement(GuiGraphicsExtractor graphics, WidgetSpec w, int x, int y, IconResolver resolveIcon) {
         boolean satisfied = resolveSatisfied(w, false);
         int borderColor = (satisfied
                 ? w.propInt("color_met", REQUIREMENT_COLOR_MET)
@@ -297,7 +297,7 @@ final class SpecWidgetRenderer {
     /** Draws a {@code tabs} selector button. {@code nested} selects the compact {@code widget/tab}
      *  sprite (3px uniform border); {@code !nested} uses vanilla's creative-inventory sprite (4px,
      *  position-dependent). */
-    void renderTab(GuiGraphics graphics, boolean active, TabButtonWidget.Position position, boolean nested, int x, int y, int w, int h) {
+    void renderTab(GuiGraphicsExtractor graphics, boolean active, TabButtonWidget.Position position, boolean nested, int x, int y, int w, int h) {
         if (nested) {
             renderNestedTab(graphics, active, x, y, w, h);
         } else {
@@ -305,7 +305,7 @@ final class SpecWidgetRenderer {
         }
     }
 
-    private void renderTopTab(GuiGraphics graphics, boolean active, TabButtonWidget.Position position, int x, int y, int w, int h) {
+    private void renderTopTab(GuiGraphicsExtractor graphics, boolean active, TabButtonWidget.Position position, int x, int y, int w, int h) {
         Identifier tex;
         if (!active) {
             tex = TAB_UNSELECTED;
@@ -347,7 +347,7 @@ final class SpecWidgetRenderer {
         }
     }
 
-    private void renderNestedTab(GuiGraphics graphics, boolean active, int x, int y, int w, int h) {
+    private void renderNestedTab(GuiGraphicsExtractor graphics, boolean active, int x, int y, int w, int h) {
         Identifier tex    = active ? NESTED_TAB_SEL : NESTED_TAB_UNSEL;
         int b             = NESTED_TAB_BORDER;
         int topV          = active ? 0 : NESTED_TAB_UNSELECTED_TOP_V;
@@ -389,7 +389,7 @@ final class SpecWidgetRenderer {
      * {@code contain}/{@code cover}/{@code none} require the natural texture size, which is
      * not available at render time without querying the texture manager; they fall back to fill.
      */
-    void renderSprite(GuiGraphics graphics, WidgetSpec w, int x, int y) {
+    void renderSprite(GuiGraphicsExtractor graphics, WidgetSpec w, int x, int y) {
         String src = w.prop("src", "");
         if (src.isEmpty()) return;
         Identifier tex = spriteTexCache.computeIfAbsent(src, s -> Identifier.withDefaultNamespace("textures/" + s));
@@ -437,7 +437,7 @@ final class SpecWidgetRenderer {
      * percentage label. {@code value} comes from this widget's {@code value} binding/pin if set
      * (see {@link #resolveValue}), otherwise its static {@code value} prop.
      */
-    void renderProgress(GuiGraphics graphics, Font font, WidgetSpec w, int x, int y) {
+    void renderProgress(GuiGraphicsExtractor graphics, Font font, WidgetSpec w, int x, int y) {
         double min = w.propDouble("min", 0);
         double max = w.propDouble("max", 100);
         double value = resolveValue(w, w.propDouble("value", min));
@@ -458,7 +458,7 @@ final class SpecWidgetRenderer {
             String text = template.replace("%s", String.valueOf(Math.round(frac * 100)));
             int textX = x + (w.w - font.width(text)) / 2;
             int textY = y + (w.h - font.lineHeight) / 2 + 1;
-            graphics.drawString(font, text, textX, textY, 0xFFFFFFFF, false);
+            graphics.text(font, text, textX, textY, 0xFFFFFFFF, false);
         }
     }
 
@@ -470,7 +470,7 @@ final class SpecWidgetRenderer {
      * {@link CustomWidgetRenderer} is registered under this widget's {@code customType} prop, or
      * falls back to the same labeled placeholder box the designer shows if none is registered yet.
      */
-    void renderCustom(GuiGraphics graphics, Font font, WidgetSpec w, int x, int y) {
+    void renderCustom(GuiGraphicsExtractor graphics, Font font, WidgetSpec w, int x, int y) {
         String customType = w.prop("customType", "");
         CustomWidgetRenderer renderer = CustomWidgetRegistry.get(customType);
         if (renderer != null) {
@@ -485,11 +485,11 @@ final class SpecWidgetRenderer {
         String label = customType.isEmpty() ? "custom" : customType;
         int textX = x + (w.w - font.width(label)) / 2;
         int textY = y + (w.h - font.lineHeight) / 2;
-        graphics.drawString(font, label, textX, textY, 0xFFFFFFFF, false);
+        graphics.text(font, label, textX, textY, 0xFFFFFFFF, false);
     }
 
     /** Blits one nine-slice piece: a {@code srcW x srcH} source region (from a {@code texW x texH} texture) stretched to {@code destW x destH}. */
-    private void ninePatch(GuiGraphics graphics, Identifier tex, int x, int y, int u, int v, int srcW, int srcH, int destW, int destH, int texW, int texH) {
+    private void ninePatch(GuiGraphicsExtractor graphics, Identifier tex, int x, int y, int u, int v, int srcW, int srcH, int destW, int destH, int texW, int texH) {
         if (destW <= 0 || destH <= 0) return;
         graphics.blit(RenderPipelines.GUI_TEXTURED, tex, x, y, u, v, destW, destH, srcW, srcH, texW, texH, -1);
     }

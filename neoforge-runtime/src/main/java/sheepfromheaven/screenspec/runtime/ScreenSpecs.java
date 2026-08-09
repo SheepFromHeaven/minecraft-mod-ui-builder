@@ -2,6 +2,7 @@ package sheepfromheaven.screenspec.runtime;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.Gui;
 
 import java.util.function.Supplier;
 
@@ -34,14 +35,14 @@ public final class ScreenSpecs {
 
     /**
      * Opens {@code spec} the right way: {@code plainScreen} is called and its result handed to
-     * {@link Minecraft#setScreen} when {@code spec.container} is {@code null}; otherwise
+     * {@link Gui#setScreen} when {@code spec.container} is {@code null}; otherwise
      * {@code containerOpener} is called instead and {@code plainScreen} is never touched.
      */
     public static void open(ScreenSpec spec, Supplier<Screen> plainScreen, ContainerOpener containerOpener) {
         if (spec.container != null) {
             containerOpener.open();
         } else {
-            Minecraft.getInstance().setScreen(plainScreen.get());
+            Minecraft.getInstance().gui.setScreen(plainScreen.get());
         }
     }
 }

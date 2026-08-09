@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.4](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.12.3...neoforge-runtime-v0.12.4) (2026-08-09)
+
+
+### Bug Fixes
+
+* **neoforge-runtime:** bring SpecContainerScreen up to parity with SpecScreen ([6f2161c](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/6f2161c16ff8e13e45a9a2fd86deeb11c1dbd111))
+
 ## [0.12.3](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.12.2...neoforge-runtime-v0.12.3) (2026-08-09)
 
 

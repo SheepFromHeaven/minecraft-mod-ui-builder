@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.11.0...webapp-v0.12.0) (2026-08-09)
+
+
+### Features
+
+* **webapp:** add PostHog analytics with cookie consent gate ([#68](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/issues/68)) ([26f3823](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/26f3823e4e6a118ac9682981e65b20f61d41bec9))
+
 ## [0.11.0](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/webapp-v0.10.0...webapp-v0.11.0) (2026-08-08)
 
 

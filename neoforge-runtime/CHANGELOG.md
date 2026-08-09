@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.5](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.12.4...neoforge-runtime-v0.12.5) (2026-08-09)
+
+
+### Bug Fixes
+
+* **neoforge-runtime:** restore modrinth_project_id property and revert findProperty guard ([0499d87](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/commit/0499d8705d2d3abae7283f6d288fad255bbf5798))
+
 ## [0.12.4](https://github.com/SheepFromHeaven/minecraft-mod-ui-builder/compare/neoforge-runtime-v0.12.3...neoforge-runtime-v0.12.4) (2026-08-09)
 
 

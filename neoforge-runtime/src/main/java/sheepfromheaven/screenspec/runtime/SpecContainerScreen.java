@@ -302,14 +302,14 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
     public void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
         applyBindings();
         boolean hasTabs = this.spec.widgets.stream().anyMatch(w -> w.type.equals("tabs"));
-        if (!hasTabs) renderer.renderVanillaPanel(graphics, leftPos, topPos, imageWidth, imageHeight);
+        if (!hasTabs) renderer.renderVanillaPanel(new McDrawContext(graphics), leftPos, topPos, imageWidth, imageHeight);
         for (WidgetSpec w : this.spec.widgets) {
             if (!w.type.equals("tabs")) continue;
             // Inactive tabs render beneath the body panel (extended by the bevel so their bottom
             // edge tucks behind it) — vanilla creative-inventory layering. The active tab's sprite
             // is drawn by its TabButtonWidget, on top of the panel.
             builder().forEachTab(w, (tab, pos, active, x, y, tw, th) -> {
-                if (!active) renderer.renderTab(graphics, false, pos, w.parentId != null, x, y, tw, th + SpecWidgetBuilder.TAB_OVERLAP);
+                if (!active) renderer.renderTab(new McDrawContext(graphics), false, pos, w.parentId != null, x, y, tw, th + SpecWidgetBuilder.TAB_OVERLAP);
             });
             renderTabBody(graphics, w);
         }
@@ -329,7 +329,7 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
     protected void renderTabBody(GuiGraphics graphics, WidgetSpec tabsWidget) {
         int[] origin = builder().originOf(tabsWidget);
         int tabHeight = tabsWidget.propInt("tab_height", 20);
-        renderer.renderVanillaPanel(graphics, origin[0], origin[1] + tabHeight, tabsWidget.w, tabsWidget.h - tabHeight);
+        renderer.renderVanillaPanel(new McDrawContext(graphics), origin[0], origin[1] + tabHeight, tabsWidget.w, tabsWidget.h - tabHeight);
     }
 
     /**
@@ -345,9 +345,9 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
             int[] o = builder().originOf(w);
             int rx = o[0] - this.leftPos;
             int ry = o[1] - this.topPos;
-            if (w.type.equals("label"))     renderer.renderLabel(graphics, this.font, w, rx, ry);
-            else if (w.type.equals("icon")) renderer.renderIcon(graphics, w, rx, ry, this::resolveIcon);
-            else if (w.type.equals("requirement")) renderer.renderRequirement(graphics, w, rx, ry, this::resolveIcon);
+            if (w.type.equals("label"))     renderer.renderLabel(new McDrawContext(graphics), this.font, w, rx, ry);
+            else if (w.type.equals("icon")) renderer.renderIcon(new McDrawContext(graphics), w, rx, ry, this::resolveIcon);
+            else if (w.type.equals("requirement")) renderer.renderRequirement(new McDrawContext(graphics), w, rx, ry, this::resolveIcon);
         }
     }
 
@@ -403,29 +403,29 @@ public class SpecContainerScreen<T extends AbstractContainerMenu> extends Abstra
 
     protected void renderPanel(GuiGraphics graphics, WidgetSpec w) {
         int[] o = builder().originOf(w);
-        renderer.renderPanel(graphics, w, o[0], o[1]);
+        renderer.renderPanel(new McDrawContext(graphics), w, o[0], o[1]);
     }
 
     /** Draws a {@code sprite} widget as a flat textured quad. Override for custom texture resolution. */
     protected void renderSprite(GuiGraphics graphics, WidgetSpec w) {
         int[] o = builder().originOf(w);
-        renderer.renderSprite(graphics, w, o[0], o[1]);
+        renderer.renderSprite(new McDrawContext(graphics), w, o[0], o[1]);
     }
 
     /** Draws a {@code progress} widget as a solid-fill bar. Override for custom styling. */
     protected void renderProgress(GuiGraphics graphics, WidgetSpec w) {
         int[] o = builder().originOf(w);
-        renderer.renderProgress(graphics, this.font, w, o[0], o[1]);
+        renderer.renderProgress(new McDrawContext(graphics), this.font, w, o[0], o[1]);
     }
 
     protected void renderLabel(GuiGraphics graphics, WidgetSpec w) {
         int[] o = builder().originOf(w);
-        renderer.renderLabel(graphics, this.font, w, o[0], o[1]);
+        renderer.renderLabel(new McDrawContext(graphics), this.font, w, o[0], o[1]);
     }
 
     protected void renderIcon(GuiGraphics graphics, WidgetSpec w) {
         int[] o = builder().originOf(w);
-        renderer.renderIcon(graphics, w, o[0], o[1], this::resolveIcon);
+        renderer.renderIcon(new McDrawContext(graphics), w, o[0], o[1], this::resolveIcon);
     }
 
     /** Resolves an {@code icon} widget's {@code icon} id to a texture location. Returns {@code null} (no-op) by default. */

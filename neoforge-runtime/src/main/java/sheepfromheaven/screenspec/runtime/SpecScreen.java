@@ -242,7 +242,7 @@ public class SpecScreen extends Screen implements ActionHost {
             if (!w.type.equals("tabs")) continue;
             // Inactive tabs render beneath the body panel (see SpecContainerScreen.renderBg).
             builder().forEachTab(w, (tab, pos, active, x, y, tw, th) -> {
-                if (!active) renderer.renderTab(graphics, false, pos, w.parentId != null, x, y, tw, th + SpecWidgetBuilder.TAB_OVERLAP);
+                if (!active) renderer.renderTab(new McDrawContext(graphics), false, pos, w.parentId != null, x, y, tw, th + SpecWidgetBuilder.TAB_OVERLAP);
             });
             renderTabBody(graphics, w);
         }
@@ -270,7 +270,7 @@ public class SpecScreen extends Screen implements ActionHost {
     protected void renderTabBody(GuiGraphics graphics, WidgetSpec tabsWidget) {
         int[] origin = builder().originOf(tabsWidget);
         int tabHeight = tabsWidget.propInt("tab_height", 20);
-        renderer.renderVanillaPanel(graphics, origin[0], origin[1] + tabHeight, tabsWidget.w, tabsWidget.h - tabHeight);
+        renderer.renderVanillaPanel(new McDrawContext(graphics), origin[0], origin[1] + tabHeight, tabsWidget.w, tabsWidget.h - tabHeight);
     }
 
     private void applyBindings() {
@@ -303,7 +303,7 @@ public class SpecScreen extends Screen implements ActionHost {
      */
     protected void renderPanel(GuiGraphics graphics, WidgetSpec w) {
         int[] origin = builder().originOf(w);
-        renderer.renderPanel(graphics, w, origin[0], origin[1]);
+        renderer.renderPanel(new McDrawContext(graphics), w, origin[0], origin[1]);
     }
 
     /**
@@ -312,7 +312,7 @@ public class SpecScreen extends Screen implements ActionHost {
      */
     protected void renderLabel(GuiGraphics graphics, WidgetSpec w) {
         int[] origin = builder().originOf(w);
-        renderer.renderLabel(graphics, this.font, w, origin[0], origin[1]);
+        renderer.renderLabel(new McDrawContext(graphics), this.font, w, origin[0], origin[1]);
     }
 
     /**
@@ -320,7 +320,7 @@ public class SpecScreen extends Screen implements ActionHost {
      */
     protected void renderSprite(GuiGraphics graphics, WidgetSpec w) {
         int[] origin = builder().originOf(w);
-        renderer.renderSprite(graphics, w, origin[0], origin[1]);
+        renderer.renderSprite(new McDrawContext(graphics), w, origin[0], origin[1]);
     }
 
     /**
@@ -328,7 +328,7 @@ public class SpecScreen extends Screen implements ActionHost {
      */
     protected void renderProgress(GuiGraphics graphics, WidgetSpec w) {
         int[] origin = builder().originOf(w);
-        renderer.renderProgress(graphics, this.font, w, origin[0], origin[1]);
+        renderer.renderProgress(new McDrawContext(graphics), this.font, w, origin[0], origin[1]);
     }
 
     /**
@@ -337,7 +337,7 @@ public class SpecScreen extends Screen implements ActionHost {
      */
     protected void renderIcon(GuiGraphics graphics, WidgetSpec w) {
         int[] origin = builder().originOf(w);
-        renderer.renderIcon(graphics, w, origin[0], origin[1], this::resolveIcon);
+        renderer.renderIcon(new McDrawContext(graphics), w, origin[0], origin[1], this::resolveIcon);
     }
 
     /** Resolves an {@code icon} widget's {@code icon} id to a texture location. Returns {@code null} (no-op) by default. */
@@ -351,7 +351,7 @@ public class SpecScreen extends Screen implements ActionHost {
      */
     protected void renderRequirement(GuiGraphics graphics, WidgetSpec w) {
         int[] origin = builder().originOf(w);
-        renderer.renderRequirement(graphics, w, origin[0], origin[1], this::resolveIcon);
+        renderer.renderRequirement(new McDrawContext(graphics), w, origin[0], origin[1], this::resolveIcon);
     }
 
     /**

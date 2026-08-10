@@ -2,7 +2,6 @@ package sheepfromheaven.screenspec.runtime;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 
 import java.util.HashMap;
@@ -123,16 +122,16 @@ final class SpecWidgetRenderer {
      * Draws a {@code panel} widget using the MC nine-slice sprite, at {@code (x, y)} in screen
      * space (the caller has already added its own origin offset to {@code w.x}/{@code w.y}).
      */
-    void renderPanel(GuiGraphicsExtractor graphics, WidgetSpec w, int x, int y) {
+    void renderPanel(DrawContext ctx, WidgetSpec w, int x, int y) {
         String style = w.prop("style", "default");
         if (style.equals("transparent")) {
             return;
         }
         if (style.equals("dark")) {
-            graphics.fill(x, y, x + w.w, y + w.h, 0x80000000);
+            ctx.fill(x, y, x + w.w, y + w.h, 0x80000000);
             return;
         }
-        renderVanillaPanel(graphics, x, y, w.w, w.h);
+        renderVanillaPanel(ctx, x, y, w.w, w.h);
     }
 
     // Vanilla's own survival-inventory background - the raised-panel bevel look shared by every
@@ -158,31 +157,31 @@ final class SpecWidgetRenderer {
      * body area, which needs the same "framed panel" look without being an actual {@code panel}
      * widget itself.
      */
-    void renderVanillaPanel(GuiGraphicsExtractor graphics, int x, int y, int w, int h) {
+    void renderVanillaPanel(DrawContext ctx, int x, int y, int w, int h) {
         int rightU  = PANEL_CONTENT_W - PANEL_BORDER;
         int bottomV = PANEL_CONTENT_H - PANEL_BORDER;
         int destFillW = Math.max(0, w - PANEL_BORDER * 2);
         int destFillH = Math.max(0, h - PANEL_BORDER * 2);
 
         // top row: corners plus a horizontally-stretched top edge sampled from a safe column
-        ninePatch(graphics, PANEL_TEX, x,                y, 0,               0, PANEL_BORDER,   PANEL_BORDER, PANEL_BORDER, PANEL_BORDER, PANEL_TEX_W, PANEL_TEX_H);
-        ninePatch(graphics, PANEL_TEX, x + PANEL_BORDER,  y, PANEL_SAFE_U,    0, 1,               PANEL_BORDER, destFillW,    PANEL_BORDER, PANEL_TEX_W, PANEL_TEX_H);
-        ninePatch(graphics, PANEL_TEX, x + w - PANEL_BORDER, y, rightU,      0, PANEL_BORDER,   PANEL_BORDER, PANEL_BORDER, PANEL_BORDER, PANEL_TEX_W, PANEL_TEX_H);
+        ninePatch(ctx, PANEL_TEX, x,                y, 0,               0, PANEL_BORDER,   PANEL_BORDER, PANEL_BORDER, PANEL_BORDER, PANEL_TEX_W, PANEL_TEX_H);
+        ninePatch(ctx, PANEL_TEX, x + PANEL_BORDER,  y, PANEL_SAFE_U,    0, 1,               PANEL_BORDER, destFillW,    PANEL_BORDER, PANEL_TEX_W, PANEL_TEX_H);
+        ninePatch(ctx, PANEL_TEX, x + w - PANEL_BORDER, y, rightU,      0, PANEL_BORDER,   PANEL_BORDER, PANEL_BORDER, PANEL_BORDER, PANEL_TEX_W, PANEL_TEX_H);
 
         if (destFillH > 0) {
             // middle rows: left/right edges stretched vertically, center fill stretched both ways
             int midY = y + PANEL_BORDER;
-            ninePatch(graphics, PANEL_TEX, x,                    midY, 0,            PANEL_SAFE_V, PANEL_BORDER, 1, PANEL_BORDER, destFillH, PANEL_TEX_W, PANEL_TEX_H);
-            ninePatch(graphics, PANEL_TEX, x + PANEL_BORDER,      midY, PANEL_SAFE_U, PANEL_SAFE_V, 1,            1, destFillW,    destFillH, PANEL_TEX_W, PANEL_TEX_H);
-            ninePatch(graphics, PANEL_TEX, x + w - PANEL_BORDER,  midY, rightU,       PANEL_SAFE_V, PANEL_BORDER, 1, PANEL_BORDER, destFillH, PANEL_TEX_W, PANEL_TEX_H);
+            ninePatch(ctx, PANEL_TEX, x,                    midY, 0,            PANEL_SAFE_V, PANEL_BORDER, 1, PANEL_BORDER, destFillH, PANEL_TEX_W, PANEL_TEX_H);
+            ninePatch(ctx, PANEL_TEX, x + PANEL_BORDER,      midY, PANEL_SAFE_U, PANEL_SAFE_V, 1,            1, destFillW,    destFillH, PANEL_TEX_W, PANEL_TEX_H);
+            ninePatch(ctx, PANEL_TEX, x + w - PANEL_BORDER,  midY, rightU,       PANEL_SAFE_V, PANEL_BORDER, 1, PANEL_BORDER, destFillH, PANEL_TEX_W, PANEL_TEX_H);
         }
 
         // bottom row: corners plus a horizontally-stretched bottom edge, only if taller than the top border alone
         int bottomDestY = y + h - PANEL_BORDER;
         if (bottomDestY > y + PANEL_BORDER) {
-            ninePatch(graphics, PANEL_TEX, x,                    bottomDestY, 0,            bottomV, PANEL_BORDER, PANEL_BORDER, PANEL_BORDER, PANEL_BORDER, PANEL_TEX_W, PANEL_TEX_H);
-            ninePatch(graphics, PANEL_TEX, x + PANEL_BORDER,      bottomDestY, PANEL_SAFE_U, bottomV, 1,            PANEL_BORDER, destFillW,    PANEL_BORDER, PANEL_TEX_W, PANEL_TEX_H);
-            ninePatch(graphics, PANEL_TEX, x + w - PANEL_BORDER,  bottomDestY, rightU,       bottomV, PANEL_BORDER, PANEL_BORDER, PANEL_BORDER, PANEL_BORDER, PANEL_TEX_W, PANEL_TEX_H);
+            ninePatch(ctx, PANEL_TEX, x,                    bottomDestY, 0,            bottomV, PANEL_BORDER, PANEL_BORDER, PANEL_BORDER, PANEL_BORDER, PANEL_TEX_W, PANEL_TEX_H);
+            ninePatch(ctx, PANEL_TEX, x + PANEL_BORDER,      bottomDestY, PANEL_SAFE_U, bottomV, 1,            PANEL_BORDER, destFillW,    PANEL_BORDER, PANEL_TEX_W, PANEL_TEX_H);
+            ninePatch(ctx, PANEL_TEX, x + w - PANEL_BORDER,  bottomDestY, rightU,       bottomV, PANEL_BORDER, PANEL_BORDER, PANEL_BORDER, PANEL_BORDER, PANEL_TEX_W, PANEL_TEX_H);
         }
     }
 
@@ -194,7 +193,7 @@ final class SpecWidgetRenderer {
      * <p>The default color 0xFF404040 matches vanilla's own container title color (-12566464), which
      * includes full alpha — without the 0xFF alpha byte, text treats the text as transparent.
      */
-    void renderLabel(GuiGraphicsExtractor graphics, Font font, WidgetSpec w, int x, int y) {
+    void renderLabel(DrawContext ctx, Font font, WidgetSpec w, int x, int y) {
         int color = w.propInt("color", 0xFF404040);
         boolean shadow = w.propBoolean("shadow", false);
         String align = w.prop("align", "left");
@@ -205,17 +204,17 @@ final class SpecWidgetRenderer {
             case "right" -> x + w.w - textWidth;
             default -> x;
         };
-        graphics.text(font, text, alignedX, y, color, shadow);
+        ctx.drawText(font, text, alignedX, y, color, shadow);
     }
 
     /** Draws an {@code icon} widget at {@code (x, y)} in screen space. No-op if {@code resolveIcon} returns {@code null}. */
-    void renderIcon(GuiGraphicsExtractor graphics, WidgetSpec w, int x, int y, IconResolver resolveIcon) {
+    void renderIcon(DrawContext ctx, WidgetSpec w, int x, int y, IconResolver resolveIcon) {
         Identifier location = resolveIcon.resolve(w);
         if (location == null) {
             return;
         }
         int scale = w.propInt("scale", 1);
-        graphics.blit(RenderPipelines.GUI_TEXTURED, location, x, y, 0f, 0f, w.w * scale, w.h * scale, w.w * scale, w.h * scale);
+        ctx.blitIcon(location, x, y, w.w * scale, w.h * scale);
     }
 
     private static final int REQUIREMENT_COLOR_MET = 0xFF00FF00;
@@ -227,15 +226,15 @@ final class SpecWidgetRenderer {
      * satisfied} binding - fulfilled requirements (green by default) vs. unmet ones (red by
      * default). Ported from mine-now's {@code StructureMarkerScreen#drawRequirementRow} slot look.
      */
-    void renderRequirement(GuiGraphicsExtractor graphics, WidgetSpec w, int x, int y, IconResolver resolveIcon) {
+    void renderRequirement(DrawContext ctx, WidgetSpec w, int x, int y, IconResolver resolveIcon) {
         boolean satisfied = resolveSatisfied(w, false);
         int borderColor = (satisfied
                 ? w.propInt("color_met", REQUIREMENT_COLOR_MET)
                 : w.propInt("color_unmet", REQUIREMENT_COLOR_UNMET)) | 0xFF000000;
         int borderWidth = Math.max(1, w.propInt("border_width", 2));
 
-        graphics.fill(x, y, x + w.w, y + w.h, borderColor);
-        graphics.fill(x + borderWidth, y + borderWidth, x + w.w - borderWidth, y + w.h - borderWidth, 0xFF8B8B8B);
+        ctx.fill(x, y, x + w.w, y + w.h, borderColor);
+        ctx.fill(x + borderWidth, y + borderWidth, x + w.w - borderWidth, y + w.h - borderWidth, 0xFF8B8B8B);
 
         Identifier location = resolveIcon.resolve(w);
         if (location == null) {
@@ -245,7 +244,7 @@ final class SpecWidgetRenderer {
         int iconY = y + borderWidth;
         int iconW = w.w - borderWidth * 2;
         int iconH = w.h - borderWidth * 2;
-        graphics.blit(RenderPipelines.GUI_TEXTURED, location, iconX, iconY, 0f, 0f, iconW, iconH, iconW, iconH);
+        ctx.blitIcon(location, iconX, iconY, iconW, iconH);
     }
 
     /** Maps an {@code icon} widget's {@code icon} id to a texture location; mirrors each screen's overridable {@code resolveIcon}. */
@@ -297,15 +296,15 @@ final class SpecWidgetRenderer {
     /** Draws a {@code tabs} selector button. {@code nested} selects the compact {@code widget/tab}
      *  sprite (3px uniform border); {@code !nested} uses vanilla's creative-inventory sprite (4px,
      *  position-dependent). */
-    void renderTab(GuiGraphicsExtractor graphics, boolean active, TabButtonWidget.Position position, boolean nested, int x, int y, int w, int h) {
+    void renderTab(DrawContext ctx, boolean active, TabButtonWidget.Position position, boolean nested, int x, int y, int w, int h) {
         if (nested) {
-            renderNestedTab(graphics, active, x, y, w, h);
+            renderNestedTab(ctx, active, x, y, w, h);
         } else {
-            renderTopTab(graphics, active, position, x, y, w, h);
+            renderTopTab(ctx, active, position, x, y, w, h);
         }
     }
 
-    private void renderTopTab(GuiGraphicsExtractor graphics, boolean active, TabButtonWidget.Position position, int x, int y, int w, int h) {
+    private void renderTopTab(DrawContext ctx, boolean active, TabButtonWidget.Position position, int x, int y, int w, int h) {
         Identifier tex;
         if (!active) {
             tex = TAB_UNSELECTED;
@@ -323,16 +322,16 @@ final class SpecWidgetRenderer {
         int destFillH = Math.max(0, h - TAB_BORDER * 2);
 
         // top row: fixed corners, top edge stretched from a 1px-wide safe column
-        ninePatch(graphics, tex, x,                y, 0,          topV, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
-        ninePatch(graphics, tex, x + TAB_BORDER,    y, TAB_SAFE_U, topV, 1,          TAB_BORDER, destFillW,  TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
-        ninePatch(graphics, tex, x + w - TAB_BORDER, y, rightU,    topV, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
+        ninePatch(ctx, tex, x,                y, 0,          topV, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
+        ninePatch(ctx, tex, x + TAB_BORDER,    y, TAB_SAFE_U, topV, 1,          TAB_BORDER, destFillW,  TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
+        ninePatch(ctx, tex, x + w - TAB_BORDER, y, rightU,    topV, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
 
         if (destFillH > 0) {
             // middle rows: left/right edges stretched from a 1px-tall safe row, flat center fill
             int fillY = y + TAB_BORDER;
-            ninePatch(graphics, tex, x,                 fillY, 0,          TAB_SAFE_V, TAB_BORDER, 1, TAB_BORDER, destFillH, TAB_TEX_W, TAB_TEX_H);
-            ninePatch(graphics, tex, x + TAB_BORDER,     fillY, TAB_SAFE_U, TAB_SAFE_V, 1,          1, destFillW,  destFillH, TAB_TEX_W, TAB_TEX_H);
-            ninePatch(graphics, tex, x + w - TAB_BORDER, fillY, rightU,     TAB_SAFE_V, TAB_BORDER, 1, TAB_BORDER, destFillH, TAB_TEX_W, TAB_TEX_H);
+            ninePatch(ctx, tex, x,                 fillY, 0,          TAB_SAFE_V, TAB_BORDER, 1, TAB_BORDER, destFillH, TAB_TEX_W, TAB_TEX_H);
+            ninePatch(ctx, tex, x + TAB_BORDER,     fillY, TAB_SAFE_U, TAB_SAFE_V, 1,          1, destFillW,  destFillH, TAB_TEX_W, TAB_TEX_H);
+            ninePatch(ctx, tex, x + w - TAB_BORDER, fillY, rightU,     TAB_SAFE_V, TAB_BORDER, 1, TAB_BORDER, destFillH, TAB_TEX_W, TAB_TEX_H);
         }
 
         // bottom row: fixed corners from the texture's last 3 rows — these hold the connection art
@@ -341,13 +340,13 @@ final class SpecWidgetRenderer {
         // plain fill, stretched from the safe column.
         int bottomDestY = y + h - TAB_BORDER;
         if (bottomDestY > y + TAB_BORDER) {
-            ninePatch(graphics, tex, x,                 bottomDestY, 0,          bottomV, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
-            ninePatch(graphics, tex, x + TAB_BORDER,     bottomDestY, TAB_SAFE_U, bottomV, 1,          TAB_BORDER, destFillW,  TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
-            ninePatch(graphics, tex, x + w - TAB_BORDER, bottomDestY, rightU,     bottomV, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
+            ninePatch(ctx, tex, x,                 bottomDestY, 0,          bottomV, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
+            ninePatch(ctx, tex, x + TAB_BORDER,     bottomDestY, TAB_SAFE_U, bottomV, 1,          TAB_BORDER, destFillW,  TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
+            ninePatch(ctx, tex, x + w - TAB_BORDER, bottomDestY, rightU,     bottomV, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_BORDER, TAB_TEX_W, TAB_TEX_H);
         }
     }
 
-    private void renderNestedTab(GuiGraphicsExtractor graphics, boolean active, int x, int y, int w, int h) {
+    private void renderNestedTab(DrawContext ctx, boolean active, int x, int y, int w, int h) {
         Identifier tex    = active ? NESTED_TAB_SEL : NESTED_TAB_UNSEL;
         int b             = NESTED_TAB_BORDER;
         int topV          = active ? 0 : NESTED_TAB_UNSELECTED_TOP_V;
@@ -356,22 +355,22 @@ final class SpecWidgetRenderer {
         int destFillW     = Math.max(0, w - b * 2);
         int destFillH     = Math.max(0, h - b * 2);
 
-        ninePatch(graphics, tex, x,         y, 0,                   topV,                b, b, b,         b,         NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
-        ninePatch(graphics, tex, x + b,     y, NESTED_TAB_SAFE_U,   topV,                1, b, destFillW, b,         NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
-        ninePatch(graphics, tex, x + w - b, y, rightU,              topV,                b, b, b,         b,         NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
+        ninePatch(ctx, tex, x,         y, 0,                   topV,                b, b, b,         b,         NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
+        ninePatch(ctx, tex, x + b,     y, NESTED_TAB_SAFE_U,   topV,                1, b, destFillW, b,         NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
+        ninePatch(ctx, tex, x + w - b, y, rightU,              topV,                b, b, b,         b,         NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
 
         if (destFillH > 0) {
             int fillY = y + b;
-            ninePatch(graphics, tex, x,         fillY, 0,                 NESTED_TAB_SAFE_V, b, 1, b,         destFillH, NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
-            ninePatch(graphics, tex, x + b,     fillY, NESTED_TAB_SAFE_U, NESTED_TAB_SAFE_V, 1, 1, destFillW, destFillH, NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
-            ninePatch(graphics, tex, x + w - b, fillY, rightU,            NESTED_TAB_SAFE_V, b, 1, b,         destFillH, NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
+            ninePatch(ctx, tex, x,         fillY, 0,                 NESTED_TAB_SAFE_V, b, 1, b,         destFillH, NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
+            ninePatch(ctx, tex, x + b,     fillY, NESTED_TAB_SAFE_U, NESTED_TAB_SAFE_V, 1, 1, destFillW, destFillH, NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
+            ninePatch(ctx, tex, x + w - b, fillY, rightU,            NESTED_TAB_SAFE_V, b, 1, b,         destFillH, NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
         }
 
         int bottomDestY = y + h - b;
         if (bottomDestY > y + b) {
-            ninePatch(graphics, tex, x,         bottomDestY, 0,                 bottomV, b, b, b,         b, NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
-            ninePatch(graphics, tex, x + b,     bottomDestY, NESTED_TAB_SAFE_U, bottomV, 1, b, destFillW, b, NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
-            ninePatch(graphics, tex, x + w - b, bottomDestY, rightU,            bottomV, b, b, b,         b, NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
+            ninePatch(ctx, tex, x,         bottomDestY, 0,                 bottomV, b, b, b,         b, NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
+            ninePatch(ctx, tex, x + b,     bottomDestY, NESTED_TAB_SAFE_U, bottomV, 1, b, destFillW, b, NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
+            ninePatch(ctx, tex, x + w - b, bottomDestY, rightU,            bottomV, b, b, b,         b, NESTED_TAB_TEX_W, NESTED_TAB_TEX_H);
         }
     }
 
@@ -389,7 +388,7 @@ final class SpecWidgetRenderer {
      * {@code contain}/{@code cover}/{@code none} require the natural texture size, which is
      * not available at render time without querying the texture manager; they fall back to fill.
      */
-    void renderSprite(GuiGraphicsExtractor graphics, WidgetSpec w, int x, int y) {
+    void renderSprite(DrawContext ctx, WidgetSpec w, int x, int y) {
         String src = w.prop("src", "");
         if (src.isEmpty()) return;
         Identifier tex = spriteTexCache.computeIfAbsent(src, s -> Identifier.withDefaultNamespace("textures/" + s));
@@ -402,12 +401,12 @@ final class SpecWidgetRenderer {
                     int dw = Math.min(tileW, w.w - tx);
                     int dh = Math.min(tileH, w.h - ty);
                     // srcW/texW = dw/tileW samples the correct fractional UV for the partial last tile
-                    ninePatch(graphics, tex, x + tx, y + ty, 0, 0, dw, dh, dw, dh, tileW, tileH);
+                    ninePatch(ctx, tex, x + tx, y + ty, 0, 0, dw, dh, dw, dh, tileW, tileH);
                 }
             }
         } else {
             // Treat the texture as a 1×1 atlas so UV spans 0..1 = full texture, stretched to widget bounds.
-            ninePatch(graphics, tex, x, y, 0, 0, 1, 1, w.w, w.h, 1, 1);
+            ninePatch(ctx, tex, x, y, 0, 0, 1, 1, w.w, w.h, 1, 1);
         }
     }
 
@@ -437,28 +436,28 @@ final class SpecWidgetRenderer {
      * percentage label. {@code value} comes from this widget's {@code value} binding/pin if set
      * (see {@link #resolveValue}), otherwise its static {@code value} prop.
      */
-    void renderProgress(GuiGraphicsExtractor graphics, Font font, WidgetSpec w, int x, int y) {
+    void renderProgress(DrawContext ctx, Font font, WidgetSpec w, int x, int y) {
         double min = w.propDouble("min", 0);
         double max = w.propDouble("max", 100);
         double value = resolveValue(w, w.propDouble("value", min));
         double frac = max > min ? Math.max(0.0, Math.min(1.0, (value - min) / (max - min))) : 0.0;
         int filled = Math.round((float) (w.w * frac));
 
-        graphics.fill(x, y, x + w.w, y + w.h, PROGRESS_TRACK_COLOR);
+        ctx.fill(x, y, x + w.w, y + w.h, PROGRESS_TRACK_COLOR);
         if (filled > 0) {
-            graphics.fill(x, y, x + filled, y + w.h, progressFillColor(w, frac));
+            ctx.fill(x, y, x + filled, y + w.h, progressFillColor(w, frac));
         }
-        graphics.fill(x,               y,             x + w.w, y + 1,   PROGRESS_BORDER_COLOR);
-        graphics.fill(x,               y + w.h - 1,   x + w.w, y + w.h, PROGRESS_BORDER_COLOR);
-        graphics.fill(x,               y,             x + 1,   y + w.h, PROGRESS_BORDER_COLOR);
-        graphics.fill(x + w.w - 1,     y,             x + w.w, y + w.h, PROGRESS_BORDER_COLOR);
+        ctx.fill(x,               y,             x + w.w, y + 1,   PROGRESS_BORDER_COLOR);
+        ctx.fill(x,               y + w.h - 1,   x + w.w, y + w.h, PROGRESS_BORDER_COLOR);
+        ctx.fill(x,               y,             x + 1,   y + w.h, PROGRESS_BORDER_COLOR);
+        ctx.fill(x + w.w - 1,     y,             x + w.w, y + w.h, PROGRESS_BORDER_COLOR);
 
         if (w.propBoolean("show_label", true)) {
             String template = w.text.isEmpty() ? "%s%%" : w.text;
             String text = template.replace("%s", String.valueOf(Math.round(frac * 100)));
             int textX = x + (w.w - font.width(text)) / 2;
             int textY = y + (w.h - font.lineHeight) / 2 + 1;
-            graphics.text(font, text, textX, textY, 0xFFFFFFFF, false);
+            ctx.drawText(font, text, textX, textY, 0xFFFFFFFF, false);
         }
     }
 
@@ -477,20 +476,21 @@ final class SpecWidgetRenderer {
             renderer.render(graphics, w, x, y);
             return;
         }
-        graphics.fill(x, y, x + w.w, y + w.h, CUSTOM_PLACEHOLDER_BG);
-        graphics.fill(x,             y,             x + w.w, y + 1,   CUSTOM_PLACEHOLDER_BORDER);
-        graphics.fill(x,             y + w.h - 1,   x + w.w, y + w.h, CUSTOM_PLACEHOLDER_BORDER);
-        graphics.fill(x,             y,             x + 1,   y + w.h, CUSTOM_PLACEHOLDER_BORDER);
-        graphics.fill(x + w.w - 1,   y,             x + w.w, y + w.h, CUSTOM_PLACEHOLDER_BORDER);
+        DrawContext ctx = new McDrawContext(graphics);
+        ctx.fill(x, y, x + w.w, y + w.h, CUSTOM_PLACEHOLDER_BG);
+        ctx.fill(x,             y,             x + w.w, y + 1,   CUSTOM_PLACEHOLDER_BORDER);
+        ctx.fill(x,             y + w.h - 1,   x + w.w, y + w.h, CUSTOM_PLACEHOLDER_BORDER);
+        ctx.fill(x,             y,             x + 1,   y + w.h, CUSTOM_PLACEHOLDER_BORDER);
+        ctx.fill(x + w.w - 1,   y,             x + w.w, y + w.h, CUSTOM_PLACEHOLDER_BORDER);
         String label = customType.isEmpty() ? "custom" : customType;
         int textX = x + (w.w - font.width(label)) / 2;
         int textY = y + (w.h - font.lineHeight) / 2;
-        graphics.text(font, label, textX, textY, 0xFFFFFFFF, false);
+        ctx.drawText(font, label, textX, textY, 0xFFFFFFFF, false);
     }
 
     /** Blits one nine-slice piece: a {@code srcW x srcH} source region (from a {@code texW x texH} texture) stretched to {@code destW x destH}. */
-    private void ninePatch(GuiGraphicsExtractor graphics, Identifier tex, int x, int y, int u, int v, int srcW, int srcH, int destW, int destH, int texW, int texH) {
+    private void ninePatch(DrawContext ctx, Identifier tex, int x, int y, int u, int v, int srcW, int srcH, int destW, int destH, int texW, int texH) {
         if (destW <= 0 || destH <= 0) return;
-        graphics.blit(RenderPipelines.GUI_TEXTURED, tex, x, y, u, v, destW, destH, srcW, srcH, texW, texH, -1);
+        ctx.blitRegion(tex, x, y, u, v, destW, destH, srcW, srcH, texW, texH);
     }
 }

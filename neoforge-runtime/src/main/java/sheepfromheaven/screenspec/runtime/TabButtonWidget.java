@@ -34,7 +34,7 @@ final class TabButtonWidget extends Button {
         // screen's background pass so the panel renders OVER their bottom edge — vanilla's
         // creative-inventory layering. Labels always render here, above everything.
         if (selected) {
-            renderer.renderTab(graphics, true, position, nested, getX(), getY(), getWidth(), getHeight());
+            renderer.renderTab(new McDrawContext(graphics), true, position, nested, getX(), getY(), getWidth(), getHeight());
         }
         extractDefaultLabel(graphics.textRendererForWidget(this, GuiGraphicsExtractor.HoveredTextEffects.NONE));
     }

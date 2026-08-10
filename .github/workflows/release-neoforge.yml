@@ -1,11 +1,18 @@
 name: Release neoforge-runtime (manual)
 
+# Dispatch from any branch — the workflow auto-detects the version from
+# gradle.properties and the ref from the branch you dispatch from.
+#
+# The only optional input is 'tag': provide it to re-release a specific
+# existing GitHub release tag (e.g. neoforge-runtime-v0.3.0) instead of
+# using the current branch HEAD.
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to build and publish (e.g. neoforge-runtime-v0.3.0)"
-        required: true
+        description: "Optional: re-release a specific tag (e.g. neoforge-runtime-v0.3.0). Leave empty to release the current branch."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -20,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.tag }}
+          ref: ${{ github.event.inputs.tag != '' && github.event.inputs.tag || github.ref }}
 
       - uses: actions/setup-java@v4
         with:
@@ -29,14 +36,21 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Extract version from tag
+      - name: Resolve version
         id: version
-        run: echo "version=${TAG#neoforge-runtime-v}" >> "$GITHUB_OUTPUT"
+        run: |
+          if [ -n "$TAG" ]; then
+            echo "version=${TAG#neoforge-runtime-v}" >> "$GITHUB_OUTPUT"
+          else
+            version=$(grep '^mod_version=' gradle.properties | cut -d= -f2)
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+          fi
         env:
           TAG: ${{ github.event.inputs.tag }}
 
-      - name: Fetch release notes
+      - name: Fetch release notes (tag mode only)
         id: notes
+        if: github.event.inputs.tag != ''
         run: |
           body=$(gh release view "$TAG" --json body --jq .body)
           echo "body<<EOF" >> "$GITHUB_OUTPUT"
@@ -56,12 +70,21 @@ jobs:
           RELEASE_NOTES: ${{ steps.notes.outputs.body }}
 
       - name: Publish to GitHub Packages
-        run: ./gradlew publishAllPublicationsToGitHubPackagesRepository -Pmod_version=${{ steps.version.outputs.version }}
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://maven.pkg.github.com/SheepFromHeaven/minecraft-mod-ui-builder/sheepfromheaven/screenspec/screenspec-neoforge/${{ steps.version.outputs.version }}/screenspec-neoforge-${{ steps.version.outputs.version }}.jar")
+          if [ "$status" != "404" ]; then
+            echo "Version ${{ steps.version.outputs.version }} already published to GitHub Packages (status $status), skipping."
+          else
+            ./gradlew publishAllPublicationsToGitHubPackagesRepository -Pmod_version=${{ steps.version.outputs.version }}
+          fi
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Attach jars to GitHub release
+      - name: Attach jars to GitHub release (tag mode only)
+        if: github.event.inputs.tag != ''
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag }}

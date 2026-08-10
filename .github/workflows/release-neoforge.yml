@@ -69,20 +69,6 @@ jobs:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
           RELEASE_NOTES: ${{ steps.notes.outputs.body }}
 
-      - name: Publish to GitHub Packages
-        run: |
-          status=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            "https://maven.pkg.github.com/SheepFromHeaven/minecraft-mod-ui-builder/sheepfromheaven/screenspec/screenspec-neoforge/${{ steps.version.outputs.version }}/screenspec-neoforge-${{ steps.version.outputs.version }}.jar")
-          if [ "$status" != "404" ]; then
-            echo "Version ${{ steps.version.outputs.version }} already published to GitHub Packages (status $status), skipping."
-          else
-            ./gradlew publishAllPublicationsToGitHubPackagesRepository -Pmod_version=${{ steps.version.outputs.version }}
-          fi
-        env:
-          GITHUB_ACTOR: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Attach jars to GitHub release (tag mode only)
         if: github.event.inputs.tag != ''
         uses: softprops/action-gh-release@v2
